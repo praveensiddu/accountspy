@@ -1,18 +1,18 @@
-const ClassifyRulesPanelExt = ({ classifyRules, loading, reload, bankaccounts, items, taxCategories, transactionTypes }) => {
+const ClassifyRulesPanelExt = ({ classifyRules, loading, reload, bankaccounts, items, taxCategories, transactionTypes, groups }) => {
   const Modal = window.Modal;
   const [open, setOpen] = React.useState(false);
   const [mode, setMode] = React.useState('add');
-  const empty = { bankaccountname: '', transaction_type: '', pattern_match_logic: '', tax_category: '', property: '', otherentity: '' };
+  const empty = { bankaccountname: '', transaction_type: '', pattern_match_logic: '', tax_category: '', property: '', group: '', otherentity: '' };
   const [form, setForm] = React.useState(empty);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState('');
   const [originalKey, setOriginalKey] = React.useState(null);
-  const [filter, setFilter] = React.useState({ bankaccountname:'', transaction_type:'', pattern_match_logic:'', tax_category:'', property:'', otherentity:'' });
+  const [filter, setFilter] = React.useState({ bankaccountname:'', transaction_type:'', pattern_match_logic:'', tax_category:'', property:'', group:'', otherentity:'' });
 
   const onChange = (e) => {
     const { name, value } = e.target;
     const v = (value || '').toString();
-    setForm(prev => ({ ...prev, [name]: name === 'bankaccountname' || name === 'transaction_type' || name === 'tax_category' || name === 'property' ? v.toLowerCase() : v }));
+    setForm(prev => ({ ...prev, [name]: ['bankaccountname','transaction_type','tax_category','property','group'].includes(name) ? v.toLowerCase() : v }));
   };
 
   const onSubmit = async (e) => {
@@ -24,6 +24,7 @@ const ClassifyRulesPanelExt = ({ classifyRules, loading, reload, bankaccounts, i
         transaction_type: (form.transaction_type || '').trim().toLowerCase(),
         tax_category: (form.tax_category || '').trim().toLowerCase(),
         property: (form.property || '').trim().toLowerCase(),
+        group: (form.group || '').trim().toLowerCase(),
         pattern_match_logic: (form.pattern_match_logic || '').trim(),
         otherentity: (form.otherentity || '').trim(),
       };
@@ -58,6 +59,7 @@ const ClassifyRulesPanelExt = ({ classifyRules, loading, reload, bankaccounts, i
       pattern_match_logic: rule.pattern_match_logic || '',
       tax_category: (rule.tax_category || '').toLowerCase(),
       property: (rule.property || '').toLowerCase(),
+      group: (rule.group || '').toLowerCase(),
       otherentity: rule.otherentity || '',
     });
     setOpen(true);
@@ -123,6 +125,15 @@ const ClassifyRulesPanelExt = ({ classifyRules, loading, reload, bankaccounts, i
             </select>
           </div>
           <div>
+            <label className="block text-sm font-medium text-gray-700">group</label>
+            <select name="group" value={form.group} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+              <option value="">Select group (optional)</option>
+              {(groups || []).map(g => (
+                <option key={g.groupname} value={(g.groupname || '').toLowerCase()}>{g.groupname}</option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="block text-sm font-medium text-gray-700">otherentity</label>
             <input name="otherentity" value={form.otherentity} onChange={onChange} placeholder="e.g., vendor or payee" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" required />
           </div>
@@ -139,6 +150,7 @@ const ClassifyRulesPanelExt = ({ classifyRules, loading, reload, bankaccounts, i
                 <th>pattern_match_logic</th>
                 <th>tax_category</th>
                 <th>property</th>
+                <th>group</th>
                 <th>otherentity</th>
                 <th></th>
               </tr>
@@ -148,6 +160,7 @@ const ClassifyRulesPanelExt = ({ classifyRules, loading, reload, bankaccounts, i
                 <th><input placeholder="filter" value={filter.pattern_match_logic} onChange={(e)=> setFilter(f=>({...f, pattern_match_logic: e.target.value }))} /></th>
                 <th><input placeholder="filter" value={filter.tax_category} onChange={(e)=> setFilter(f=>({...f, tax_category: e.target.value }))} /></th>
                 <th><input placeholder="filter" value={filter.property} onChange={(e)=> setFilter(f=>({...f, property: e.target.value }))} /></th>
+                <th><input placeholder="filter" value={filter.group} onChange={(e)=> setFilter(f=>({...f, group: e.target.value }))} /></th>
                 <th><input placeholder="filter" value={filter.otherentity} onChange={(e)=> setFilter(f=>({...f, otherentity: e.target.value }))} /></th>
                 <th></th>
               </tr>
@@ -160,6 +173,7 @@ const ClassifyRulesPanelExt = ({ classifyRules, loading, reload, bankaccounts, i
                   (filter.pattern_match_logic ? (r.pattern_match_logic||'').toLowerCase().includes(filter.pattern_match_logic.toLowerCase()) : true) &&
                   (filter.tax_category ? (r.tax_category||'').toLowerCase().includes(filter.tax_category.toLowerCase()) : true) &&
                   (filter.property ? (r.property||'').toLowerCase().includes(filter.property.toLowerCase()) : true) &&
+                  (filter.group ? (r.group||'').toLowerCase().includes(filter.group.toLowerCase()) : true) &&
                   (filter.otherentity ? (r.otherentity||'').toLowerCase().includes(filter.otherentity.toLowerCase()) : true)
                 ))
                 .map((r, idx) => (
@@ -169,6 +183,7 @@ const ClassifyRulesPanelExt = ({ classifyRules, loading, reload, bankaccounts, i
                   <td className="whitespace-pre-wrap">{r.pattern_match_logic}</td>
                   <td>{r.tax_category}</td>
                   <td>{r.property}</td>
+                  <td>{r.group}</td>
                   <td>{r.otherentity}</td>
                   <td>
                     <button onClick={() => onEdit(r)} className="px-2 py-1 mr-2 bg-gray-700 text-white rounded hover:bg-gray-800">Edit</button>

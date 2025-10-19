@@ -54,7 +54,7 @@
       const { useEffect, useState } = React;
 
       // Subtabs component for Classify Rules
-      function ClassifyRulesTabs({ classifyRules, loading, load, bankaccounts, items, taxCategories, transactionTypes }) {
+      function ClassifyRulesTabs({ classifyRules, loading, load, bankaccounts, items, taxCategories, transactionTypes, groups }) {
         const [crSubTab, setCrSubTab] = useState(() => {
           try {
             const v = window.localStorage.getItem('crSubTab');
@@ -62,7 +62,7 @@
           } catch (_) { return 'bank'; }
         });
         const [commonFilter, setCommonFilter] = useState({ transaction_type: '', pattern_match_logic: '' });
-        const [inheritFilter, setInheritFilter] = useState({ bankaccountname: '', tax_category: '', property: '', otherentity: '' });
+        const [inheritFilter, setInheritFilter] = useState({ bankaccountname: '', tax_category: '', property: '', group: '', otherentity: '' });
         const [commonRules, setCommonRules] = useState([]);
         const [inheritRules, setInheritRules] = useState([]);
         const [subLoading, setSubLoading] = useState(false);
@@ -169,12 +169,12 @@
         const [inheritMode, setInheritMode] = useState('add');
         const [inheritSaving, setInheritSaving] = useState(false);
         const [inheritOriginal, setInheritOriginal] = useState(null);
-        const emptyInherit = { bankaccountname:'', transaction_type:'', pattern_match_logic:'', tax_category:'', property:'', otherentity:'' };
+        const emptyInherit = { bankaccountname:'', transaction_type:'', pattern_match_logic:'', tax_category:'', property:'', group:'', otherentity:'' };
         const [inheritForm, setInheritForm] = useState(emptyInherit);
         const onInheritChange = (e) => {
           const { name, value } = e.target;
           const v = (value || '').toString();
-          if (['bankaccountname','transaction_type','tax_category','property'].includes(name)) {
+          if (['bankaccountname','transaction_type','tax_category','property','group'].includes(name)) {
             setInheritForm(prev => ({ ...prev, [name]: v.toLowerCase() }));
           } else {
             setInheritForm(prev => ({ ...prev, [name]: v }));
@@ -192,6 +192,7 @@
             transaction_type: r.transaction_type || '',
             pattern_match_logic: r.pattern_match_logic || '',
             property: r.property || '',
+            group: r.group || '',
             tax_category: r.tax_category || '',
             otherentity: r.otherentity || ''
           };
@@ -213,6 +214,7 @@
             pattern_match_logic: r.pattern_match_logic || '',
             tax_category: (r.tax_category||'').toLowerCase(),
             property: (r.property||'').toLowerCase(),
+            group: (r.group||'').toLowerCase(),
             otherentity: r.otherentity || ''
           });
           setInheritOpen(true);
@@ -225,6 +227,7 @@
             pattern_match_logic: (inheritForm.pattern_match_logic||'').trim(),
             tax_category: (inheritForm.tax_category||'').trim().toLowerCase(),
             property: (inheritForm.property||'').trim().toLowerCase(),
+            group: (inheritForm.group||'').trim().toLowerCase(),
             otherentity: (inheritForm.otherentity||'').trim(),
           };
           if (!payload.bankaccountname || !payload.transaction_type || !payload.pattern_match_logic) return;
@@ -265,6 +268,7 @@
                   items={items}
                   taxCategories={taxCategories}
                   transactionTypes={transactionTypes}
+                  groups={groups}
                 />
               </div>
             )}
@@ -383,6 +387,15 @@
                         ))}
                       </select>
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">group</label>
+                      <select name="group" value={inheritForm.group} onChange={onInheritChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Select group (optional)</option>
+                        {(groups || []).map(g => (
+                          <option key={g.groupname} value={(g.groupname || '').toLowerCase()}>{g.groupname}</option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700">otherentity</label>
                       <input name="otherentity" value={inheritForm.otherentity} onChange={onInheritChange} placeholder="optional" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
@@ -396,6 +409,7 @@
                         <th>bankaccountname</th>
                         <th>tax_category</th>
                         <th>property</th>
+                        <th>group</th>
                         <th>otherentity</th>
                         <th>actions</th>
                       </tr>
@@ -403,6 +417,7 @@
                         <th><input placeholder="filter" value={inheritFilter.bankaccountname} onChange={(e)=> setInheritFilter(f => ({...f, bankaccountname: e.target.value}))} /></th>
                         <th><input placeholder="filter" value={inheritFilter.tax_category} onChange={(e)=> setInheritFilter(f => ({...f, tax_category: e.target.value}))} /></th>
                         <th><input placeholder="filter" value={inheritFilter.property} onChange={(e)=> setInheritFilter(f => ({...f, property: e.target.value}))} /></th>
+                        <th><input placeholder="filter" value={inheritFilter.group} onChange={(e)=> setInheritFilter(f => ({...f, group: e.target.value}))} /></th>
                         <th><input placeholder="filter" value={inheritFilter.otherentity} onChange={(e)=> setInheritFilter(f => ({...f, otherentity: e.target.value}))} /></th>
                         <th></th>
                       </tr>
@@ -413,6 +428,7 @@
                           (inheritFilter.bankaccountname ? (r.bankaccountname||'').toLowerCase().includes(inheritFilter.bankaccountname.toLowerCase()) : true) &&
                           (inheritFilter.tax_category ? (r.tax_category||'').toLowerCase().includes(inheritFilter.tax_category.toLowerCase()) : true) &&
                           (inheritFilter.property ? (r.property||'').toLowerCase().includes(inheritFilter.property.toLowerCase()) : true) &&
+                          (inheritFilter.group ? (r.group||'').toLowerCase().includes(inheritFilter.group.toLowerCase()) : true) &&
                           (inheritFilter.otherentity ? (r.otherentity||'').toLowerCase().includes(inheritFilter.otherentity.toLowerCase()) : true)
                         ))
                         .map((r, idx) => (
@@ -420,6 +436,7 @@
                             <td>{r.bankaccountname}</td>
                             <td>{r.tax_category}</td>
                             <td>{r.property}</td>
+                            <td>{r.group}</td>
                             <td>{r.otherentity}</td>
                             <td>
                               <button onClick={() => handleEditInherit(r)} className="px-2 py-1 mr-2 bg-gray-700 text-white rounded hover:bg-gray-800">Edit</button>
@@ -428,7 +445,7 @@
                           </tr>
                         ))}
                       {(inheritRules || []).length === 0 && (
-                        <tr><td colSpan="5" className="muted">No bank-specific rules</td></tr>
+                        <tr><td colSpan="6" className="muted">No bank-specific rules</td></tr>
                       )}
                     </tbody>
                   </table>

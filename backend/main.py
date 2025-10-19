@@ -504,6 +504,46 @@ def load_common_rules_yaml_into_memory(path: Path) -> None:
         logger.error(f"Failed to load common_rules.yaml: {e}")
 
 
+def load_classify_rules_yaml_into_memory(path: Path) -> None:
+    """Load manually curated bank rules from YAML into CLASSIFY_DB.
+    Expected format: list of objects with fields bankaccountname, transaction_type, pattern_match_logic,
+    tax_category, property, group, otherentity. Fields may be omitted; missing values default to ''.
+    """
+    if not path or not path.exists():
+        return
+    try:
+        with path.open('r', encoding='utf-8') as yf:
+            data = yaml.safe_load(yf) or []
+            if not isinstance(data, list):
+                return
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                bank = (item.get('bankaccountname') or '').strip().lower()
+                ttype = (item.get('transaction_type') or '').strip().lower()
+                patt = (item.get('pattern_match_logic') or '').strip()
+                patt_norm = ' '.join(patt.split()).lower() if patt else ''
+                tax = (item.get('tax_category') or '').strip().lower()
+                prop = (item.get('property') or '').strip().lower()
+                group = (item.get('group') or '').strip().lower()
+                other = (item.get('otherentity') or '').strip()
+                # Only require bank; rest are optional
+                if not bank:
+                    continue
+                key = f"{bank}|{ttype}|{prop}|{group}|{patt_norm}"
+                CLASSIFY_DB[key] = {
+                    'bankaccountname': bank,
+                    'transaction_type': ttype,
+                    'pattern_match_logic': patt_norm,
+                    'tax_category': tax,
+                    'property': prop,
+                    'group': group,
+                    'otherentity': other,
+                }
+    except Exception as e:
+        logger.error(f"Failed to load classify_rules.yaml: {e}")
+
+
 def load_inherit_rules_yaml_into_memory(path: Path) -> None:
     """Load manually curated inherit rules from YAML into INHERIT_RULES_DB.
     Expected format: list of objects with fields bankaccountname, transaction_type, pattern_match_logic, tax_category, property, otherentity.
@@ -522,19 +562,22 @@ def load_inherit_rules_yaml_into_memory(path: Path) -> None:
                 bank = (item.get('bankaccountname') or '').strip().lower()
                 ttype = (item.get('transaction_type') or '').strip().lower()
                 patt = (item.get('pattern_match_logic') or '').strip()
-                patt_norm = ' '.join(patt.split()).lower()
+                patt_norm = ' '.join(patt.split()).lower() if patt else ''
                 tax = (item.get('tax_category') or '').strip().lower()
                 prop = (item.get('property') or '').strip().lower()
+                group = (item.get('group') or '').strip().lower()
                 other = (item.get('otherentity') or '').strip()
-                if not (bank and ttype and patt_norm):
+                # Only require bank; others are optional in YAML
+                if not bank:
                     continue
-                key = f"{bank}|{ttype}|{prop}|{patt_norm}|{tax}|{other}"
+                key = f"{bank}|{ttype}|{prop}|{group}|{patt_norm}|{tax}|{other}"
                 INHERIT_RULES_DB[key] = {
                     'bankaccountname': bank,
                     'transaction_type': ttype,
                     'pattern_match_logic': patt_norm,
                     'tax_category': tax,
                     'property': prop,
+                    'group': group,
                     'otherentity': other,
                 }
     except Exception as e:
@@ -593,11 +636,13 @@ async def startup_event():
     try:
         if CLASSIFY_CSV_PATH:
             base_dir = CLASSIFY_CSV_PATH.parent
+            # Optional manual overlays from YAMLs; tolerate missing fields
+            load_classify_rules_yaml_into_memory(base_dir / 'classify_rules.yaml')
             load_common_rules_yaml_into_memory(base_dir / 'common_rules.yaml')
             load_inherit_rules_yaml_into_memory(base_dir / 'inherit_common_to_bank.yaml')
-        logger.info(
-            f"Loaded manual lists -> bank_rules={len(CLASSIFY_DB)}, common_rules={len(COMMON_RULES_DB)}, inherit_rules={len(INHERIT_RULES_DB)}"
-        )
+            logger.info(
+                f"Loaded manual lists -> bank_rules={len(CLASSIFY_DB)}, common_rules={len(COMMON_RULES_DB)}, inherit_rules={len(INHERIT_RULES_DB)}"
+            )
     except Exception as e:
         logger.error(f"Failed to load manual lists: {e}")
 

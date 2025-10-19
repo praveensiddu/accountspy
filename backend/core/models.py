@@ -42,4 +42,5 @@ class ClassifyRuleRecord(BaseModel):
     pattern_match_logic: str = Field(..., description="Pattern matching expression")
     tax_category: str = Field(..., description="Tax category")
     property: str = Field(..., description="Property id")
+    group: str = Field('', description="Optional group name")
     otherentity: str = Field(..., description="Other entity (e.g., vendor/payee)")

@@ -32,6 +32,7 @@ async def add_classify_rule(payload: ClassifyRuleRecord):
     patt = (payload.pattern_match_logic or "").strip()
     tax = (payload.tax_category or "").strip().lower()
     prop = (payload.property or "").strip().lower()
+    group = (payload.group or "").strip().lower()
     other = (payload.otherentity or "").strip()
 
     if not (bank and ttype and patt and tax and prop and other):
@@ -45,9 +46,11 @@ async def add_classify_rule(payload: ClassifyRuleRecord):
         raise HTTPException(status_code=400, detail="Invalid tax_category: lowercase alphanumeric and underscore only")
     if not state.ALNUM_UNDERSCORE_LOWER_RE.match(prop):
         raise HTTPException(status_code=400, detail="Invalid property: lowercase alphanumeric and underscore only")
+    if group and not state.ALNUM_UNDERSCORE_LOWER_RE.match(group):
+        raise HTTPException(status_code=400, detail="Invalid group: lowercase alphanumeric and underscore only")
 
     # Allow multiple rules per triplet; use pattern in composite key to avoid overwrites
-    key = f"{bank}|{ttype}|{prop}|{patt}"
+    key = f"{bank}|{ttype}|{prop}|{group}|{patt}"
 
     rec = {
         "bankaccountname": bank,
@@ -55,6 +58,7 @@ async def add_classify_rule(payload: ClassifyRuleRecord):
         "pattern_match_logic": patt,
         "tax_category": tax,
         "property": prop,
+        "group": group,
         "otherentity": other,
     }
     state.CLASSIFY_DB[key] = rec
@@ -69,13 +73,18 @@ async def add_classify_rule(payload: ClassifyRuleRecord):
 async def delete_classify_rule(
     bankaccountname: str = Query(""),
     transaction_type: str = Query(""),
-    property: str = Query("")
+    property: str = Query(""),
+    group: str = Query("")
 ):
     bank = (bankaccountname or "").strip().lower()
     ttype = (transaction_type or "").strip().lower()
     prop = (property or "").strip().lower()
+    grp = (group or "").strip().lower()
     # Delete all rules that match the triplet, regardless of pattern
-    to_delete = [k for k, v in state.CLASSIFY_DB.items() if v.get("bankaccountname") == bank and v.get("transaction_type") == ttype and v.get("property") == prop]
+    to_delete = [
+        k for k, v in state.CLASSIFY_DB.items()
+        if v.get("bankaccountname") == bank and v.get("transaction_type") == ttype and v.get("property") == prop and (not grp or v.get("group", "") == grp)
+    ]
     if not to_delete:
         raise HTTPException(status_code=404, detail="Classify rule not found")
     for k in to_delete:
@@ -136,6 +145,7 @@ async def add_inherit_rule(payload: ClassifyRuleRecord):
     patt = (payload.pattern_match_logic or "").strip()
     tax = (payload.tax_category or "").strip().lower()
     prop = (payload.property or "").strip().lower()
+    group = (payload.group or "").strip().lower()
     other = (payload.otherentity or "").strip()
     if not (bank and ttype and patt):
         raise HTTPException(status_code=400, detail="bankaccountname, transaction_type and pattern_match_logic are required")
@@ -148,13 +158,16 @@ async def add_inherit_rule(payload: ClassifyRuleRecord):
         raise HTTPException(status_code=400, detail="Invalid tax_category: lowercase alphanumeric and underscore only")
     if prop and not state.ALNUM_UNDERSCORE_LOWER_RE.match(prop):
         raise HTTPException(status_code=400, detail="Invalid property: lowercase alphanumeric and underscore only")
-    key = f"{bank}|{ttype}|{prop}|{patt}|{tax}|{other}"
+    if group and not state.ALNUM_UNDERSCORE_LOWER_RE.match(group):
+        raise HTTPException(status_code=400, detail="Invalid group: lowercase alphanumeric and underscore only")
+    key = f"{bank}|{ttype}|{prop}|{group}|{patt}|{tax}|{other}"
     rec = {
         "bankaccountname": bank,
         "transaction_type": ttype,
         "pattern_match_logic": patt,
         "tax_category": tax,
         "property": prop,
+        "group": group,
         "otherentity": other,
     }
     state.INHERIT_RULES_DB[key] = rec
@@ -170,6 +183,7 @@ async def delete_inherit_rule(
     transaction_type: str = Query(""),
     pattern_match_logic: str = Query(""),
     property: str = Query(""),
+    group: str = Query(""),
     tax_category: str = Query(""),
     otherentity: str = Query("")
 ):
@@ -177,9 +191,10 @@ async def delete_inherit_rule(
     ttype = (transaction_type or "").strip().lower()
     patt = (pattern_match_logic or "").strip()
     prop = (property or "").strip().lower()
+    grp = (group or "").strip().lower()
     tax = (tax_category or "").strip().lower()
     other = (otherentity or "").strip()
-    key = f"{bank}|{ttype}|{prop}|{patt}|{tax}|{other}"
+    key = f"{bank}|{ttype}|{prop}|{grp}|{patt}|{tax}|{other}"
     if key not in state.INHERIT_RULES_DB:
         raise HTTPException(status_code=404, detail="Inherit rule not found")
     del state.INHERIT_RULES_DB[key]
