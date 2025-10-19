@@ -1,6 +1,7 @@
 <!doctype html>
 <html>
   <head>
+    <script src="https://cdn.tailwindcss.com"></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Properties</title>
@@ -1226,11 +1227,11 @@
                 )}
 
                 {setupTab === 'bankaccounts' && (
-                  <BankAccountsPanelExt bankaccounts={bankaccounts} loading={loading} reload={load} />
+                  <BankAccountsPanelExt bankaccounts={bankaccounts} loading={loading} reload={load} banks={banks} />
                 )}
 
                 {setupTab === 'groups' && (
-                  <GroupsPanelExt groups={groups} loading={loading} reload={load} />
+                  <GroupsPanelExt groups={groups} loading={loading} reload={load} items={items} />
                 )}
 
                 {setupTab === 'owners' && (

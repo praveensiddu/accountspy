@@ -43,8 +43,8 @@ const CompaniesPanelExt = ({ companyRecords, loading, reload }) => {
     <React.Fragment>
       <h2>Company Records</h2>
       <div className="actions" style={{ marginBottom: 12 }}>
-        <button type="button" onClick={() => { setForm(empty); setMode('add'); setOriginalKey(''); setOpen(true); }}>Add company</button>
-        <button type="button" onClick={reload} disabled={loading}>Refresh</button>
+        <button type="button" onClick={() => { setForm(empty); setMode('add'); setOriginalKey(''); setOpen(true); }} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add company</button>
+        <button type="button" onClick={reload} disabled={loading} className="px-3 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-60">Refresh</button>
       </div>
       <Modal title={mode==='edit' ? 'Edit Company' : 'Add Company'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'}>
         <div className="row" style={{display:'block'}}>
@@ -79,8 +79,8 @@ const CompaniesPanelExt = ({ companyRecords, loading, reload }) => {
                   <td>{x.companyname}</td>
                   <td>{x.rentPercentage}</td>
                   <td>
-                    <button onClick={() => onEdit(x)} style={{marginRight:8, background:'#374151'}}>Edit</button>
-                    <button onClick={() => onDelete(x.companyname)}>Delete</button>
+                    <button onClick={() => onEdit(x)} className="px-2 py-1 mr-2 bg-gray-700 text-white rounded hover:bg-gray-800">Edit</button>
+                    <button onClick={() => onDelete(x.companyname)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
                   </td>
                 </tr>
               ))}

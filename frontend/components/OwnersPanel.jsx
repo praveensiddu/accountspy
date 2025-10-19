@@ -58,48 +58,44 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
     <React.Fragment>
       <h2>Owners</h2>
       <div className="actions" style={{ marginBottom: 12 }}>
-        <button type="button" onClick={() => { setForm(empty); setMode('add'); setOriginalKey(''); setOpen(true); }}>Add owner</button>
-        <button type="button" onClick={reload} disabled={loading}>Refresh</button>
+        <button type="button" onClick={() => { setForm(empty); setMode('add'); setOriginalKey(''); setOpen(true); }} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add owner</button>
+        <button type="button" onClick={reload} disabled={loading} className="px-3 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-60">Refresh</button>
       </div>
       <Modal title={mode==='edit' ? 'Edit Owner' : 'Add Owner'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'}>
-        <div className="row" style={{display:'block'}}>
-          <div className="col" style={{display:'flex', gap:8, alignItems:'center', marginBottom:8}}>
-            <label style={{flex:1}}>name<br/>
-              <input name="name" value={form.name} onChange={onChange} placeholder="lowercase [a-z0-9_]" />
-            </label>
-            <span className="muted" style={{flex:1}}>Lowercase identifier</span>
+        <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">name</label>
+            <input name="name" value={form.name} onChange={onChange} placeholder="lowercase [a-z0-9_]" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            <p className="text-xs text-gray-500 mt-1">Lowercase identifier</p>
           </div>
-          <div className="col" style={{display:'flex', gap:8, alignItems:'center', marginBottom:8}}>
-            <label style={{flex:1}}>bankaccounts (multi-select)<br/>
-              <select name="bankaccounts" multiple value={form.bankaccounts} onChange={onChange}>
-                {(bankaccounts || []).map(ba => (
-                  <option key={ba.bankaccountname} value={(ba.bankaccountname || '').toLowerCase()}>{ba.bankaccountname}</option>
-                ))}
-              </select>
-            </label>
-            <span className="muted" style={{flex:1}}>Hold Cmd/Ctrl to select multiple</span>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">bankaccounts (multi-select)</label>
+            <select name="bankaccounts" multiple value={form.bankaccounts} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500 min-h-28">
+              {(bankaccounts || []).map(ba => (
+                <option key={ba.bankaccountname} value={(ba.bankaccountname || '').toLowerCase()}>{ba.bankaccountname}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">Hold Cmd/Ctrl to select multiple</p>
           </div>
-          <div className="col" style={{display:'flex', gap:8, alignItems:'center', marginBottom:8}}>
-            <label style={{flex:1}}>properties (multi-select)<br/>
-              <select name="properties" multiple value={form.properties} onChange={onChange}>
-                {(items || []).map(p => (
-                  <option key={p.property} value={(p.property || '').toLowerCase()}>{p.property}</option>
-                ))}
-              </select>
-            </label>
-            <span className="muted" style={{flex:1}}>Hold Cmd/Ctrl to select multiple</span>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">properties (multi-select)</label>
+            <select name="properties" multiple value={form.properties} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500 min-h-28">
+              {(items || []).map(p => (
+                <option key={p.property} value={(p.property || '').toLowerCase()}>{p.property}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">Hold Cmd/Ctrl to select multiple</p>
           </div>
-          <div className="col" style={{display:'flex', gap:8, alignItems:'center', marginBottom:8}}>
-            <label style={{flex:1}}>companies (multi-select)<br/>
-              <select name="companies" multiple value={form.companies} onChange={onChange}>
-                {(companies || []).map(c => (
-                  <option key={c} value={(c || '').toLowerCase()}>{c}</option>
-                ))}
-              </select>
-            </label>
-            <span className="muted" style={{flex:1}}>Hold Cmd/Ctrl to select multiple</span>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">companies (multi-select)</label>
+            <select name="companies" multiple value={form.companies} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500 min-h-28">
+              {(companies || []).map(c => (
+                <option key={c} value={(c || '').toLowerCase()}>{c}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">Hold Cmd/Ctrl to select multiple</p>
           </div>
-        </div>
+        </form>
       </Modal>
       <div className="card">
         {loading ? (<div>Loading...</div>) : (
@@ -121,8 +117,8 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
                   <td>{x.properties.join(' | ')}</td>
                   <td>{x.companies.join(' | ')}</td>
                   <td>
-                    <button onClick={() => onEdit(x)} style={{marginRight:8, background:'#374151'}}>Edit</button>
-                    <button onClick={() => onDelete(x.name)}>Delete</button>
+                    <button onClick={() => onEdit(x)} className="px-2 py-1 mr-2 bg-gray-700 text-white rounded hover:bg-gray-800">Edit</button>
+                    <button onClick={() => onDelete(x.name)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
                   </td>
                 </tr>
               ))}

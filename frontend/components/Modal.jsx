@@ -1,19 +1,19 @@
 const Modal = ({ title, open, onClose, children, onSubmit, submitLabel = 'Save' }) => {
   if (!open) return null;
   return (
-    <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50}}>
-      <div style={{background:'#fff', borderRadius:8, padding:16, width:'min(680px, 92vw)', boxShadow:'0 10px 25px rgba(0,0,0,0.2)'}}>
-        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12}}>
-          <h3 style={{margin:0}}>{title}</h3>
-          <button onClick={onClose} style={{background:'#e5e7eb', color:'#111827'}}>Close</button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 overflow-y-auto max-h-[85vh]">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-semibold m-0">{title}</h3>
+          <button onClick={onClose} className="px-3 py-1.5 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Close</button>
         </div>
-        <div style={{maxHeight:'70vh', overflow:'auto'}}>
+        <div className="space-y-3">
           {children}
         </div>
         {onSubmit && (
-          <div style={{display:'flex', gap:8, justifyContent:'flex-end', marginTop:12}}>
-            <button onClick={onSubmit}>{submitLabel}</button>
-            <button onClick={onClose} style={{background:'#e5e7eb', color:'#111827'}}>Cancel</button>
+          <div className="flex gap-2 justify-end mt-4">
+            <button onClick={onSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">{submitLabel}</button>
+            <button onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
           </div>
         )}
       </div>

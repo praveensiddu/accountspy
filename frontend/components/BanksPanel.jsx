@@ -1,5 +1,18 @@
 const BanksPanelExt = ({ banks, loading, reload }) => {
-  const [form, setForm] = React.useState({ name: '', date_format: '', delim: '', ignore_lines_contains: '', ignore_lines_startswith: '', columnsText: '' });
+  const [form, setForm] = React.useState({
+    name: '',
+    date_format: 'M/d/yyyy',
+    delim: '',
+    ignore_lines_contains: '',
+    ignore_lines_startswith: '',
+    col_checkno: '',
+    col_credit: '',
+    col_date: '',
+    col_debit: '',
+    col_description: '',
+    col_fees: '',
+    col_memo: '',
+  });
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState('');
   const [open, setOpen] = React.useState(false);
@@ -8,18 +21,30 @@ const BanksPanelExt = ({ banks, loading, reload }) => {
   const [originalKey, setOriginalKey] = React.useState('');
   const onChange = (e) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+    if (name.startsWith('col_')) {
+      const v = value === '' ? '' : String(parseInt(value, 10) || '');
+      setForm(prev => ({ ...prev, [name]: v }));
+    } else {
+      setForm(prev => ({ ...prev, [name]: value }));
+    }
   };
   const onEdit = (b) => {
     setMode('edit');
     setOriginalKey(b.name);
+    const colObj = Array.isArray(b.columns) && b.columns.length > 0 ? b.columns[0] || {} : (b.columns || {});
     setForm({
       name: b.name,
       date_format: b.date_format || '',
       delim: b.delim || '',
-      ignore_lines_contains: (b.ignore_lines_contains || []).join('|'),
-      ignore_lines_startswith: (b.ignore_lines_startswith || []).join('|'),
-      columnsText: (b.columns || []).map(obj => JSON.stringify(obj)).join('\n'),
+      ignore_lines_contains: (b.ignore_lines_contains || []).join('\n'),
+      ignore_lines_startswith: (b.ignore_lines_startswith || []).join('\n'),
+      col_checkno: colObj.checkno != null ? String(colObj.checkno) : '',
+      col_credit: colObj.credit != null ? String(colObj.credit) : '',
+      col_date: colObj.date != null ? String(colObj.date) : '',
+      col_debit: colObj.debit != null ? String(colObj.debit) : '',
+      col_description: colObj.description != null ? String(colObj.description) : '',
+      col_fees: colObj.fees != null ? String(colObj.fees) : '',
+      col_memo: colObj.memo != null ? String(colObj.memo) : '',
     });
     setOpen(true);
   };
@@ -28,15 +53,24 @@ const BanksPanelExt = ({ banks, loading, reload }) => {
     try {
       const name = (form.name || '').trim().toLowerCase();
       if (!name) throw new Error('name is required');
-      const ignore_lines_contains = (form.ignore_lines_contains || '').split('|').map(s=>s.trim()).filter(Boolean);
-      const ignore_lines_startswith = (form.ignore_lines_startswith || '').split('|').map(s=>s.trim()).filter(Boolean);
-      let columns = [];
-      if (form.columnsText && form.columnsText.trim()) {
-        const lines = form.columnsText.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-        for (const ln of lines) {
-          try { const obj = JSON.parse(ln); if (obj && typeof obj === 'object') columns.push(obj); } catch (_) {}
-        }
-      }
+      const ignore_lines_contains = (form.ignore_lines_contains || '').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+      const ignore_lines_startswith = (form.ignore_lines_startswith || '').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+      // required column mappings
+      if (form.col_date === '' || Number.isNaN(parseInt(form.col_date, 10))) throw new Error('date column is required');
+      if (form.col_debit === '' || Number.isNaN(parseInt(form.col_debit, 10))) throw new Error('debit column is required');
+      if (form.col_description === '' || Number.isNaN(parseInt(form.col_description, 10))) throw new Error('description column is required');
+      const colMap = {};
+      const addIfNum = (key, val) => {
+        if (val !== '' && !Number.isNaN(parseInt(val, 10))) colMap[key] = parseInt(val, 10);
+      };
+      addIfNum('checkno', form.col_checkno);
+      addIfNum('credit', form.col_credit);
+      addIfNum('date', form.col_date);
+      addIfNum('debit', form.col_debit);
+      addIfNum('description', form.col_description);
+      addIfNum('fees', form.col_fees);
+      addIfNum('memo', form.col_memo);
+      const columns = Object.keys(colMap).length ? [colMap] : [];
       const payload = {
         name,
         date_format: form.date_format || undefined,
@@ -53,7 +87,7 @@ const BanksPanelExt = ({ banks, loading, reload }) => {
         }
       }
       await window.api.addBank(payload);
-      setForm({ name: '', date_format: '', delim: '', ignore_lines_contains: '', ignore_lines_startswith: '', columnsText: '' });
+      setForm({ name: '', date_format: 'M/d/yyyy', delim: '', ignore_lines_contains: '', ignore_lines_startswith: '', col_checkno: '', col_credit: '', col_date: '', col_debit: '', col_description: '', col_fees: '', col_memo: '' });
       setOriginalKey('');
       setMode('add');
       setOpen(false);
@@ -68,49 +102,70 @@ const BanksPanelExt = ({ banks, loading, reload }) => {
     <React.Fragment>
       <h2>Banks</h2>
       <div className="actions" style={{ marginBottom: 12 }}>
-        <button type="button" onClick={() => { setForm({ name: '', date_format: '', delim: '', ignore_lines_contains: '', ignore_lines_startswith: '', columnsText: '' }); setMode('add'); setOriginalKey(''); setOpen(true); }}>Add bank</button>
-        <button type="button" onClick={reload} disabled={loading}>Refresh</button>
+        <button type="button" onClick={() => { setForm({ name: '', date_format: 'M/d/yyyy', delim: '', ignore_lines_contains: '', ignore_lines_startswith: '', col_checkno: '', col_credit: '', col_date: '', col_debit: '', col_description: '', col_fees: '', col_memo: '' }); setMode('add'); setOriginalKey(''); setOpen(true); }} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add bank</button>
+        <button type="button" onClick={reload} disabled={loading} className="px-3 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-60">Refresh</button>
       </div>
       <Modal title={mode==='edit' ? 'Edit Bank' : 'Add Bank'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'}>
-        <div className="row" style={{display:'block'}}>
-          <div className="col" style={{display:'flex', gap:8, alignItems:'center', marginBottom:8}}>
-            <label style={{flex:1}}>name<br/>
-              <input name="name" value={form.name} onChange={onChange} placeholder="lowercase id [a-z0-9_]" />
-            </label>
-            <span className="muted" style={{flex:1}}>Unique lowercase id</span>
+        <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">name</label>
+            <input name="name" value={form.name} onChange={onChange} placeholder="lowercase id [a-z0-9_]" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            <p className="text-xs text-gray-500 mt-1">Unique lowercase id</p>
           </div>
-          <div className="col" style={{display:'flex', gap:8, alignItems:'center', marginBottom:8}}>
-            <label style={{flex:1}}>date_format<br/>
-              <input name="date_format" value={form.date_format} onChange={onChange} placeholder="M/d/yyyy" />
-            </label>
-            <span className="muted" style={{flex:1}}>e.g., M/d/yyyy</span>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">date_format</label>
+            <input name="date_format" value={form.date_format} onChange={onChange} placeholder="%m/%d/%Y" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            <p className="text-xs text-gray-500 mt-1">Python strptime format</p>
           </div>
-          <div className="col" style={{display:'flex', gap:8, alignItems:'center', marginBottom:8}}>
-            <label style={{flex:1}}>delim<br/>
-              <input name="delim" value={form.delim} onChange={onChange} placeholder="," />
-            </label>
-            <span className="muted" style={{flex:1}}>CSV delimiter</span>
+          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">date<span className="text-red-600">*</span></label>
+              <input name="col_date" type="number" value={form.col_date} onChange={onChange} placeholder="2" required className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">debit<span className="text-red-600">*</span></label>
+              <input name="col_debit" type="number" value={form.col_debit} onChange={onChange} placeholder="5" required className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">description<span className="text-red-600">*</span></label>
+              <input name="col_description" type="number" value={form.col_description} onChange={onChange} placeholder="3" required className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            </div>
           </div>
-          <div className="col" style={{display:'flex', gap:8, alignItems:'center', marginBottom:8}}>
-            <label style={{flex:1}}>ignore_lines_contains (| separated)<br/>
-              <input name="ignore_lines_contains" value={form.ignore_lines_contains} onChange={onChange} placeholder="foo|bar" />
-            </label>
-            <span className="muted" style={{flex:1}}>Pipe-separated filters</span>
+          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">checkno</label>
+              <input name="col_checkno" type="number" value={form.col_checkno} onChange={onChange} placeholder="8" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">credit</label>
+              <input name="col_credit" type="number" value={form.col_credit} onChange={onChange} placeholder="6" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">fees</label>
+              <input name="col_fees" type="number" value={form.col_fees} onChange={onChange} placeholder="9" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">memo</label>
+              <input name="col_memo" type="number" value={form.col_memo} onChange={onChange} placeholder="4" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            </div>
           </div>
-          <div className="col" style={{display:'flex', gap:8, alignItems:'center', marginBottom:8}}>
-            <label style={{flex:1}}>ignore_lines_startswith (| separated)<br/>
-              <input name="ignore_lines_startswith" value={form.ignore_lines_startswith} onChange={onChange} placeholder="Header|Total" />
-            </label>
-            <span className="muted" style={{flex:1}}>Pipe-separated prefixes</span>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">delim</label>
+            <input name="delim" value={form.delim} onChange={onChange} placeholder="," className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            <p className="text-xs text-gray-500 mt-1">CSV delimiter</p>
           </div>
-          <div className="col" style={{display:'flex', gap:8, alignItems:'flex-start', marginBottom:8}}>
-            <label style={{flex:1}}>columns (one JSON per line)<br/>
-              <textarea name="columnsText" value={form.columnsText} onChange={onChange} rows="6" placeholder='{"date":1}\n{"description":2}\n{"debit":3}' style={{width:'100%'}} />
-            </label>
-            <span className="muted" style={{flex:1}}>One JSON object per line</span>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700">ignore_lines_contains (one per line)</label>
+            <textarea name="ignore_lines_contains" value={form.ignore_lines_contains} onChange={onChange} rows="4" placeholder={'foo\nbar'} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            <p className="text-xs text-gray-500 mt-1">One filter per line</p>
           </div>
-          {error && <div className="error" style={{ marginTop: 8 }}>{error}</div>}
-        </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700">ignore_lines_startswith (one per line)</label>
+            <textarea name="ignore_lines_startswith" value={form.ignore_lines_startswith} onChange={onChange} rows="4" placeholder={'Header\nTotal'} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            <p className="text-xs text-gray-500 mt-1">One prefix per line</p>
+          </div>
+          {error && <div className="md:col-span-2 text-red-600 mt-2">{error}</div>}
+        </form>
       </Modal>
       <div className="card">
         {loading ? (<div>Loading...</div>) : (
@@ -130,16 +185,14 @@ const BanksPanelExt = ({ banks, loading, reload }) => {
               {banks.map(b => (
                 <tr key={b.name}>
                   <td>{b.name}</td>
-                  <td>{b.date_format || ''}</td>
-                  <td>{b.delim || ''}</td>
+                  <td>{b.date_format}</td>
+                  <td>{b.delim}</td>
                   <td>{(b.ignore_lines_contains || []).join(' | ')}</td>
                   <td>{(b.ignore_lines_startswith || []).join(' | ')}</td>
-                  <td>{(b.columns || []).map((c, i) => (
-                    <span key={i}>{Object.entries(c).map(([k,v]) => `${k}:${v}`).join(', ')}{i < (b.columns.length-1) ? ' | ' : ''}</span>
-                  ))}</td>
+                  <td><pre style={{margin:0, whiteSpace:'pre-wrap'}}>{JSON.stringify(b.columns || [], null, 2)}</pre></td>
                   <td>
-                    <button onClick={() => onEdit(b)} style={{marginRight:8, background:'#374151'}}>Edit</button>
-                    <button onClick={() => onDelete(b.name)}>Delete</button>
+                    <button onClick={() => onEdit(b)} className="px-2 py-1 mr-2 bg-gray-700 text-white rounded hover:bg-gray-800">Edit</button>
+                    <button onClick={() => onDelete(b.name)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
                   </td>
                 </tr>
               ))}
