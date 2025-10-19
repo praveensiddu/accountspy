@@ -3,6 +3,7 @@
   <head>
     <script src="https://cdn.tailwindcss.com"></script>
     <meta charset="utf-8" />
+    <link rel="stylesheet" href="/index.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Properties</title>
     <link rel="preconnect" href="https://unpkg.com" />
@@ -36,6 +37,9 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
     <script type="text/babel" src="/components/Modal.jsx"></script>
+    <script type="text/babel" src="/components/Confirm.jsx"></script>
+    <script type="text/babel" src="/components/MultiSelect.jsx"></script>
+    <script type="text/babel" src="/components/ClassifyRulesPanel.jsx"></script>
     <!-- External Panels loaded via Babel -->
     <script type="text/babel" src="/components/PropertiesPanel.jsx"></script>
     <script type="text/babel" src="/components/CompaniesPanel.jsx"></script>
@@ -48,6 +52,39 @@
 
     <script type="text/babel">
       const { useEffect, useState } = React;
+
+      // Subtabs component for Classify Rules
+      function ClassifyRulesTabs({ classifyRules, loading, load, bankaccounts, items, taxCategories, transactionTypes }) {
+        const [crSubTab, setCrSubTab] = useState('bank');
+        return (
+          <div>
+            <div className="tabs" style={{ marginBottom: 12 }}>
+              <button className={`tab ${crSubTab==='bank' ? 'active' : ''}`} onClick={() => setCrSubTab('bank')}>BankRules</button>
+              <button className={`tab ${crSubTab==='common' ? 'active' : ''}`} onClick={() => setCrSubTab('common')}>CommonRules</button>
+              <button className={`tab ${crSubTab==='inherit' ? 'active' : ''}`} onClick={() => setCrSubTab('inherit')}>InheritCommonToBank</button>
+            </div>
+            {crSubTab === 'bank' && (
+              <div>
+                <ClassifyRulesPanelExt
+                  classifyRules={classifyRules}
+                  loading={loading}
+                  reload={load}
+                  bankaccounts={bankaccounts}
+                  items={items}
+                  taxCategories={taxCategories}
+                  transactionTypes={transactionTypes}
+                />
+              </div>
+            )}
+            {crSubTab === 'common' && (
+              <div className="muted">CommonRules UI coming soon.</div>
+            )}
+            {crSubTab === 'inherit' && (
+              <div className="muted">InheritCommonToBank UI coming soon.</div>
+            )}
+          </div>
+        );
+      }
 
       const api = {
         async list() {
@@ -71,6 +108,7 @@
         const [form, setForm] = React.useState(emptyCompany);
         const [saving, setSaving] = React.useState(false);
         const [error, setError] = React.useState('');
+        const [filter, setFilter] = React.useState({ companyname: '', rentPercentage: '' });
         const onChange = (e) => {
           const { name, value } = e.target;
           if (name === 'rentPercentage') {
@@ -126,9 +164,31 @@
                       <th>rentPercentage</th>
                       <th></th>
                     </tr>
+                    <tr>
+                      <th>
+                        <input
+                          placeholder="filter"
+                          value={filter.companyname}
+                          onChange={(e)=> setFilter(f=>({...f, companyname: e.target.value }))}
+                        />
+                      </th>
+                      <th>
+                        <input
+                          placeholder="filter"
+                          value={filter.rentPercentage}
+                          onChange={(e)=> setFilter(f=>({...f, rentPercentage: e.target.value }))}
+                        />
+                      </th>
+                      <th></th>
+                    </tr>
                   </thead>
                   <tbody>
-                    {companyRecords.map((x) => (
+                    {companyRecords
+                      .filter(x => (
+                        (filter.companyname ? (x.companyname||'').toString().toLowerCase().includes(filter.companyname.toLowerCase()) : true) &&
+                        (filter.rentPercentage ? String(x.rentPercentage||'').toLowerCase().includes(filter.rentPercentage.toLowerCase()) : true)
+                      ))
+                      .map((x) => (
                       <tr key={x.companyname}>
                         <td>{x.companyname}</td>
                         <td>{x.rentPercentage}</td>
@@ -148,6 +208,7 @@
         const emptyBA = { bankaccountname: '', bankname: '' };
         const [form, setForm] = React.useState(emptyBA);
         const [saving, setSaving] = React.useState(false);
+        const [filter, setFilter] = React.useState({ bankaccountname: '', bankname: '' });
         const onChange = (e) => {
           const { name, value } = e.target;
           if (name === 'bankaccountname') {
@@ -198,9 +259,23 @@
                       <th>bankname</th>
                       <th></th>
                     </tr>
+                    <tr>
+                      <th>
+                        <input placeholder="filter" value={filter.bankaccountname} onChange={(e)=> setFilter(f=>({...f, bankaccountname: e.target.value }))} />
+                      </th>
+                      <th>
+                        <input placeholder="filter" value={filter.bankname} onChange={(e)=> setFilter(f=>({...f, bankname: e.target.value }))} />
+                      </th>
+                      <th></th>
+                    </tr>
                   </thead>
                   <tbody>
-                    {bankaccounts.map(x => (
+                    {bankaccounts
+                      .filter(x => (
+                        (filter.bankaccountname ? (x.bankaccountname||'').toLowerCase().includes(filter.bankaccountname.toLowerCase()) : true) &&
+                        (filter.bankname ? (x.bankname||'').toLowerCase().includes(filter.bankname.toLowerCase()) : true)
+                      ))
+                      .map(x => (
                       <tr key={x.bankaccountname}>
                         <td>{x.bankaccountname}</td>
                         <td>{x.bankname}</td>
@@ -220,6 +295,7 @@
         const emptyGroup = { groupname: '', propertylist: '' };
         const [form, setForm] = React.useState(emptyGroup);
         const [saving, setSaving] = React.useState(false);
+        const [filter, setFilter] = React.useState({ groupname: '', propertylist: '' });
         const onChange = (e) => {
           const { name, value } = e.target;
           if (name === 'groupname') {
@@ -271,9 +347,23 @@
                       <th>propertylist</th>
                       <th></th>
                     </tr>
+                    <tr>
+                      <th>
+                        <input placeholder="filter" value={filter.groupname} onChange={(e)=> setFilter(f=>({...f, groupname: e.target.value }))} />
+                      </th>
+                      <th>
+                        <input placeholder="filter" value={filter.propertylist} onChange={(e)=> setFilter(f=>({...f, propertylist: e.target.value }))} />
+                      </th>
+                      <th></th>
+                    </tr>
                   </thead>
                   <tbody>
-                    {groups.map(x => (
+                    {groups
+                      .filter(x => (
+                        (filter.groupname ? (x.groupname||'').toLowerCase().includes(filter.groupname.toLowerCase()) : true) &&
+                        (filter.propertylist ? (x.propertylist||[]).join(' ').toLowerCase().includes(filter.propertylist.toLowerCase()) : true)
+                      ))
+                      .map(x => (
                       <tr key={x.groupname}>
                         <td>{x.groupname}</td>
                         <td>{x.propertylist.join(' | ')}</td>
@@ -293,6 +383,7 @@
         const emptyOwner = { name: '', bankaccounts: [], properties: [], companies: [] };
         const [form, setForm] = React.useState(emptyOwner);
         const [saving, setSaving] = React.useState(false);
+        const [filter, setFilter] = React.useState({ name: '', bankaccounts: '', properties: '', companies: '' });
         const onChange = (e) => {
           const { name, value } = e.target;
           if (name === 'name') {
@@ -372,9 +463,23 @@
                       <th>companies</th>
                       <th></th>
                     </tr>
+                    <tr>
+                      <th><input placeholder="filter" value={filter.name} onChange={(e)=> setFilter(f=>({...f, name: e.target.value }))} /></th>
+                      <th><input placeholder="filter" value={filter.bankaccounts} onChange={(e)=> setFilter(f=>({...f, bankaccounts: e.target.value }))} /></th>
+                      <th><input placeholder="filter" value={filter.properties} onChange={(e)=> setFilter(f=>({...f, properties: e.target.value }))} /></th>
+                      <th><input placeholder="filter" value={filter.companies} onChange={(e)=> setFilter(f=>({...f, companies: e.target.value }))} /></th>
+                      <th></th>
+                    </tr>
                   </thead>
                   <tbody>
-                    {owners.map(x => (
+                    {owners
+                      .filter(x => (
+                        (filter.name ? (x.name||'').toLowerCase().includes(filter.name.toLowerCase()) : true) &&
+                        (filter.bankaccounts ? (x.bankaccounts||[]).join(' ').toLowerCase().includes(filter.bankaccounts.toLowerCase()) : true) &&
+                        (filter.properties ? (x.properties||[]).join(' ').toLowerCase().includes(filter.properties.toLowerCase()) : true) &&
+                        (filter.companies ? (x.companies||[]).join(' ').toLowerCase().includes(filter.companies.toLowerCase()) : true)
+                      ))
+                      .map(x => (
                       <tr key={x.name}>
                         <td>{x.name}</td>
                         <td>{x.bankaccounts.join(' | ')}</td>
@@ -397,6 +502,7 @@
         const [form, setForm] = React.useState(empty);
         const [saving, setSaving] = React.useState(false);
         const [error, setError] = React.useState('');
+        const [filter, setFilter] = React.useState({ property:'', cost:'', landValue:'', renovation:'', loanClosingCOst:'', ownerCount:'', purchaseDate:'', propMgmgtComp:'' });
         const onChange = (e) => {
           const { name, value } = e.target;
           if ([ 'cost','landValue','renovation','loanClosingCOst','ownerCount' ].includes(name)) {
@@ -469,9 +575,31 @@
                       <th>propMgmgtComp</th>
                       <th></th>
                     </tr>
+                    <tr>
+                      <th><input placeholder="filter" value={filter.property} onChange={(e)=> setFilter(f=>({...f, property: e.target.value }))} /></th>
+                      <th><input placeholder="filter" value={filter.cost} onChange={(e)=> setFilter(f=>({...f, cost: e.target.value }))} /></th>
+                      <th><input placeholder="filter" value={filter.landValue} onChange={(e)=> setFilter(f=>({...f, landValue: e.target.value }))} /></th>
+                      <th><input placeholder="filter" value={filter.renovation} onChange={(e)=> setFilter(f=>({...f, renovation: e.target.value }))} /></th>
+                      <th><input placeholder="filter" value={filter.loanClosingCOst} onChange={(e)=> setFilter(f=>({...f, loanClosingCOst: e.target.value }))} /></th>
+                      <th><input placeholder="filter" value={filter.ownerCount} onChange={(e)=> setFilter(f=>({...f, ownerCount: e.target.value }))} /></th>
+                      <th><input placeholder="filter" value={filter.purchaseDate} onChange={(e)=> setFilter(f=>({...f, purchaseDate: e.target.value }))} /></th>
+                      <th><input placeholder="filter" value={filter.propMgmgtComp} onChange={(e)=> setFilter(f=>({...f, propMgmgtComp: e.target.value }))} /></th>
+                      <th></th>
+                    </tr>
                   </thead>
                   <tbody>
-                    {items.map((x) => (
+                    {items
+                      .filter(x => (
+                        (filter.property ? (x.property||'').toLowerCase().includes(filter.property.toLowerCase()) : true) &&
+                        (filter.cost ? String(x.cost||'').toLowerCase().includes(filter.cost.toLowerCase()) : true) &&
+                        (filter.landValue ? String(x.landValue||'').toLowerCase().includes(filter.landValue.toLowerCase()) : true) &&
+                        (filter.renovation ? String(x.renovation||'').toLowerCase().includes(filter.renovation.toLowerCase()) : true) &&
+                        (filter.loanClosingCOst ? String(x.loanClosingCOst||'').toLowerCase().includes(filter.loanClosingCOst.toLowerCase()) : true) &&
+                        (filter.ownerCount ? String(x.ownerCount||'').toLowerCase().includes(filter.ownerCount.toLowerCase()) : true) &&
+                        (filter.purchaseDate ? String(x.purchaseDate||'').toLowerCase().includes(filter.purchaseDate.toLowerCase()) : true) &&
+                        (filter.propMgmgtComp ? String(x.propMgmgtComp||'').toLowerCase().includes(filter.propMgmgtComp.toLowerCase()) : true)
+                      ))
+                      .map((x) => (
                       <tr key={x.property}>
                         <td>{x.property}</td>
                         <td>{x.cost}</td>
@@ -498,6 +626,7 @@
         const [form, setForm] = React.useState({ category: '' });
         const [saving, setSaving] = React.useState(false);
         const [error, setError] = React.useState('');
+        const [filter, setFilter] = React.useState({ category: '' });
         const onChange = (e) => {
           const { name, value } = e.target;
           setForm(prev => ({ ...prev, [name]: name === 'category' ? (value || '').trim().toLowerCase() : value }));
@@ -541,9 +670,15 @@
                       <th>category</th>
                       <th></th>
                     </tr>
+                    <tr>
+                      <th><input placeholder="filter" value={filter.category} onChange={(e)=> setFilter({ category: e.target.value })} /></th>
+                      <th></th>
+                    </tr>
                   </thead>
                   <tbody>
-                    {taxCategories.map(t => (
+                    {taxCategories
+                      .filter(t => (filter.category ? (t.category||'').toLowerCase().includes(filter.category.toLowerCase()) : true))
+                      .map(t => (
                       <tr key={t.category}>
                         <td>{t.category}</td>
                         <td><button onClick={() => onDelete(t.category)}>Delete</button></td>
@@ -563,6 +698,7 @@
         const [form, setForm] = React.useState({ transactiontype: '' });
         const [saving, setSaving] = React.useState(false);
         const [error, setError] = React.useState('');
+        const [filter, setFilter] = React.useState({ transactiontype: '' });
         const onChange = (e) => {
           const { name, value } = e.target;
           setForm(prev => ({ ...prev, [name]: name === 'transactiontype' ? (value || '').trim().toLowerCase() : value }));
@@ -606,9 +742,15 @@
                       <th>transactiontype</th>
                       <th></th>
                     </tr>
+                    <tr>
+                      <th><input placeholder="filter" value={filter.transactiontype} onChange={(e)=> setFilter({ transactiontype: e.target.value })} /></th>
+                      <th></th>
+                    </tr>
                   </thead>
                   <tbody>
-                    {transactionTypes.map(t => (
+                    {transactionTypes
+                      .filter(t => (filter.transactiontype ? (t.transactiontype||'').toLowerCase().includes(filter.transactiontype.toLowerCase()) : true))
+                      .map(t => (
                       <tr key={t.transactiontype}>
                         <td>{t.transactiontype}</td>
                         <td><button onClick={() => onDelete(t.transactiontype)}>Delete</button></td>
@@ -739,6 +881,33 @@
           const res = await fetch(`/api/transaction-types/${encodeURIComponent(tt)}`, { method: 'DELETE' });
           if (!res.ok && res.status !== 204) throw new Error('Failed to delete transaction type');
         },
+        // Classify rules
+        async listClassifyRules() {
+          const res = await fetch('/api/classify-rules');
+          if (res.status === 404) return [];
+          if (!res.ok) throw new Error('Failed to fetch classify rules');
+          return res.json();
+        },
+        async addClassifyRule(item) {
+          const res = await fetch('/api/classify-rules', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item)
+          });
+          if (!res.ok) throw new Error(await res.text());
+          return res.json();
+        },
+        async removeClassifyRule(key) {
+          // key can be an object; encode a composite id if backend expects one
+          const obj = (typeof key === 'object' && key !== null) ? key : { bankaccountname: key };
+          const bankVal = obj.bankaccountname != null ? obj.bankaccountname : '';
+          const qp = new URLSearchParams({
+            bankaccountname: String(bankVal),
+            transaction_type: obj.transaction_type || '',
+            property: obj.property || '',
+          }).toString();
+          const res = await fetch(`/api/classify-rules?${qp}`, { method: 'DELETE' });
+          if (!res.ok && res.status !== 204) throw new Error('Failed to delete classify rule');
+        },
+
         // Banks config
         async listBanks() {
           const res = await fetch('/api/banks');
@@ -876,6 +1045,7 @@
         const [taxCategories, setTaxCategories] = useState([]);
         const [transactionTypes, setTransactionTypes] = useState([]);
         const [banks, setBanks] = useState([]);
+        const [classifyRules, setClassifyRules] = useState([]);
         const [taxCatForm, setTaxCatForm] = useState({ category: '' });
         const [txTypeForm, setTxTypeForm] = useState({ transactiontype: '' });
         const [bankForm, setBankForm] = useState({ name: '', date_format: '', delim: '', ignore_lines_contains: '', ignore_lines_startswith: '', columnsText: '' });
@@ -884,7 +1054,7 @@
         const [savingBank, setSavingBank] = useState(false);
 
         // Tabs state
-        const [topTab, setTopTab] = useState('setup'); // 'setup' | 'transactions' | 'report'
+        const [topTab, setTopTab] = useState('setup'); // 'setup' | 'classifyrules' | 'transactions' | 'report'
         const [setupTab, setSetupTab] = useState('properties'); // 'properties' | 'companies' | 'bankaccounts' | 'groups' | 'owners' | 'banks' | 'taxcats' | 'txtypes'
 
         const empty = { property: '', cost: 0, landValue: 0, renovation: 0, loanClosingCOst: 0, ownerCount: 1, purchaseDate: '', propMgmgtComp: '' };
@@ -895,7 +1065,7 @@
           setError('');
           setLoading(true);
           try {
-            const [data, comps, compRecs, bas, grps, ownrs, taxcats, txtypes, banksCfg] = await Promise.all([
+            const [data, comps, compRecs, bas, grps, ownrs, taxcats, txtypes, banksCfg, rules] = await Promise.all([
               api.list(),
               api.companies(),
               api.listCompanyRecords(),
@@ -904,7 +1074,8 @@
               api.listOwners(),
               api.listTaxCategories(),
               api.listTransactionTypes(),
-              api.listBanks()
+              api.listBanks(),
+              api.listClassifyRules()
             ]);
             setItems(data);
             setCompanies(comps);
@@ -915,6 +1086,7 @@
             setTaxCategories(taxcats);
             setTransactionTypes(txtypes);
             setBanks(banksCfg);
+            setClassifyRules(rules);
           } catch (e) {
             setError(e.message || 'Error');
           } finally {
@@ -1189,6 +1361,7 @@
 
             <div className="tabs">
               <TabButton active={topTab==='setup'} onClick={() => setTopTab('setup')}>Setup</TabButton>
+              <TabButton active={topTab==='classifyrules'} onClick={() => setTopTab('classifyrules')}>ClassifyRules</TabButton>
               <TabButton active={topTab==='transactions'} onClick={() => setTopTab('transactions')}>Transactions</TabButton>
               <TabButton active={topTab==='report'} onClick={() => setTopTab('report')}>Report</TabButton>
             </div>
@@ -1237,6 +1410,20 @@
                 {setupTab === 'owners' && (
                   <OwnersPanelExt owners={owners} loading={loading} reload={load} bankaccounts={bankaccounts} items={items} companies={companies} />
                 )}
+              </div>
+            )}
+
+            {topTab === 'classifyrules' && (
+              <div className="tabcontent">
+                <ClassifyRulesTabs
+                  classifyRules={classifyRules}
+                  loading={loading}
+                  load={load}
+                  bankaccounts={bankaccounts}
+                  items={items}
+                  taxCategories={taxCategories}
+                  transactionTypes={transactionTypes}
+                />
               </div>
             )}
 

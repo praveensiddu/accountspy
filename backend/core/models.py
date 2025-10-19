@@ -34,3 +34,12 @@ class TaxCategoryRecord(BaseModel):
 
 class TransactionTypeRecord(BaseModel):
     transactiontype: str = Field(..., description="Transaction type name")
+
+
+class ClassifyRuleRecord(BaseModel):
+    bankaccountname: str = Field(..., description="Bank account name")
+    transaction_type: str = Field(..., description="Transaction type")
+    pattern_match_logic: str = Field(..., description="Pattern matching expression")
+    tax_category: str = Field(..., description="Tax category")
+    property: str = Field(..., description="Property id")
+    otherentity: str = Field(..., description="Other entity (e.g., vendor/payee)")

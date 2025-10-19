@@ -23,6 +23,7 @@ OWNER_DB: Dict[str, Dict] = {}
 BANKS_CFG_DB: Dict[str, Dict] = {}
 TAX_DB: Dict[str, Dict] = {}
 TT_DB: Dict[str, Dict] = {}
+CLASSIFY_DB: Dict[str, Dict] = {}
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 CSV_PATH = None  # set on startup from ENTITIES_DIR
@@ -33,6 +34,7 @@ OWNERS_CSV_PATH = None  # set on startup from ENTITIES_DIR
 BANKS_YAML_PATH = None  # set on startup from ENTITIES_DIR
 TAX_CSV_PATH = None  # set on startup from ENTITIES_DIR
 TT_CSV_PATH = None  # set on startup from ENTITIES_DIR
+CLASSIFY_CSV_PATH = None  # set on startup from ENTITIES_DIR
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
 # Companies list loaded from env
@@ -96,6 +98,7 @@ try:
     from .routers import bankaccounts as bankaccounts_router
     from .routers import groups as groups_router
     from .routers import owners as owners_router
+    from .routers import classify_rules as classify_rules_router
     app.include_router(banks_router.router)
     app.include_router(tax_categories_router.router)
     app.include_router(transaction_types_router.router)
@@ -104,6 +107,7 @@ try:
     app.include_router(bankaccounts_router.router)
     app.include_router(groups_router.router)
     app.include_router(owners_router.router)
+    app.include_router(classify_rules_router.router)
 except Exception:
     # In case of import issues during incremental refactor, continue with inline endpoints
     pass
@@ -429,6 +433,40 @@ def load_transaction_types_csv_into_memory(tt_csv_path: Path) -> None:
         logger.error(f"Transaction types CSV raw-line supplement failed: {e}")
 
 
+def _normalize_str(val: Optional[str]) -> str:
+    return (val or "").strip()
+
+
+def load_classify_rules_csv_into_memory(csv_path: Path) -> None:
+    CLASSIFY_DB.clear()
+    if not csv_path or not csv_path.exists():
+        return
+    with csv_path.open(newline="", encoding="utf-8") as f:
+        reader = _dict_reader_ignoring_comments(f)
+        for row in reader:
+            row = _normalize_row_keys(row)
+            # Accept variant headers
+            bank = _normalize_str(_get_any(row, ["bankaccountname", "account", "bank_account", "bank"])) .lower()
+            ttype = _normalize_str(_get_any(row, ["transaction_type", "transactiontype", "type"])) .lower()
+            patt = _normalize_str(_get_any(row, ["pattern_match_logic", "pattern", "match", "rule"]))
+            tax = _normalize_str(_get_any(row, ["tax_category", "category", "tax"])) .lower()
+            prop = _normalize_str(_get_any(row, ["property", "prop"])) .lower()
+            other = _normalize_str(_get_any(row, ["otherentity", "entity", "payee", "vendor"]))
+            # Require minimum fields
+            if not (bank and ttype and patt):
+                continue
+            # Build a composite key that includes pattern to avoid overwrites
+            key = f"{bank}|{ttype}|{prop}|{patt}"
+            CLASSIFY_DB[key] = {
+                "bankaccountname": bank,
+                "transaction_type": ttype,
+                "pattern_match_logic": patt,
+                "tax_category": tax,
+                "property": prop,
+                "otherentity": other,
+            }
+
+
 @app.on_event("startup")
 async def startup_event():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -446,7 +484,7 @@ async def startup_event():
     logger.info(f"ENTITIES_DIR: {entities_dir} exists={entities_dir.exists() if entities_dir else False}")
 
     # Compute CSV paths from ENTITIES_DIR
-    global CSV_PATH, COMP_CSV_PATH, BANK_CSV_PATH, GROUPS_CSV_PATH, OWNERS_CSV_PATH, TAX_CSV_PATH, TT_CSV_PATH, BANKS_YAML_PATH
+    global CSV_PATH, COMP_CSV_PATH, BANK_CSV_PATH, GROUPS_CSV_PATH, OWNERS_CSV_PATH, TAX_CSV_PATH, TT_CSV_PATH, BANKS_YAML_PATH, CLASSIFY_CSV_PATH
     CSV_PATH = (entities_dir / "properties.csv") if entities_dir else None
     COMP_CSV_PATH = (entities_dir / "companies.csv") if entities_dir else None
     BANK_CSV_PATH = (entities_dir / "bankaccounts.csv") if entities_dir else None
@@ -455,6 +493,7 @@ async def startup_event():
     BANKS_YAML_PATH = (entities_dir / "banks.yaml") if entities_dir else None
     TAX_CSV_PATH = (entities_dir / "tax_category.csv") if entities_dir else None
     TT_CSV_PATH = (entities_dir / "transaction_types.csv") if entities_dir else None
+    CLASSIFY_CSV_PATH = (entities_dir / "classify_rules.csv") if entities_dir else None
 
     # Load CSVs
     load_companies_csv_into_memory(COMP_CSV_PATH)  # load companies first for validation
@@ -473,6 +512,8 @@ async def startup_event():
     logger.info(f"Loaded {len(TT_DB)} transaction types from {TT_CSV_PATH}")
     load_banks_yaml_into_memory(BANKS_YAML_PATH)
     logger.info(f"Loaded {len(BANKS_CFG_DB)} bank configs from {BANKS_YAML_PATH}")
+    load_classify_rules_csv_into_memory(CLASSIFY_CSV_PATH)
+    logger.info(f"Loaded {len(CLASSIFY_DB)} classify rules from {CLASSIFY_CSV_PATH}")
 
     # Emit YAML snapshots sorted by primary key
     try:
@@ -524,6 +565,12 @@ async def startup_event():
                 path=BANKS_YAML_PATH,
                 entities=list(BANKS_CFG_DB.values()),
                 key_field='name',
+            )
+        if CLASSIFY_CSV_PATH:
+            _dump_yaml_entities(
+                path=CLASSIFY_CSV_PATH.with_suffix('.yaml'),
+                entities=list(CLASSIFY_DB.values()),
+                key_field='bankaccountname',
             )
     except Exception as e:
         logger.error(f"Failed to write YAML snapshots: {e}")

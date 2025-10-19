@@ -19,6 +19,7 @@ const BanksPanelExt = ({ banks, loading, reload }) => {
   const Modal = window.Modal;
   const [mode, setMode] = React.useState('add');
   const [originalKey, setOriginalKey] = React.useState('');
+  const [filter, setFilter] = React.useState({ name:'', date_format:'', delim:'', ignore_lines_contains:'', ignore_lines_startswith:'', columns:'' });
   const onChange = (e) => {
     const { name, value } = e.target;
     if (name.startsWith('col_')) {
@@ -95,7 +96,7 @@ const BanksPanelExt = ({ banks, loading, reload }) => {
     } catch (err) { setError(err.message || 'Error'); } finally { setSaving(false); }
   };
   const onDelete = async (name) => {
-    if (!confirm(`Delete ${name}?`)) return;
+    if (!(await window.showConfirm(`Delete ${name}?`))) return;
     try { await window.api.removeBank(name); await reload(); } catch (err) { alert(err.message || 'Error'); }
   };
   return (
@@ -105,16 +106,24 @@ const BanksPanelExt = ({ banks, loading, reload }) => {
         <button type="button" onClick={() => { setForm({ name: '', date_format: 'M/d/yyyy', delim: '', ignore_lines_contains: '', ignore_lines_startswith: '', col_checkno: '', col_credit: '', col_date: '', col_debit: '', col_description: '', col_fees: '', col_memo: '' }); setMode('add'); setOriginalKey(''); setOpen(true); }} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add bank</button>
         <button type="button" onClick={reload} disabled={loading} className="px-3 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-60">Refresh</button>
       </div>
-      <Modal title={mode==='edit' ? 'Edit Bank' : 'Add Bank'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'}>
+      <Modal title={mode==='edit' ? 'Edit Bank' : 'Add Bank'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'} submitDisabled={!((form.name || '').trim()) || !((form.date_format || '').trim())}>
         <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
             <label className="block text-sm font-medium text-gray-700">name</label>
-            <input name="name" value={form.name} onChange={onChange} placeholder="lowercase id [a-z0-9_]" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            <input
+              name="name"
+              value={form.name}
+              onChange={onChange}
+              placeholder="lowercase id [a-z0-9_]"
+              required
+              readOnly={mode === 'edit'}
+              className={`mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500 ${mode === 'edit' ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+            />
             <p className="text-xs text-gray-500 mt-1">Unique lowercase id</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">date_format</label>
-            <input name="date_format" value={form.date_format} onChange={onChange} placeholder="%m/%d/%Y" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            <input name="date_format" value={form.date_format} onChange={onChange} placeholder="%m/%d/%Y" required className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
             <p className="text-xs text-gray-500 mt-1">Python strptime format</p>
           </div>
           <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -180,9 +189,32 @@ const BanksPanelExt = ({ banks, loading, reload }) => {
                 <th>columns</th>
                 <th></th>
               </tr>
+              <tr>
+                <th><input placeholder="filter" value={filter.name} onChange={(e)=> setFilter(f=>({...f, name: e.target.value }))} /></th>
+                <th><input placeholder="filter" value={filter.date_format} onChange={(e)=> setFilter(f=>({...f, date_format: e.target.value }))} /></th>
+                <th><input placeholder="filter" value={filter.delim} onChange={(e)=> setFilter(f=>({...f, delim: e.target.value }))} /></th>
+                <th><input placeholder="filter" value={filter.ignore_lines_contains} onChange={(e)=> setFilter(f=>({...f, ignore_lines_contains: e.target.value }))} /></th>
+                <th><input placeholder="filter" value={filter.ignore_lines_startswith} onChange={(e)=> setFilter(f=>({...f, ignore_lines_startswith: e.target.value }))} /></th>
+                <th><input placeholder="filter" value={filter.columns} onChange={(e)=> setFilter(f=>({...f, columns: e.target.value }))} /></th>
+                <th></th>
+              </tr>
             </thead>
             <tbody>
-              {banks.map(b => (
+              {banks
+                .filter(b => {
+                  const ilc = (b.ignore_lines_contains || []).join(' ').toLowerCase();
+                  const ils = (b.ignore_lines_startswith || []).join(' ').toLowerCase();
+                  const cols = JSON.stringify(b.columns || []).toLowerCase();
+                  return (
+                    (filter.name ? (b.name||'').toLowerCase().includes(filter.name.toLowerCase()) : true) &&
+                    (filter.date_format ? (b.date_format||'').toLowerCase().includes(filter.date_format.toLowerCase()) : true) &&
+                    (filter.delim ? (b.delim||'').toLowerCase().includes(filter.delim.toLowerCase()) : true) &&
+                    (filter.ignore_lines_contains ? ilc.includes(filter.ignore_lines_contains.toLowerCase()) : true) &&
+                    (filter.ignore_lines_startswith ? ils.includes(filter.ignore_lines_startswith.toLowerCase()) : true) &&
+                    (filter.columns ? cols.includes(filter.columns.toLowerCase()) : true)
+                  );
+                })
+                .map(b => (
                 <tr key={b.name}>
                   <td>{b.name}</td>
                   <td>{b.date_format}</td>

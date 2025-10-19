@@ -1,11 +1,13 @@
 const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companies }) => {
   const Modal = window.Modal;
+  const MultiSelect = window.MultiSelect;
   const empty = { name: '', bankaccounts: [], properties: [], companies: [] };
   const [form, setForm] = React.useState(empty);
   const [saving, setSaving] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [mode, setMode] = React.useState('add');
   const [originalKey, setOriginalKey] = React.useState('');
+  const [filter, setFilter] = React.useState({ name: '', bankaccounts: '', properties: '', companies: '' });
   const onChange = (e) => {
     const { name, value, multiple, selectedOptions } = e.target;
     if (name === 'name') {
@@ -39,7 +41,7 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
     } catch (e) { alert(e.message || 'Error'); } finally { setSaving(false); }
   };
   const onDelete = async (name) => {
-    if (!confirm(`Delete ${name}?`)) return;
+    if (!(await window.showConfirm(`Delete ${name}?`))) return;
     try { await window.api.removeOwner(name); await reload(); } catch (e) { alert(e.message || 'Error'); }
   };
   const onEdit = (x) => {
@@ -61,39 +63,46 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
         <button type="button" onClick={() => { setForm(empty); setMode('add'); setOriginalKey(''); setOpen(true); }} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add owner</button>
         <button type="button" onClick={reload} disabled={loading} className="px-3 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-60">Refresh</button>
       </div>
-      <Modal title={mode==='edit' ? 'Edit Owner' : 'Add Owner'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'}>
+      <Modal title={mode==='edit' ? 'Edit Owner' : 'Add Owner'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'} submitDisabled={!((form.name || '').trim()) || !((form.properties || []).length) || !((form.bankaccounts || []).length)}>
         <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
             <label className="block text-sm font-medium text-gray-700">name</label>
-            <input name="name" value={form.name} onChange={onChange} placeholder="lowercase [a-z0-9_]" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            <input
+              name="name"
+              value={form.name}
+              onChange={onChange}
+              placeholder="lowercase [a-z0-9_]"
+              readOnly={mode === 'edit'}
+              className={`mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500 ${mode === 'edit' ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+            />
             <p className="text-xs text-gray-500 mt-1">Lowercase identifier</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">bankaccounts (multi-select)</label>
-            <select name="bankaccounts" multiple value={form.bankaccounts} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500 min-h-28">
-              {(bankaccounts || []).map(ba => (
-                <option key={ba.bankaccountname} value={(ba.bankaccountname || '').toLowerCase()}>{ba.bankaccountname}</option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">Hold Cmd/Ctrl to select multiple</p>
+            <MultiSelect
+              label="bankaccounts"
+              options={(bankaccounts || []).map(ba => ({ value: (ba.bankaccountname || '').toLowerCase(), label: ba.bankaccountname }))}
+              selected={form.bankaccounts}
+              onChange={(vals) => setForm({ ...form, bankaccounts: (vals || []).map(v => (v || '').toLowerCase()) })}
+              placeholder="Select bank accounts..."
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">properties (multi-select)</label>
-            <select name="properties" multiple value={form.properties} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500 min-h-28">
-              {(items || []).map(p => (
-                <option key={p.property} value={(p.property || '').toLowerCase()}>{p.property}</option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">Hold Cmd/Ctrl to select multiple</p>
+            <MultiSelect
+              label="properties"
+              options={(items || []).map(p => ({ value: (p.property || '').toLowerCase(), label: p.property }))}
+              selected={form.properties}
+              onChange={(vals) => setForm({ ...form, properties: (vals || []).map(v => (v || '').toLowerCase()) })}
+              placeholder="Select properties..."
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">companies (multi-select)</label>
-            <select name="companies" multiple value={form.companies} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500 min-h-28">
-              {(companies || []).map(c => (
-                <option key={c} value={(c || '').toLowerCase()}>{c}</option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">Hold Cmd/Ctrl to select multiple</p>
+            <MultiSelect
+              label="companies"
+              options={(companies || []).map(c => ({ value: (c || '').toLowerCase(), label: c }))}
+              selected={form.companies}
+              onChange={(vals) => setForm({ ...form, companies: (vals || []).map(v => (v || '').toLowerCase()) })}
+              placeholder="Select companies..."
+            />
           </div>
         </form>
       </Modal>
@@ -108,9 +117,23 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
                 <th>companies</th>
                 <th></th>
               </tr>
+              <tr>
+                <th><input placeholder="filter" value={filter.name} onChange={(e)=> setFilter(f=>({...f, name: e.target.value }))} /></th>
+                <th><input placeholder="filter" value={filter.bankaccounts} onChange={(e)=> setFilter(f=>({...f, bankaccounts: e.target.value }))} /></th>
+                <th><input placeholder="filter" value={filter.properties} onChange={(e)=> setFilter(f=>({...f, properties: e.target.value }))} /></th>
+                <th><input placeholder="filter" value={filter.companies} onChange={(e)=> setFilter(f=>({...f, companies: e.target.value }))} /></th>
+                <th></th>
+              </tr>
             </thead>
             <tbody>
-              {owners.map(x => (
+              {owners
+                .filter(x => (
+                  (filter.name ? (x.name||'').toLowerCase().includes(filter.name.toLowerCase()) : true) &&
+                  (filter.bankaccounts ? (x.bankaccounts||[]).join(' ').toLowerCase().includes(filter.bankaccounts.toLowerCase()) : true) &&
+                  (filter.properties ? (x.properties||[]).join(' ').toLowerCase().includes(filter.properties.toLowerCase()) : true) &&
+                  (filter.companies ? (x.companies||[]).join(' ').toLowerCase().includes(filter.companies.toLowerCase()) : true)
+                ))
+                .map(x => (
                 <tr key={x.name}>
                   <td>{x.name}</td>
                   <td>{x.bankaccounts.join(' | ')}</td>

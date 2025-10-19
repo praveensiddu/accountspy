@@ -6,6 +6,7 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
   const [open, setOpen] = React.useState(false);
   const [mode, setMode] = React.useState('add');
   const [originalKey, setOriginalKey] = React.useState('');
+  const [filter, setFilter] = React.useState({ bankaccountname: '', bankname: '' });
   const onChange = (e) => {
     const { name, value } = e.target;
     if (name === 'bankaccountname') setForm({ ...form, [name]: (value || '').toLowerCase().replace(/[^a-z0-9_]/g, '') });
@@ -27,7 +28,7 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
     } catch (e) { alert(e.message || 'Error'); } finally { setSaving(false); }
   };
   const onDelete = async (name) => {
-    if (!confirm(`Delete ${name}?`)) return;
+    if (!(await window.showConfirm(`Delete ${name}?`))) return;
     try { await window.api.removeBankaccount(name); await reload(); } catch (e) { alert(e.message || 'Error'); }
   };
   const onEdit = (x) => {
@@ -43,11 +44,19 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
         <button type="button" onClick={() => { setForm(empty); setMode('add'); setOriginalKey(''); setOpen(true); }} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add bank account</button>
         <button type="button" onClick={reload} disabled={loading} className="px-3 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-60">Refresh</button>
       </div>
-      <Modal title={mode==='edit' ? 'Edit Bank Account' : 'Add Bank Account'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'}>
+      <Modal title={mode==='edit' ? 'Edit Bank Account' : 'Add Bank Account'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'} submitDisabled={!((form.bankaccountname || '').trim())}>
         <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
             <label className="block text-sm font-medium text-gray-700">bankaccountname</label>
-            <input name="bankaccountname" value={form.bankaccountname} onChange={onChange} placeholder="lowercase [a-z0-9_]" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            <input
+              name="bankaccountname"
+              value={form.bankaccountname}
+              onChange={onChange}
+              placeholder="lowercase [a-z0-9_]"
+              required
+              readOnly={mode === 'edit'}
+              className={`mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500 ${mode === 'edit' ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+            />
             <p className="text-xs text-gray-500 mt-1">Lowercase id</p>
           </div>
           <div>
@@ -71,9 +80,23 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
                 <th>bankname</th>
                 <th></th>
               </tr>
+              <tr>
+                <th>
+                  <input placeholder="filter" value={filter.bankaccountname} onChange={(e)=> setFilter(f=>({...f, bankaccountname: e.target.value }))} />
+                </th>
+                <th>
+                  <input placeholder="filter" value={filter.bankname} onChange={(e)=> setFilter(f=>({...f, bankname: e.target.value }))} />
+                </th>
+                <th></th>
+              </tr>
             </thead>
             <tbody>
-              {bankaccounts.map(x => (
+              {bankaccounts
+                .filter(x => (
+                  (filter.bankaccountname ? (x.bankaccountname||'').toLowerCase().includes(filter.bankaccountname.toLowerCase()) : true) &&
+                  (filter.bankname ? (x.bankname||'').toLowerCase().includes(filter.bankname.toLowerCase()) : true)
+                ))
+                .map(x => (
                 <tr key={x.bankaccountname}>
                   <td>{x.bankaccountname}</td>
                   <td>{x.bankname}</td>

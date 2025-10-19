@@ -1,15 +1,16 @@
 const PropertiesPanelExt = ({ items, companies, loading, reload }) => {
-  const empty = { property: '', cost: 0, landValue: 0, renovation: 0, loanClosingCOst: 0, ownerCount: 1, purchaseDate: '', propMgmgtComp: '' };
+  const empty = { property: '', cost: 0, landValue: 0, renovation: 0, loanClosingCost: 0, ownerCount: 1, purchaseDate: '', propMgmgtComp: '' };
   const [form, setForm] = React.useState(empty);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState('');
   const [open, setOpen] = React.useState(false);
   const [mode, setMode] = React.useState('add'); // 'add' | 'edit'
   const [originalKey, setOriginalKey] = React.useState('');
+  const [filter, setFilter] = React.useState({ property: '', cost: '', landValue: '', renovation: '', loanClosingCost: '', ownerCount: '', purchaseDate: '', propMgmgtComp: '' });
   const Modal = window.Modal;
   const onChange = (e) => {
     const { name, value } = e.target;
-    if ([ 'cost','landValue','renovation','loanClosingCOst','ownerCount' ].includes(name)) {
+    if ([ 'cost','landValue','renovation','loanClosingCost','ownerCount' ].includes(name)) {
       setForm({ ...form, [name]: Number(value || 0) });
     } else {
       setForm({ ...form, [name]: value });
@@ -41,7 +42,7 @@ const PropertiesPanelExt = ({ items, companies, loading, reload }) => {
     } catch (e) { setError(e.message || 'Error'); } finally { setSaving(false); }
   };
   const onDelete = async (id) => {
-    if (!confirm(`Delete ${id}?`)) return;
+    if (!(await window.showConfirm(`Delete ${id}?`))) return;
     try { await window.api.remove(id); await reload(); } catch (e) { alert(e.message || 'Error'); }
   };
   const onEdit = (item) => {
@@ -52,7 +53,7 @@ const PropertiesPanelExt = ({ items, companies, loading, reload }) => {
       cost: item.cost,
       landValue: item.landValue,
       renovation: item.renovation,
-      loanClosingCOst: item.loanClosingCOst,
+      loanClosingCost: item.loanClosingCost != null ? item.loanClosingCost : item.loanClosingCOst,
       ownerCount: item.ownerCount,
       purchaseDate: item.purchaseDate,
       propMgmgtComp: item.propMgmgtComp,
@@ -65,18 +66,25 @@ const PropertiesPanelExt = ({ items, companies, loading, reload }) => {
       <div className="actions" style={{ marginBottom: 12 }}>
         <button type="button" onClick={() => { setForm(empty); setMode('add'); setOriginalKey(''); setOpen(true); }} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add property</button>
         <button type="button" onClick={reload} disabled={loading} className="px-3 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-60">Refresh</button>
-        <span className="muted">All data is in-memory only.</span>
       </div>
-      <Modal title={mode === 'edit' ? 'Edit Property' : 'Add Property'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'}>
+      <Modal title={mode === 'edit' ? 'Edit Property' : 'Add Property'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'} submitDisabled={!((form.property || '').trim()) || !((form.purchaseDate || '').trim()) || (form.cost === '' || form.cost == null) || !((form.propMgmgtComp || '').trim())}>
         <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
             <label className="block text-sm font-medium text-gray-700">property</label>
-            <input name="property" value={form.property} onChange={onChange} placeholder="unique id" required className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            <input
+              name="property"
+              value={form.property}
+              onChange={onChange}
+              placeholder="unique id"
+              required
+              readOnly={mode === 'edit'}
+              className={`mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500 ${mode === 'edit' ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : ''}`}
+            />
             <p className="text-xs text-gray-500 mt-1">Lowercase unique ID</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">cost</label>
-            <input name="cost" type="number" value={form.cost} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            <input name="cost" type="number" value={form.cost} onChange={onChange} required className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
             <p className="text-xs text-gray-500 mt-1">Whole number</p>
           </div>
           <div>
@@ -90,8 +98,8 @@ const PropertiesPanelExt = ({ items, companies, loading, reload }) => {
             <p className="text-xs text-gray-500 mt-1">Whole number</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">loanClosingCOst</label>
-            <input name="loanClosingCOst" type="number" value={form.loanClosingCOst} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            <label className="block text-sm font-medium text-gray-700">loanClosingCost</label>
+            <input name="loanClosingCost" type="number" value={form.loanClosingCost} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
             <p className="text-xs text-gray-500 mt-1">Whole number</p>
           </div>
           <div>
@@ -101,12 +109,12 @@ const PropertiesPanelExt = ({ items, companies, loading, reload }) => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">purchaseDate</label>
-            <input name="purchaseDate" type="text" value={form.purchaseDate} onChange={onChange} placeholder="MM/DD/YYYY" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            <input name="purchaseDate" type="text" value={form.purchaseDate} onChange={onChange} placeholder="MM/DD/YYYY" required className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
             <p className="text-xs text-gray-500 mt-1">Format MM/DD/YYYY</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">propMgmgtComp</label>
-            <select name="propMgmgtComp" value={form.propMgmgtComp} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+            <select name="propMgmgtComp" value={form.propMgmgtComp} onChange={onChange} required className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500">
               <option value="">Select company</option>
               {companies.map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -126,21 +134,46 @@ const PropertiesPanelExt = ({ items, companies, loading, reload }) => {
                 <th>cost</th>
                 <th>landValue</th>
                 <th>renovation</th>
-                <th>loanClosingCOst</th>
+                <th>loanClosingCost</th>
                 <th>ownerCount</th>
                 <th>purchaseDate</th>
                 <th>propMgmgtComp</th>
                 <th></th>
               </tr>
+              <tr>
+                <th><input placeholder="filter" value={filter.property} onChange={(e)=> setFilter(f=>({...f, property: e.target.value }))} /></th>
+                <th><input placeholder="filter" value={filter.cost} onChange={(e)=> setFilter(f=>({...f, cost: e.target.value }))} /></th>
+                <th><input placeholder="filter" value={filter.landValue} onChange={(e)=> setFilter(f=>({...f, landValue: e.target.value }))} /></th>
+                <th><input placeholder="filter" value={filter.renovation} onChange={(e)=> setFilter(f=>({...f, renovation: e.target.value }))} /></th>
+                <th><input placeholder="filter" value={filter.loanClosingCost} onChange={(e)=> setFilter(f=>({...f, loanClosingCost: e.target.value }))} /></th>
+                <th><input placeholder="filter" value={filter.ownerCount} onChange={(e)=> setFilter(f=>({...f, ownerCount: e.target.value }))} /></th>
+                <th><input placeholder="filter" value={filter.purchaseDate} onChange={(e)=> setFilter(f=>({...f, purchaseDate: e.target.value }))} /></th>
+                <th><input placeholder="filter" value={filter.propMgmgtComp} onChange={(e)=> setFilter(f=>({...f, propMgmgtComp: e.target.value }))} /></th>
+                <th></th>
+              </tr>
             </thead>
             <tbody>
-              {items.map((x) => (
+              {items
+                .filter(x => {
+                  const lcc = (x.loanClosingCost != null ? x.loanClosingCost : x.loanClosingCOst);
+                  return (
+                    (filter.property ? String(x.property||'').toLowerCase().includes(filter.property.toLowerCase()) : true) &&
+                    (filter.cost ? String(x.cost||'').toLowerCase().includes(filter.cost.toLowerCase()) : true) &&
+                    (filter.landValue ? String(x.landValue||'').toLowerCase().includes(filter.landValue.toLowerCase()) : true) &&
+                    (filter.renovation ? String(x.renovation||'').toLowerCase().includes(filter.renovation.toLowerCase()) : true) &&
+                    (filter.loanClosingCost ? String(lcc||'').toLowerCase().includes(filter.loanClosingCost.toLowerCase()) : true) &&
+                    (filter.ownerCount ? String(x.ownerCount||'').toLowerCase().includes(filter.ownerCount.toLowerCase()) : true) &&
+                    (filter.purchaseDate ? String(x.purchaseDate||'').toLowerCase().includes(filter.purchaseDate.toLowerCase()) : true) &&
+                    (filter.propMgmgtComp ? String(x.propMgmgtComp||'').toLowerCase().includes(filter.propMgmgtComp.toLowerCase()) : true)
+                  );
+                })
+                .map((x) => (
                 <tr key={x.property}>
                   <td>{x.property}</td>
                   <td>{x.cost}</td>
                   <td>{x.landValue}</td>
                   <td>{x.renovation}</td>
-                  <td>{x.loanClosingCOst}</td>
+                  <td>{x.loanClosingCost != null ? x.loanClosingCost : x.loanClosingCOst}</td>
                   <td>{x.ownerCount}</td>
                   <td>{x.purchaseDate}</td>
                   <td>{x.propMgmgtComp}</td>
