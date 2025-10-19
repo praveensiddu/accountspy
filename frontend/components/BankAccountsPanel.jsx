@@ -40,7 +40,7 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload }) => {
     <React.Fragment>
       <h2>Bank Accounts</h2>
       <div className="actions" style={{ marginBottom: 12 }}>
-        <button type="button" onClick={() => setOpen(true)}>Add bank account</button>
+        <button type="button" onClick={() => { setForm(empty); setMode('add'); setOriginalKey(''); setOpen(true); }}>Add bank account</button>
         <button type="button" onClick={reload} disabled={loading}>Refresh</button>
       </div>
       <Modal title={mode==='edit' ? 'Edit Bank Account' : 'Add Bank Account'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'}>

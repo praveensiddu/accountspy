@@ -18,7 +18,7 @@ const GroupsPanelExt = ({ groups, loading, reload }) => {
   const onSubmit = async (e) => {
     e.preventDefault(); setSaving(true);
     try {
-      const payload = { groupname: form.groupname, propertylist: (form.propertylist || '').split('|').map(s=>s.trim().toLowerCase()).filter(Boolean) };
+      const payload = { groupname: form.groupname, propertylist: (form.propertylist || '').split(/\r?\n/).map(s=>s.trim().toLowerCase()).filter(Boolean) };
       if (!payload.groupname) throw new Error('groupname is required');
       if (mode === 'edit' && originalKey) {
         await window.api.removeGroup(originalKey);
@@ -38,14 +38,14 @@ const GroupsPanelExt = ({ groups, loading, reload }) => {
   const onEdit = (x) => {
     setMode('edit');
     setOriginalKey(x.groupname);
-    setForm({ groupname: x.groupname, propertylist: (x.propertylist || []).join('|') });
+    setForm({ groupname: x.groupname, propertylist: (x.propertylist || []).join('\n') });
     setOpen(true);
   };
   return (
     <React.Fragment>
       <h2>Groups</h2>
       <div className="actions" style={{ marginBottom: 12 }}>
-        <button type="button" onClick={() => setOpen(true)}>Add group</button>
+        <button type="button" onClick={() => { setForm(empty); setMode('add'); setOriginalKey(''); setOpen(true); }}>Add group</button>
         <button type="button" onClick={reload} disabled={loading}>Refresh</button>
       </div>
       <Modal title={mode==='edit' ? 'Edit Group' : 'Add Group'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'}>
@@ -56,11 +56,11 @@ const GroupsPanelExt = ({ groups, loading, reload }) => {
             </label>
             <span className="muted" style={{flex:1}}>Lowercase identifier</span>
           </div>
-          <div className="col" style={{display:'flex', gap:8, alignItems:'center', marginBottom:8}}>
-            <label style={{flex:1}}>propertylist (pipe-separated)<br/>
-              <input name="propertylist" value={form.propertylist} onChange={onChange} placeholder="p1|p2|p3" />
+          <div className="col" style={{display:'flex', gap:8, alignItems:'flex-start', marginBottom:8}}>
+            <label style={{flex:1}}>propertylist (one per line)<br/>
+              <textarea name="propertylist" value={form.propertylist} onChange={onChange} rows="6" placeholder={"p1\np2\np3"} style={{width:'100%'}} />
             </label>
-            <span className="muted" style={{flex:1}}>Use | as separator</span>
+            <span className="muted" style={{flex:1}}>One property per line</span>
           </div>
         </div>
       </Modal>

@@ -21,6 +21,12 @@
       .actions { display: flex; gap: 8px; }
       .muted { color: #6b7280; font-size: 13px; }
       .error { color: #b91c1c; }
+      /* Tabbed pane styles */
+      .tabs { display: flex; gap: 0; border-bottom: 1px solid #e5e7eb; margin-bottom: 0; }
+      .tab { appearance: none; background: transparent; border: 0; border-bottom: 2px solid transparent; color: #6b7280; padding: 10px 14px; margin: 0; cursor: pointer; border-top-left-radius: 8px; border-top-right-radius: 8px; }
+      .tab:hover { color: #111827; }
+      .tab.active { color: #111827; border-bottom-color: #111827; font-weight: 600; }
+      .tabcontent { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-top: -1px; }
     </style>
   </head>
   <body>
@@ -1173,37 +1179,38 @@
         };
 
         const TabButton = ({ active, onClick, children }) => (
-          <button type="button" onClick={onClick} style={{
-            background: active ? '#111827' : '#e5e7eb', color: active ? '#fff' : '#111827',
-            borderRadius: 6, padding: '8px 12px', border: '1px solid #d1d5db'
-          }}>{children}</button>
+          <button type="button" onClick={onClick} className={`tab ${active ? 'active' : ''}`}>{children}</button>
         );
 
         return (
           <div className="container">
             <h1>AccountSpy</h1>
 
-            <div className="actions" style={{ marginBottom: 12 }}>
+            <div className="tabs">
               <TabButton active={topTab==='setup'} onClick={() => setTopTab('setup')}>Setup</TabButton>
               <TabButton active={topTab==='transactions'} onClick={() => setTopTab('transactions')}>Transactions</TabButton>
               <TabButton active={topTab==='report'} onClick={() => setTopTab('report')}>Report</TabButton>
             </div>
 
             {topTab === 'setup' && (
-              <React.Fragment>
+              <div className="tabcontent">
                 <div className="actions" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
-                  <TabButton active={setupTab==='properties'} onClick={() => setSetupTab('properties')}>Properties</TabButton>
-                  <TabButton active={setupTab==='companies'} onClick={() => setSetupTab('companies')}>Company Records</TabButton>
+                  <TabButton active={setupTab==='banks'} onClick={() => setSetupTab('banks')}>Banks</TabButton>
                   <TabButton active={setupTab==='bankaccounts'} onClick={() => setSetupTab('bankaccounts')}>Bank Accounts</TabButton>
+                  <TabButton active={setupTab==='companies'} onClick={() => setSetupTab('companies')}>Company Records</TabButton>
+                  <TabButton active={setupTab==='properties'} onClick={() => setSetupTab('properties')}>Properties</TabButton>
                   <TabButton active={setupTab==='groups'} onClick={() => setSetupTab('groups')}>Groups</TabButton>
                   <TabButton active={setupTab==='owners'} onClick={() => setSetupTab('owners')}>Owners</TabButton>
-                  <TabButton active={setupTab==='banks'} onClick={() => setSetupTab('banks')}>Banks</TabButton>
                   <TabButton active={setupTab==='taxcats'} onClick={() => setSetupTab('taxcats')}>Tax Categories</TabButton>
                   <TabButton active={setupTab==='txtypes'} onClick={() => setSetupTab('txtypes')}>Transaction Types</TabButton>
                 </div>
 
                 {setupTab === 'properties' && (
                   <PropertiesPanelExt items={items} companies={companies} loading={loading} reload={load} />
+                )}
+
+                {setupTab === 'companies' && (
+                  <CompaniesPanelExt companyRecords={companyRecords} loading={loading} reload={load} />
                 )}
 
                 {setupTab === 'banks' && (
@@ -1229,15 +1236,15 @@
                 {setupTab === 'owners' && (
                   <OwnersPanelExt owners={owners} loading={loading} reload={load} bankaccounts={bankaccounts} items={items} companies={companies} />
                 )}
-              </React.Fragment>
+              </div>
             )}
 
             {topTab === 'transactions' && (
-              <div className="card"><div className="muted">Transactions UI coming soon.</div></div>
+              <div className="tabcontent"><div className="muted">Transactions UI coming soon.</div></div>
             )}
 
             {topTab === 'report' && (
-              <div className="card"><div className="muted">Report UI coming soon.</div></div>
+              <div className="tabcontent"><div className="muted">Report UI coming soon.</div></div>
             )}
           </div>
         );

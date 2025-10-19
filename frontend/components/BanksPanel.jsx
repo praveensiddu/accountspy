@@ -1,16 +1,3 @@
-  const onEdit = (b) => {
-    setMode('edit');
-    setOriginalKey(b.name);
-    setForm({
-      name: b.name,
-      date_format: b.date_format || '',
-      delim: b.delim || '',
-      ignore_lines_contains: (b.ignore_lines_contains || []).join('|'),
-      ignore_lines_startswith: (b.ignore_lines_startswith || []).join('|'),
-      columnsText: JSON.stringify(b.columns || []),
-    });
-    setOpen(true);
-  };
 const BanksPanelExt = ({ banks, loading, reload }) => {
   const [form, setForm] = React.useState({ name: '', date_format: '', delim: '', ignore_lines_contains: '', ignore_lines_startswith: '', columnsText: '' });
   const [saving, setSaving] = React.useState(false);
@@ -23,6 +10,19 @@ const BanksPanelExt = ({ banks, loading, reload }) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
   };
+  const onEdit = (b) => {
+    setMode('edit');
+    setOriginalKey(b.name);
+    setForm({
+      name: b.name,
+      date_format: b.date_format || '',
+      delim: b.delim || '',
+      ignore_lines_contains: (b.ignore_lines_contains || []).join('|'),
+      ignore_lines_startswith: (b.ignore_lines_startswith || []).join('|'),
+      columnsText: (b.columns || []).map(obj => JSON.stringify(obj)).join('\n'),
+    });
+    setOpen(true);
+  };
   const onSubmit = async (e) => {
     e.preventDefault(); setSaving(true); setError('');
     try {
@@ -32,7 +32,10 @@ const BanksPanelExt = ({ banks, loading, reload }) => {
       const ignore_lines_startswith = (form.ignore_lines_startswith || '').split('|').map(s=>s.trim()).filter(Boolean);
       let columns = [];
       if (form.columnsText && form.columnsText.trim()) {
-        try { columns = JSON.parse(form.columnsText); } catch (_) { columns = []; }
+        const lines = form.columnsText.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+        for (const ln of lines) {
+          try { const obj = JSON.parse(ln); if (obj && typeof obj === 'object') columns.push(obj); } catch (_) {}
+        }
       }
       const payload = {
         name,
@@ -65,7 +68,7 @@ const BanksPanelExt = ({ banks, loading, reload }) => {
     <React.Fragment>
       <h2>Banks</h2>
       <div className="actions" style={{ marginBottom: 12 }}>
-        <button type="button" onClick={() => setOpen(true)}>Add bank</button>
+        <button type="button" onClick={() => { setForm({ name: '', date_format: '', delim: '', ignore_lines_contains: '', ignore_lines_startswith: '', columnsText: '' }); setMode('add'); setOriginalKey(''); setOpen(true); }}>Add bank</button>
         <button type="button" onClick={reload} disabled={loading}>Refresh</button>
       </div>
       <Modal title={mode==='edit' ? 'Edit Bank' : 'Add Bank'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'}>
@@ -100,11 +103,11 @@ const BanksPanelExt = ({ banks, loading, reload }) => {
             </label>
             <span className="muted" style={{flex:1}}>Pipe-separated prefixes</span>
           </div>
-          <div className="col" style={{display:'flex', gap:8, alignItems:'center', marginBottom:8}}>
-            <label style={{flex:1}}>columns (JSON array)<br/>
-              <input name="columnsText" value={form.columnsText} onChange={onChange} placeholder='[{"date":1,"description":2,"debit":3}]' />
+          <div className="col" style={{display:'flex', gap:8, alignItems:'flex-start', marginBottom:8}}>
+            <label style={{flex:1}}>columns (one JSON per line)<br/>
+              <textarea name="columnsText" value={form.columnsText} onChange={onChange} rows="6" placeholder='{"date":1}\n{"description":2}\n{"debit":3}' style={{width:'100%'}} />
             </label>
-            <span className="muted" style={{flex:1}}>JSON array of column maps</span>
+            <span className="muted" style={{flex:1}}>One JSON object per line</span>
           </div>
           {error && <div className="error" style={{ marginTop: 8 }}>{error}</div>}
         </div>

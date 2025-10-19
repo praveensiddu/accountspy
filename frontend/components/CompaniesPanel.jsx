@@ -43,7 +43,7 @@ const CompaniesPanelExt = ({ companyRecords, loading, reload }) => {
     <React.Fragment>
       <h2>Company Records</h2>
       <div className="actions" style={{ marginBottom: 12 }}>
-        <button type="button" onClick={() => setOpen(true)}>Add company</button>
+        <button type="button" onClick={() => { setForm(empty); setMode('add'); setOriginalKey(''); setOpen(true); }}>Add company</button>
         <button type="button" onClick={reload} disabled={loading}>Refresh</button>
       </div>
       <Modal title={mode==='edit' ? 'Edit Company' : 'Add Company'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'}>

@@ -7,12 +7,15 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
   const [mode, setMode] = React.useState('add');
   const [originalKey, setOriginalKey] = React.useState('');
   const onChange = (e) => {
-    const { name, value, multiple } = e.target;
-    if (name === 'name') setForm({ ...form, [name]: (value || '').toLowerCase().replace(/[^a-z0-9_]/g, '') });
-    else if (multiple) {
-      const selected = Array.from(e.target.selectedOptions).map(o => (o.value || '').toLowerCase());
+    const { name, value, multiple, selectedOptions } = e.target;
+    if (name === 'name') {
+      setForm({ ...form, [name]: (value || '').toLowerCase().replace(/[^a-z0-9_]/g, '') });
+    } else if (multiple) {
+      const selected = Array.from(selectedOptions || []).map(o => (o.value || '').toLowerCase());
       setForm({ ...form, [name]: selected });
-    } else setForm({ ...form, [name]: value });
+    } else {
+      setForm({ ...form, [name]: value });
+    }
   };
   const onSubmit = async (e) => {
     e.preventDefault(); setSaving(true);
@@ -42,14 +45,20 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
   const onEdit = (x) => {
     setMode('edit');
     setOriginalKey(x.name);
-    setForm({ name: x.name, bankaccounts: x.bankaccounts, properties: x.properties, companies: x.companies });
+    const lc = (arr) => (arr || []).map(v => (v || '').toLowerCase());
+    setForm({
+      name: (x.name || '').toLowerCase(),
+      bankaccounts: lc(x.bankaccounts),
+      properties: lc(x.properties),
+      companies: lc(x.companies),
+    });
     setOpen(true);
   };
   return (
     <React.Fragment>
       <h2>Owners</h2>
       <div className="actions" style={{ marginBottom: 12 }}>
-        <button type="button" onClick={() => setOpen(true)}>Add owner</button>
+        <button type="button" onClick={() => { setForm(empty); setMode('add'); setOriginalKey(''); setOpen(true); }}>Add owner</button>
         <button type="button" onClick={reload} disabled={loading}>Refresh</button>
       </div>
       <Modal title={mode==='edit' ? 'Edit Owner' : 'Add Owner'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'}>
@@ -63,8 +72,8 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
           <div className="col" style={{display:'flex', gap:8, alignItems:'center', marginBottom:8}}>
             <label style={{flex:1}}>bankaccounts (multi-select)<br/>
               <select name="bankaccounts" multiple value={form.bankaccounts} onChange={onChange}>
-                {bankaccounts.map(ba => (
-                  <option key={ba.bankaccountname} value={ba.bankaccountname}>{ba.bankaccountname}</option>
+                {(bankaccounts || []).map(ba => (
+                  <option key={ba.bankaccountname} value={(ba.bankaccountname || '').toLowerCase()}>{ba.bankaccountname}</option>
                 ))}
               </select>
             </label>
@@ -73,8 +82,8 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
           <div className="col" style={{display:'flex', gap:8, alignItems:'center', marginBottom:8}}>
             <label style={{flex:1}}>properties (multi-select)<br/>
               <select name="properties" multiple value={form.properties} onChange={onChange}>
-                {items.map(p => (
-                  <option key={p.property} value={p.property}>{p.property}</option>
+                {(items || []).map(p => (
+                  <option key={p.property} value={(p.property || '').toLowerCase()}>{p.property}</option>
                 ))}
               </select>
             </label>
@@ -83,8 +92,8 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
           <div className="col" style={{display:'flex', gap:8, alignItems:'center', marginBottom:8}}>
             <label style={{flex:1}}>companies (multi-select)<br/>
               <select name="companies" multiple value={form.companies} onChange={onChange}>
-                {companies.map(c => (
-                  <option key={c} value={c}>{c}</option>
+                {(companies || []).map(c => (
+                  <option key={c} value={(c || '').toLowerCase()}>{c}</option>
                 ))}
               </select>
             </label>

@@ -40,7 +40,7 @@ const TaxCategoriesPanelExt = ({ taxCategories, loading, reload }) => {
     <React.Fragment>
       <h2>Tax Categories</h2>
       <div className="actions" style={{ marginBottom: 12 }}>
-        <button type="button" onClick={() => setOpen(true)}>Add category</button>
+        <button type="button" onClick={() => { setForm({ category: '' }); setMode('add'); setOriginalKey(''); setOpen(true); }}>Add category</button>
         <button type="button" onClick={reload} disabled={loading}>Refresh</button>
       </div>
       <Modal title={mode==='edit' ? 'Edit Category' : 'Add Category'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'}>
