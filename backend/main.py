@@ -24,6 +24,8 @@ BANKS_CFG_DB: Dict[str, Dict] = {}
 TAX_DB: Dict[str, Dict] = {}
 TT_DB: Dict[str, Dict] = {}
 CLASSIFY_DB: Dict[str, Dict] = {}
+COMMON_RULES_DB: Dict[str, Dict] = {}
+INHERIT_RULES_DB: Dict[str, Dict] = {}
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 CSV_PATH = None  # set on startup from ENTITIES_DIR
@@ -439,6 +441,8 @@ def _normalize_str(val: Optional[str]) -> str:
 
 def load_classify_rules_csv_into_memory(csv_path: Path) -> None:
     CLASSIFY_DB.clear()
+    COMMON_RULES_DB.clear()
+    INHERIT_RULES_DB.clear()
     if not csv_path or not csv_path.exists():
         return
     with csv_path.open(newline="", encoding="utf-8") as f:
@@ -448,7 +452,7 @@ def load_classify_rules_csv_into_memory(csv_path: Path) -> None:
             # Accept variant headers
             bank = _normalize_str(_get_any(row, ["bankaccountname", "account", "bank_account", "bank"])) .lower()
             ttype = _normalize_str(_get_any(row, ["transaction_type", "transactiontype", "type"])) .lower()
-            patt = _normalize_str(_get_any(row, ["pattern_match_logic", "pattern", "match", "rule"]))
+            patt = _normalize_str(_get_any(row, ["pattern_match_logic", "pattern", "match", "rule"])) .lower()
             tax = _normalize_str(_get_any(row, ["tax_category", "category", "tax"])) .lower()
             prop = _normalize_str(_get_any(row, ["property", "prop"])) .lower()
             other = _normalize_str(_get_any(row, ["otherentity", "entity", "payee", "vendor"]))
@@ -465,6 +469,76 @@ def load_classify_rules_csv_into_memory(csv_path: Path) -> None:
                 "property": prop,
                 "otherentity": other,
             }
+
+
+def load_common_rules_yaml_into_memory(path: Path) -> None:
+    """Load manually curated common rules from YAML into COMMON_RULES_DB.
+    Expected format: list of objects with fields transaction_type, pattern_match_logic.
+    """
+    COMMON_RULES_DB.clear()
+    if not path or not path.exists():
+        return
+    try:
+        with path.open('r', encoding='utf-8') as yf:
+            data = yaml.safe_load(yf) or []
+            if not isinstance(data, list):
+                return
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                ttype = (item.get('transaction_type') or '').strip().lower()
+                patt = (item.get('pattern_match_logic') or '').strip()
+                patt_norm = ' '.join(patt.split()).lower()
+                if not (ttype and patt_norm):
+                    continue
+                key = f"common|{ttype}|{patt_norm}"
+                COMMON_RULES_DB[key] = {
+                    'bankaccountname': 'common',
+                    'transaction_type': ttype,
+                    'pattern_match_logic': patt_norm,
+                    'tax_category': '',
+                    'property': '',
+                    'otherentity': '',
+                }
+    except Exception as e:
+        logger.error(f"Failed to load common_rules.yaml: {e}")
+
+
+def load_inherit_rules_yaml_into_memory(path: Path) -> None:
+    """Load manually curated inherit rules from YAML into INHERIT_RULES_DB.
+    Expected format: list of objects with fields bankaccountname, transaction_type, pattern_match_logic, tax_category, property, otherentity.
+    """
+    INHERIT_RULES_DB.clear()
+    if not path or not path.exists():
+        return
+    try:
+        with path.open('r', encoding='utf-8') as yf:
+            data = yaml.safe_load(yf) or []
+            if not isinstance(data, list):
+                return
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                bank = (item.get('bankaccountname') or '').strip().lower()
+                ttype = (item.get('transaction_type') or '').strip().lower()
+                patt = (item.get('pattern_match_logic') or '').strip()
+                patt_norm = ' '.join(patt.split()).lower()
+                tax = (item.get('tax_category') or '').strip().lower()
+                prop = (item.get('property') or '').strip().lower()
+                other = (item.get('otherentity') or '').strip()
+                if not (bank and ttype and patt_norm):
+                    continue
+                key = f"{bank}|{ttype}|{prop}|{patt_norm}|{tax}|{other}"
+                INHERIT_RULES_DB[key] = {
+                    'bankaccountname': bank,
+                    'transaction_type': ttype,
+                    'pattern_match_logic': patt_norm,
+                    'tax_category': tax,
+                    'property': prop,
+                    'otherentity': other,
+                }
+    except Exception as e:
+        logger.error(f"Failed to load inherit_common_to_bank.yaml: {e}")
 
 
 @app.on_event("startup")
@@ -514,6 +588,18 @@ async def startup_event():
     logger.info(f"Loaded {len(BANKS_CFG_DB)} bank configs from {BANKS_YAML_PATH}")
     load_classify_rules_csv_into_memory(CLASSIFY_CSV_PATH)
     logger.info(f"Loaded {len(CLASSIFY_DB)} classify rules from {CLASSIFY_CSV_PATH}")
+
+    # Load manually curated common and inherit rules
+    try:
+        if CLASSIFY_CSV_PATH:
+            base_dir = CLASSIFY_CSV_PATH.parent
+            load_common_rules_yaml_into_memory(base_dir / 'common_rules.yaml')
+            load_inherit_rules_yaml_into_memory(base_dir / 'inherit_common_to_bank.yaml')
+        logger.info(
+            f"Loaded manual lists -> bank_rules={len(CLASSIFY_DB)}, common_rules={len(COMMON_RULES_DB)}, inherit_rules={len(INHERIT_RULES_DB)}"
+        )
+    except Exception as e:
+        logger.error(f"Failed to load manual lists: {e}")
 
     # Emit YAML snapshots sorted by primary key
     try:
@@ -566,12 +652,16 @@ async def startup_event():
                 entities=list(BANKS_CFG_DB.values()),
                 key_field='name',
             )
+        # Write derived YAMLs (do not write classify_rules.yaml)
         if CLASSIFY_CSV_PATH:
+            base_dir = CLASSIFY_CSV_PATH.parent
             _dump_yaml_entities(
-                path=CLASSIFY_CSV_PATH.with_suffix('.yaml'),
+                path=base_dir / 'bank_rules.yaml',
                 entities=list(CLASSIFY_DB.values()),
                 key_field='bankaccountname',
             )
+            # Do not write inherit_common_to_bank.yaml; it is manually curated.
+            # Do not write common_rules.yaml; it is manually curated.
     except Exception as e:
         logger.error(f"Failed to write YAML snapshots: {e}")
 
