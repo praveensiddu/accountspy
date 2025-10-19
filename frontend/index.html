@@ -1,0 +1,971 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Properties</title>
+    <link rel="preconnect" href="https://unpkg.com" />
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 24px; background: #f7f7f8; }
+      .container { max-width: 960px; margin: 0 auto; }
+      h1 { margin-top: 0; }
+      table { width: 100%; border-collapse: collapse; background: #fff; }
+      th, td { padding: 8px 10px; border: 1px solid #e5e7eb; font-size: 14px; }
+      th { background: #f3f4f6; text-align: left; }
+      .card { background: #fff; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 16px; }
+      .row { display: flex; gap: 8px; flex-wrap: wrap; }
+      .row .col { flex: 1 1 200px; min-width: 200px; }
+      input, select { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+      button { padding: 10px 14px; border: 0; background: #111827; color: #fff; border-radius: 6px; cursor: pointer; }
+      button:disabled { background: #6b7280; cursor: not-allowed; }
+      .actions { display: flex; gap: 8px; }
+      .muted { color: #6b7280; font-size: 13px; }
+      .error { color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+
+    <script type="text/babel">
+      const { useEffect, useState } = React;
+
+      const api = {
+        async list() {
+          const res = await fetch('/api/properties');
+          if (!res.ok) throw new Error('Failed to fetch properties');
+          return res.json();
+        },
+        async add(item) {
+          const res = await fetch('/api/properties', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(item),
+          });
+          if (!res.ok) {
+            const msg = await res.text();
+            throw new Error(msg || 'Failed to add property');
+          }
+          return res.json();
+        },
+        async remove(id) {
+          const res = await fetch(`/api/properties/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          if (!res.ok && res.status !== 204) throw new Error('Failed to delete');
+        },
+        async companies() {
+          const res = await fetch('/api/companies');
+          if (!res.ok) throw new Error('Failed to fetch companies');
+          return res.json();
+        },
+        async listCompanyRecords() {
+          const res = await fetch('/api/company-records');
+          if (!res.ok) throw new Error('Failed to fetch company records');
+          return res.json();
+        },
+        async addCompanyRecord(item) {
+          const res = await fetch('/api/company-records', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(item),
+          });
+          if (!res.ok) {
+            const msg = await res.text();
+            throw new Error(msg || 'Failed to add company record');
+          }
+          return res.json();
+        },
+        async removeCompanyRecord(name) {
+          const res = await fetch(`/api/company-records/${encodeURIComponent(name)}`, { method: 'DELETE' });
+          if (!res.ok && res.status !== 204) throw new Error('Failed to delete company record');
+        },
+        // Bank accounts
+        async listBankaccounts() {
+          const res = await fetch('/api/bankaccounts');
+          if (!res.ok) throw new Error('Failed to fetch bank accounts');
+          return res.json();
+        },
+        async addBankaccount(item) {
+          const res = await fetch('/api/bankaccounts', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item)
+          });
+          if (!res.ok) throw new Error(await res.text());
+          return res.json();
+        },
+        async removeBankaccount(name) {
+          const res = await fetch(`/api/bankaccounts/${encodeURIComponent(name)}`, { method: 'DELETE' });
+          if (!res.ok && res.status !== 204) throw new Error('Failed to delete bank account');
+        },
+        // Groups
+        async listGroups() {
+          const res = await fetch('/api/groups');
+          if (!res.ok) throw new Error('Failed to fetch groups');
+          return res.json();
+        },
+        async addGroup(item) {
+          const res = await fetch('/api/groups', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item)
+          });
+          if (!res.ok) throw new Error(await res.text());
+          return res.json();
+        },
+        async removeGroup(name) {
+          const res = await fetch(`/api/groups/${encodeURIComponent(name)}`, { method: 'DELETE' });
+          if (!res.ok && res.status !== 204) throw new Error('Failed to delete group');
+        },
+        // Owners
+        async listOwners() {
+          const res = await fetch('/api/owners');
+          if (!res.ok) throw new Error('Failed to fetch owners');
+          return res.json();
+        },
+        async addOwner(item) {
+          const res = await fetch('/api/owners', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item)
+          });
+          if (!res.ok) throw new Error(await res.text());
+          return res.json();
+        },
+        async removeOwner(name) {
+          const res = await fetch(`/api/owners/${encodeURIComponent(name)}`, { method: 'DELETE' });
+          if (!res.ok && res.status !== 204) throw new Error('Failed to delete owner');
+        },
+        // Tax categories
+        async listTaxCategories() {
+          const res = await fetch('/api/tax-categories');
+          if (!res.ok) throw new Error('Failed to fetch tax categories');
+          return res.json();
+        },
+        async addTaxCategory(item) {
+          const res = await fetch('/api/tax-categories', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item)
+          });
+          if (!res.ok) throw new Error(await res.text());
+          return res.json();
+        },
+        async removeTaxCategory(category) {
+          const res = await fetch(`/api/tax-categories/${encodeURIComponent(category)}`, { method: 'DELETE' });
+          if (!res.ok && res.status !== 204) throw new Error('Failed to delete tax category');
+        },
+        // Transaction types
+        async listTransactionTypes() {
+          const res = await fetch('/api/transaction-types');
+          if (!res.ok) throw new Error('Failed to fetch transaction types');
+          return res.json();
+        },
+        async addTransactionType(item) {
+          const res = await fetch('/api/transaction-types', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item)
+          });
+          if (!res.ok) throw new Error(await res.text());
+          return res.json();
+        },
+        async removeTransactionType(tt) {
+          const res = await fetch(`/api/transaction-types/${encodeURIComponent(tt)}`, { method: 'DELETE' });
+          if (!res.ok && res.status !== 204) throw new Error('Failed to delete transaction type');
+        },
+        // Banks config
+        async listBanks() {
+          const res = await fetch('/api/banks');
+          if (!res.ok) throw new Error('Failed to fetch banks config');
+          return res.json();
+        },
+        async addBank(cfg) {
+          const res = await fetch('/api/banks', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg)
+          });
+          if (!res.ok) throw new Error(await res.text());
+          return res.json();
+        },
+        async removeBank(name) {
+          const res = await fetch(`/api/banks/${encodeURIComponent(name)}`, { method: 'DELETE' });
+          if (!res.ok && res.status !== 204) throw new Error('Failed to delete bank config');
+        }
+      };
+
+      function App() {
+        const [items, setItems] = useState([]);
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState('');
+        const [companies, setCompanies] = useState([]);
+        const [companyRecords, setCompanyRecords] = useState([]);
+        const [bankaccounts, setBankaccounts] = useState([]);
+        const [groups, setGroups] = useState([]);
+        const [owners, setOwners] = useState([]);
+        const [taxCategories, setTaxCategories] = useState([]);
+        const [transactionTypes, setTransactionTypes] = useState([]);
+        const [banks, setBanks] = useState([]);
+        const [taxCatForm, setTaxCatForm] = useState({ category: '' });
+        const [txTypeForm, setTxTypeForm] = useState({ transactiontype: '' });
+        const [bankForm, setBankForm] = useState({ name: '', date_format: '', delim: '', ignore_lines_contains: '', ignore_lines_startswith: '', columnsText: '' });
+        const [savingTaxCat, setSavingTaxCat] = useState(false);
+        const [savingTxType, setSavingTxType] = useState(false);
+        const [savingBank, setSavingBank] = useState(false);
+
+        // Tabs state
+        const [topTab, setTopTab] = useState('setup'); // 'setup' | 'transactions' | 'report'
+        const [setupTab, setSetupTab] = useState('properties'); // 'properties' | 'companies' | 'bankaccounts' | 'groups' | 'owners' | 'banks' | 'taxcats' | 'txtypes'
+
+        const empty = { property: '', cost: 0, landValue: 0, renovation: 0, loanClosingCOst: 0, ownerCount: 1, purchaseDate: '', propMgmgtComp: '' };
+        const [form, setForm] = useState(empty);
+        const [saving, setSaving] = useState(false);
+
+        const load = async () => {
+          setError('');
+          setLoading(true);
+          try {
+            const [data, comps, compRecs, bas, grps, ownrs, taxcats, txtypes, banksCfg] = await Promise.all([
+              api.list(),
+              api.companies(),
+              api.listCompanyRecords(),
+              api.listBankaccounts(),
+              api.listGroups(),
+              api.listOwners(),
+              api.listTaxCategories(),
+              api.listTransactionTypes(),
+              api.listBanks()
+            ]);
+            setItems(data);
+            setCompanies(comps);
+            setCompanyRecords(compRecs);
+            setBankaccounts(bas);
+            setGroups(grps);
+            setOwners(ownrs);
+            setTaxCategories(taxcats);
+            setTransactionTypes(txtypes);
+            setBanks(banksCfg);
+          } catch (e) {
+            setError(e.message || 'Error');
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        useEffect(() => { load(); }, []);
+
+        const onChange = (e) => {
+          const { name, value } = e.target;
+          if ([ 'cost','landValue','renovation','loanClosingCOst','ownerCount' ].includes(name)) {
+            setForm({ ...form, [name]: Number(value || 0) });
+          } else {
+            setForm({ ...form, [name]: value });
+          }
+        };
+
+        // Tax Categories handlers
+        const onTaxCatChange = (e) => {
+          const { name, value } = e.target;
+          setTaxCatForm(prev => ({ ...prev, [name]: name === 'category' ? (value || '').trim().toLowerCase() : value }));
+        };
+        const onTaxCatSubmit = async (e) => {
+          e.preventDefault(); setSavingTaxCat(true); setError('');
+          try {
+            const category = (taxCatForm.category || '').trim().toLowerCase();
+            if (!category) throw new Error('category is required');
+            await api.addTaxCategory({ category });
+            setTaxCatForm({ category: '' });
+            await load();
+          } catch (err) { setError(err.message || 'Error'); } finally { setSavingTaxCat(false); }
+        };
+        const onTaxCatDelete = async (category) => {
+          if (!confirm(`Delete ${category}?`)) return;
+          try { await api.removeTaxCategory(category); await load(); } catch (err) { alert(err.message || 'Error'); }
+        };
+
+        // Transaction Types handlers
+        const onTxTypeChange = (e) => {
+          const { name, value } = e.target;
+          setTxTypeForm(prev => ({ ...prev, [name]: name === 'transactiontype' ? (value || '').trim().toLowerCase() : value }));
+        };
+        const onTxTypeSubmit = async (e) => {
+          e.preventDefault(); setSavingTxType(true); setError('');
+          try {
+            const transactiontype = (txTypeForm.transactiontype || '').trim().toLowerCase();
+            if (!transactiontype) throw new Error('transactiontype is required');
+            await api.addTransactionType({ transactiontype });
+            setTxTypeForm({ transactiontype: '' });
+            await load();
+          } catch (err) { setError(err.message || 'Error'); } finally { setSavingTxType(false); }
+        };
+        const onTxTypeDelete = async (tt) => {
+          if (!confirm(`Delete ${tt}?`)) return;
+          try { await api.removeTransactionType(tt); await load(); } catch (err) { alert(err.message || 'Error'); }
+        };
+
+        // Banks handlers
+        const onBankChange = (e) => {
+          const { name, value } = e.target;
+          setBankForm(prev => ({ ...prev, [name]: value }));
+        };
+        const onBankSubmit = async (e) => {
+          e.preventDefault(); setSavingBank(true); setError('');
+          try {
+            const name = (bankForm.name || '').trim().toLowerCase();
+            if (!name) throw new Error('name is required');
+            const ignore_lines_contains = (bankForm.ignore_lines_contains || '')
+              .split('|').map(s => s.trim()).filter(Boolean);
+            const ignore_lines_startswith = (bankForm.ignore_lines_startswith || '')
+              .split('|').map(s => s.trim()).filter(Boolean);
+            let columns = [];
+            if (bankForm.columnsText && bankForm.columnsText.trim()) {
+              try { columns = JSON.parse(bankForm.columnsText); } catch (_) { columns = []; }
+            }
+            const payload = {
+              name,
+              date_format: bankForm.date_format || undefined,
+              delim: bankForm.delim || undefined,
+              ignore_lines_contains: ignore_lines_contains.length ? ignore_lines_contains : undefined,
+              ignore_lines_startswith: ignore_lines_startswith.length ? ignore_lines_startswith : undefined,
+              columns: columns.length ? columns : undefined,
+            };
+            await api.addBank(payload);
+            setBankForm({ name: '', date_format: '', delim: '', ignore_lines_contains: '', ignore_lines_startswith: '', columnsText: '' });
+            await load();
+          } catch (err) { setError(err.message || 'Error'); } finally { setSavingBank(false); }
+        };
+        const onBankDelete = async (name) => {
+          if (!confirm(`Delete ${name}?`)) return;
+          try { await api.removeBank(name); await load(); } catch (err) { alert(err.message || 'Error'); }
+        };
+
+        const onSubmit = async (e) => {
+          e.preventDefault();
+          setSaving(true);
+          setError('');
+          try {
+            if (!form.property) throw new Error('property is required');
+            const payload = {
+              ...form,
+              property: (form.property || '').trim().toLowerCase(),
+              purchaseDate: (form.purchaseDate || '').trim().toLowerCase(),
+              propMgmgtComp: (form.propMgmgtComp || '').trim().toLowerCase(),
+            };
+            const created = await api.add(payload);
+            setItems([ ...items, created ]);
+            setForm(empty);
+          } catch (e) {
+            setError(e.message || 'Error');
+          } finally {
+            setSaving(false);
+          }
+        };
+
+        const onDelete = async (id) => {
+          if (!confirm(`Delete ${id}?`)) return;
+          try {
+            await api.remove(id);
+            setItems(items.filter(x => x.property !== id));
+          } catch (e) {
+            alert(e.message || 'Error');
+          }
+        };
+
+        // Company Records form
+        const emptyCompany = { companyname: '', rentPercentage: 0 };
+        const [companyForm, setCompanyForm] = useState(emptyCompany);
+        const [savingCompany, setSavingCompany] = useState(false);
+
+        const onCompanyChange = (e) => {
+          const { name, value } = e.target;
+          if (name === 'rentPercentage') {
+            setCompanyForm({ ...companyForm, [name]: Number(value || 0) });
+          } else if (name === 'companyname') {
+            const sanitized = (value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            setCompanyForm({ ...companyForm, [name]: sanitized });
+          } else {
+            setCompanyForm({ ...companyForm, [name]: value });
+          }
+        };
+
+        const onCompanySubmit = async (e) => {
+          e.preventDefault();
+          setSavingCompany(true);
+          setError('');
+          try {
+            if (!companyForm.companyname) throw new Error('companyname is required');
+            const payload = { ...companyForm, companyname: companyForm.companyname.trim().toLowerCase() };
+            const created = await api.addCompanyRecord(payload);
+            setCompanyRecords([ ...companyRecords, created ]);
+            setCompanyForm(emptyCompany);
+          } catch (e) {
+            setError(e.message || 'Error');
+          } finally {
+            setSavingCompany(false);
+          }
+        };
+
+        const onCompanyDelete = async (name) => {
+          if (!confirm(`Delete ${name}?`)) return;
+          try {
+            await api.removeCompanyRecord(name);
+            setCompanyRecords(companyRecords.filter(x => x.companyname !== name));
+          } catch (e) {
+            alert(e.message || 'Error');
+          }
+        };
+
+        // Bank account form
+        const emptyBA = { bankaccountname: '', bankname: '' };
+        const [baForm, setBaForm] = useState(emptyBA);
+        const [savingBA, setSavingBA] = useState(false);
+        const onBAChange = (e) => {
+          const { name, value } = e.target;
+          if (name === 'bankaccountname') {
+            const sanitized = (value || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+            setBaForm({ ...baForm, [name]: sanitized });
+          } else if (name === 'bankname') {
+            setBaForm({ ...baForm, [name]: (value || '').toLowerCase() });
+          }
+        };
+        const onBASubmit = async (e) => {
+          e.preventDefault(); setSavingBA(true); setError('');
+          try {
+            if (!baForm.bankaccountname || !baForm.bankname) throw new Error('bankaccountname and bankname are required');
+            const created = await api.addBankaccount(baForm);
+            setBankaccounts([ ...bankaccounts, created ]);
+            setBaForm(emptyBA);
+          } catch (e) { setError(e.message || 'Error'); } finally { setSavingBA(false); }
+        };
+        const onBADelete = async (name) => {
+          if (!confirm(`Delete ${name}?`)) return;
+          try { await api.removeBankaccount(name); setBankaccounts(bankaccounts.filter(x => x.bankaccountname !== name)); }
+          catch (e) { alert(e.message || 'Error'); }
+        };
+
+        // Group form
+        const emptyGroup = { groupname: '', propertylist: '' };
+        const [groupForm, setGroupForm] = useState(emptyGroup);
+        const [savingGroup, setSavingGroup] = useState(false);
+        const onGroupChange = (e) => {
+          const { name, value } = e.target;
+          if (name === 'groupname') {
+            const sanitized = (value || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+            setGroupForm({ ...groupForm, [name]: sanitized });
+          } else {
+            setGroupForm({ ...groupForm, [name]: value });
+          }
+        };
+        const onGroupSubmit = async (e) => {
+          e.preventDefault(); setSavingGroup(true); setError('');
+          try {
+            const payload = { groupname: groupForm.groupname, propertylist: (groupForm.propertylist || '').split('|').map(s=>s.trim().toLowerCase()).filter(Boolean) };
+            if (!payload.groupname) throw new Error('groupname is required');
+            const created = await api.addGroup(payload);
+            setGroups([ ...groups, created ]);
+            setGroupForm(emptyGroup);
+          } catch (e) { setError(e.message || 'Error'); } finally { setSavingGroup(false); }
+        };
+        const onGroupDelete = async (name) => {
+          if (!confirm(`Delete ${name}?`)) return;
+          try { await api.removeGroup(name); setGroups(groups.filter(x => x.groupname !== name)); }
+          catch (e) { alert(e.message || 'Error'); }
+        };
+
+        // Owner form
+        const emptyOwner = { name: '', bankaccounts: [], properties: [], companies: [] };
+        const [ownerForm, setOwnerForm] = useState(emptyOwner);
+        const [savingOwner, setSavingOwner] = useState(false);
+        const onOwnerChange = (e) => {
+          const { name, value } = e.target;
+          if (name === 'name') {
+            const sanitized = (value || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+            setOwnerForm({ ...ownerForm, [name]: sanitized });
+          } else if (e.target.multiple) {
+            const selected = Array.from(e.target.selectedOptions).map(o => (o.value || '').toLowerCase());
+            setOwnerForm({ ...ownerForm, [name]: selected });
+          } else {
+            setOwnerForm({ ...ownerForm, [name]: value });
+          }
+        };
+        const onOwnerSubmit = async (e) => {
+          e.preventDefault(); setSavingOwner(true); setError('');
+          try {
+            if (!ownerForm.name) throw new Error('name is required');
+            const payload = {
+              name: ownerForm.name,
+              bankaccounts: Array.from(new Set((ownerForm.bankaccounts || []).map(s => (s || '').toLowerCase()))),
+              properties: Array.from(new Set((ownerForm.properties || []).map(s => (s || '').toLowerCase()))),
+              companies: Array.from(new Set((ownerForm.companies || []).map(s => (s || '').toLowerCase()))),
+            };
+            const created = await api.addOwner(payload);
+            setOwners([ ...owners, created ]);
+            setOwnerForm(emptyOwner);
+          } catch (e) { setError(e.message || 'Error'); } finally { setSavingOwner(false); }
+        };
+        const onOwnerDelete = async (name) => {
+          if (!confirm(`Delete ${name}?`)) return;
+          try { await api.removeOwner(name); setOwners(owners.filter(x => x.name !== name)); }
+          catch (e) { alert(e.message || 'Error'); }
+        };
+
+        const TabButton = ({ active, onClick, children }) => (
+          <button type="button" onClick={onClick} style={{
+            background: active ? '#111827' : '#e5e7eb', color: active ? '#fff' : '#111827',
+            borderRadius: 6, padding: '8px 12px', border: '1px solid #d1d5db'
+          }}>{children}</button>
+        );
+
+        return (
+          <div className="container">
+            <h1>AccountSpy</h1>
+
+            <div className="actions" style={{ marginBottom: 12 }}>
+              <TabButton active={topTab==='setup'} onClick={() => setTopTab('setup')}>Setup</TabButton>
+              <TabButton active={topTab==='transactions'} onClick={() => setTopTab('transactions')}>Transactions</TabButton>
+              <TabButton active={topTab==='report'} onClick={() => setTopTab('report')}>Report</TabButton>
+            </div>
+
+            {topTab === 'setup' && (
+              <React.Fragment>
+                <div className="actions" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
+                  <TabButton active={setupTab==='properties'} onClick={() => setSetupTab('properties')}>Properties</TabButton>
+                  <TabButton active={setupTab==='companies'} onClick={() => setSetupTab('companies')}>Company Records</TabButton>
+                  <TabButton active={setupTab==='bankaccounts'} onClick={() => setSetupTab('bankaccounts')}>Bank Accounts</TabButton>
+                  <TabButton active={setupTab==='groups'} onClick={() => setSetupTab('groups')}>Groups</TabButton>
+                  <TabButton active={setupTab==='owners'} onClick={() => setSetupTab('owners')}>Owners</TabButton>
+                  <TabButton active={setupTab==='banks'} onClick={() => setSetupTab('banks')}>Banks</TabButton>
+                  <TabButton active={setupTab==='taxcats'} onClick={() => setSetupTab('taxcats')}>Tax Categories</TabButton>
+                  <TabButton active={setupTab==='txtypes'} onClick={() => setSetupTab('txtypes')}>Transaction Types</TabButton>
+                </div>
+
+                {setupTab === 'properties' && (
+                  <React.Fragment>
+                    <h2>Properties</h2>
+                    <div className="card">
+                      <form onSubmit={onSubmit}>
+                        <div className="row">
+                          <div className="col"><label>property<br/><input name="property" value={form.property} onChange={onChange} placeholder="unique id" required /></label></div>
+                          <div className="col"><label>cost<br/><input name="cost" type="number" value={form.cost} onChange={onChange} /></label></div>
+                          <div className="col"><label>landValue<br/><input name="landValue" type="number" value={form.landValue} onChange={onChange} /></label></div>
+                          <div className="col"><label>renovation<br/><input name="renovation" type="number" value={form.renovation} onChange={onChange} /></label></div>
+                          <div className="col"><label>loanClosingCOst<br/><input name="loanClosingCOst" type="number" value={form.loanClosingCOst} onChange={onChange} /></label></div>
+                          <div className="col"><label>ownerCount<br/><input name="ownerCount" type="number" value={form.ownerCount} onChange={onChange} min="1" /></label></div>
+                          <div className="col"><label>purchaseDate<br/><input name="purchaseDate" type="text" value={form.purchaseDate} onChange={onChange} placeholder="MM/DD/YYYY" /></label></div>
+                          <div className="col"><label>propMgmgtComp<br/>
+                            <select name="propMgmgtComp" value={form.propMgmgtComp} onChange={onChange}>
+                              <option value="">Select company</option>
+                              {companies.map((c) => (
+                                <option key={c} value={c}>{c}</option>
+                              ))}
+                            </select>
+                          </label></div>
+                        </div>
+                        <div className="actions" style={{ marginTop: 12 }}>
+                          <button type="submit" disabled={saving}>Add property</button>
+                          <button type="button" onClick={load} disabled={loading}>Refresh</button>
+                          <span className="muted">All data is in-memory only.</span>
+                        </div>
+                        {error && <div className="error" style={{ marginTop: 8 }}>{error}</div>}
+                      </form>
+                    </div>
+
+                    <div className="card">
+                      {loading ? (<div>Loading...</div>) : (
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>property</th>
+                              <th>cost</th>
+                              <th>landValue</th>
+                              <th>renovation</th>
+                              <th>loanClosingCOst</th>
+                              <th>ownerCount</th>
+                              <th>purchaseDate</th>
+                              <th>propMgmgtComp</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {items.map((x) => (
+                              <tr key={x.property}>
+                                <td>{x.property}</td>
+                                <td>{x.cost}</td>
+                                <td>{x.landValue}</td>
+                                <td>{x.renovation}</td>
+                                <td>{x.loanClosingCOst}</td>
+                                <td>{x.ownerCount}</td>
+                                <td>{x.purchaseDate}</td>
+                                <td>{x.propMgmgtComp}</td>
+                                <td><button onClick={() => onDelete(x.property)}>Delete</button></td>
+                              </tr>
+                            ))}
+                            {items.length === 0 && (<tr><td colSpan="9" className="muted">No items</td></tr>)}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </React.Fragment>
+                )}
+
+                {setupTab === 'banks' && (
+                  <React.Fragment>
+                    <h2>Banks</h2>
+                    <div className="card">
+                      <form onSubmit={onBankSubmit}>
+                        <div className="row">
+                          <div className="col"><label>name<br/>
+                            <input name="name" value={bankForm.name} onChange={onBankChange} placeholder="lowercase id [a-z0-9_]" />
+                          </label></div>
+                          <div className="col"><label>date_format<br/>
+                            <input name="date_format" value={bankForm.date_format} onChange={onBankChange} placeholder="M/d/yyyy" />
+                          </label></div>
+                          <div className="col"><label>delim<br/>
+                            <input name="delim" value={bankForm.delim} onChange={onBankChange} placeholder="," />
+                          </label></div>
+                          <div className="col"><label>ignore_lines_contains (| separated)<br/>
+                            <input name="ignore_lines_contains" value={bankForm.ignore_lines_contains} onChange={onBankChange} placeholder="foo|bar" />
+                          </label></div>
+                          <div className="col"><label>ignore_lines_startswith (| separated)<br/>
+                            <input name="ignore_lines_startswith" value={bankForm.ignore_lines_startswith} onChange={onBankChange} placeholder="Header|Total" />
+                          </label></div>
+                          <div className="col" style={{flexBasis:'100%'}}><label>columns (JSON array)<br/>
+                            <input name="columnsText" value={bankForm.columnsText} onChange={onBankChange} placeholder='[{"date":1,"description":2,"debit":3}]' />
+                          </label></div>
+                        </div>
+                        <div className="actions" style={{ marginTop: 12 }}>
+                          <button type="submit" disabled={savingBank}>Add bank</button>
+                          <button type="button" onClick={load} disabled={loading}>Refresh</button>
+                        </div>
+                      </form>
+                    </div>
+                    <div className="card">
+                      {loading ? (<div>Loading...</div>) : (
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>name</th>
+                              <th>date_format</th>
+                              <th>delim</th>
+                              <th>ignore_lines_contains</th>
+                              <th>ignore_lines_startswith</th>
+                              <th>columns</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {banks.map(b => (
+                              <tr key={b.name}>
+                                <td>{b.name}</td>
+                                <td>{b.date_format || ''}</td>
+                                <td>{b.delim || ''}</td>
+                                <td>{(b.ignore_lines_contains || []).join(' | ')}</td>
+                                <td>{(b.ignore_lines_startswith || []).join(' | ')}</td>
+                                <td>{(b.columns || []).map((c, i) => (
+                                  <span key={i}>{Object.entries(c).map(([k,v]) => `${k}:${v}`).join(', ')}{i < (b.columns.length-1) ? ' | ' : ''}</span>
+                                ))}</td>
+                                <td><button onClick={() => onBankDelete(b.name)}>Delete</button></td>
+                              </tr>
+                            ))}
+                            {banks.length === 0 && (<tr><td colSpan="7" className="muted">No bank configs</td></tr>)}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </React.Fragment>
+                )}
+
+                {setupTab === 'taxcats' && (
+                  <React.Fragment>
+                    <h2>Tax Categories</h2>
+                    <div className="card">
+                      <form onSubmit={onTaxCatSubmit}>
+                        <div className="row">
+                          <div className="col"><label>category<br/>
+                            <input name="category" value={taxCatForm.category} onChange={onTaxCatChange} placeholder="lowercase [a-z0-9_]" />
+                          </label></div>
+                        </div>
+                        <div className="actions" style={{ marginTop: 12 }}>
+                          <button type="submit" disabled={savingTaxCat}>Add category</button>
+                          <button type="button" onClick={load} disabled={loading}>Refresh</button>
+                        </div>
+                      </form>
+                    </div>
+                    <div className="card">
+                      {loading ? (<div>Loading...</div>) : (
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>category</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {taxCategories.map(t => (
+                              <tr key={t.category}>
+                                <td>{t.category}</td>
+                                <td><button onClick={() => onTaxCatDelete(t.category)}>Delete</button></td>
+                              </tr>
+                            ))}
+                            {taxCategories.length === 0 && (<tr><td colSpan="2" className="muted">No tax categories</td></tr>)}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </React.Fragment>
+                )}
+
+                {setupTab === 'txtypes' && (
+                  <React.Fragment>
+                    <h2>Transaction Types</h2>
+                    <div className="card">
+                      <form onSubmit={onTxTypeSubmit}>
+                        <div className="row">
+                          <div className="col"><label>transactiontype<br/>
+                            <input name="transactiontype" value={txTypeForm.transactiontype} onChange={onTxTypeChange} placeholder="lowercase [a-z0-9_]" />
+                          </label></div>
+                        </div>
+                        <div className="actions" style={{ marginTop: 12 }}>
+                          <button type="submit" disabled={savingTxType}>Add type</button>
+                          <button type="button" onClick={load} disabled={loading}>Refresh</button>
+                        </div>
+                      </form>
+                    </div>
+                    <div className="card">
+                      {loading ? (<div>Loading...</div>) : (
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>transactiontype</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {transactionTypes.map(t => (
+                              <tr key={t.transactiontype}>
+                                <td>{t.transactiontype}</td>
+                                <td><button onClick={() => onTxTypeDelete(t.transactiontype)}>Delete</button></td>
+                              </tr>
+                            ))}
+                            {transactionTypes.length === 0 && (<tr><td colSpan="2" className="muted">No transaction types</td></tr>)}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </React.Fragment>
+                )}
+
+                {setupTab === 'companies' && (
+                  <React.Fragment>
+                    <h2>Company Records</h2>
+                    <div className="card">
+                      <form onSubmit={onCompanySubmit}>
+                        <div className="row">
+                          <div className="col"><label>companyname<br/>
+                            <input name="companyname" value={companyForm.companyname} onChange={onCompanyChange} placeholder="company name (lowercased)" />
+                          </label></div>
+                          <div className="col"><label>rentPercentage<br/>
+                            <input name="rentPercentage" type="number" value={companyForm.rentPercentage} onChange={onCompanyChange} min="0" />
+                          </label></div>
+                        </div>
+                        <div className="actions" style={{ marginTop: 12 }}>
+                          <button type="submit" disabled={savingCompany}>Add company</button>
+                          <button type="button" onClick={load} disabled={loading}>Refresh</button>
+                        </div>
+                        {error && <div className="error" style={{ marginTop: 8 }}>{error}</div>}
+                      </form>
+                    </div>
+
+                    <div className="card">
+                      {loading ? (<div>Loading...</div>) : (
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>companyname</th>
+                              <th>rentPercentage</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {companyRecords.map((x) => (
+                              <tr key={x.companyname}>
+                                <td>{x.companyname}</td>
+                                <td>{x.rentPercentage}</td>
+                                <td><button onClick={() => onCompanyDelete(x.companyname)}>Delete</button></td>
+                              </tr>
+                            ))}
+                            {companyRecords.length === 0 && (<tr><td colSpan="3" className="muted">No company records</td></tr>)}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </React.Fragment>
+                )}
+
+                {setupTab === 'bankaccounts' && (
+                  <React.Fragment>
+                    <h2>Bank Accounts</h2>
+                    <div className="card">
+                      <form onSubmit={onBASubmit}>
+                        <div className="row">
+                          <div className="col"><label>bankaccountname<br/>
+                            <input name="bankaccountname" value={baForm.bankaccountname} onChange={onBAChange} placeholder="lowercase [a-z0-9_]" />
+                          </label></div>
+                          <div className="col"><label>bankname<br/>
+                            <input name="bankname" value={baForm.bankname} onChange={onBAChange} placeholder="bank name" />
+                          </label></div>
+                        </div>
+                        <div className="actions" style={{ marginTop: 12 }}>
+                          <button type="submit" disabled={savingBA}>Add bank account</button>
+                          <button type="button" onClick={load} disabled={loading}>Refresh</button>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div className="card">
+                      {loading ? (<div>Loading...</div>) : (
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>bankaccountname</th>
+                              <th>bankname</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {bankaccounts.map(x => (
+                              <tr key={x.bankaccountname}>
+                                <td>{x.bankaccountname}</td>
+                                <td>{x.bankname}</td>
+                                <td><button onClick={() => onBADelete(x.bankaccountname)}>Delete</button></td>
+                              </tr>
+                            ))}
+                            {bankaccounts.length === 0 && (<tr><td colSpan="3" className="muted">No bank accounts</td></tr>)}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </React.Fragment>
+                )}
+
+                {setupTab === 'groups' && (
+                  <React.Fragment>
+                    <h2>Groups</h2>
+                    <div className="card">
+                      <form onSubmit={onGroupSubmit}>
+                        <div className="row">
+                          <div className="col"><label>groupname<br/>
+                            <input name="groupname" value={groupForm.groupname} onChange={onGroupChange} placeholder="lowercase [a-z0-9_]" />
+                          </label></div>
+                          <div className="col"><label>propertylist (pipe-separated)<br/>
+                            <input name="propertylist" value={groupForm.propertylist} onChange={onGroupChange} placeholder="p1|p2|p3" />
+                          </label></div>
+                        </div>
+                        <div className="actions" style={{ marginTop: 12 }}>
+                          <button type="submit" disabled={savingGroup}>Add group</button>
+                          <button type="button" onClick={load} disabled={loading}>Refresh</button>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div className="card">
+                      {loading ? (<div>Loading...</div>) : (
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>groupname</th>
+                              <th>propertylist</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {groups.map(x => (
+                              <tr key={x.groupname}>
+                                <td>{x.groupname}</td>
+                                <td>{x.propertylist.join(' | ')}</td>
+                                <td><button onClick={() => onGroupDelete(x.groupname)}>Delete</button></td>
+                              </tr>
+                            ))}
+                            {groups.length === 0 && (<tr><td colSpan="3" className="muted">No groups</td></tr>)}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </React.Fragment>
+                )}
+
+                {setupTab === 'owners' && (
+                  <React.Fragment>
+                    <h2>Owners</h2>
+                    <div className="card">
+                      <form onSubmit={onOwnerSubmit}>
+                        <div className="row">
+                          <div className="col"><label>name<br/>
+                            <input name="name" value={ownerForm.name} onChange={onOwnerChange} placeholder="lowercase [a-z0-9_]" />
+                          </label></div>
+                          <div className="col"><label>bankaccounts (multi-select)<br/>
+                            <select name="bankaccounts" multiple value={ownerForm.bankaccounts} onChange={onOwnerChange}>
+                              {bankaccounts.map(ba => (
+                                <option key={ba.bankaccountname} value={ba.bankaccountname}>{ba.bankaccountname}</option>
+                              ))}
+                            </select>
+                          </label></div>
+                          <div className="col"><label>properties (multi-select)<br/>
+                            <select name="properties" multiple value={ownerForm.properties} onChange={onOwnerChange}>
+                              {items.map(p => (
+                                <option key={p.property} value={p.property}>{p.property}</option>
+                              ))}
+                            </select>
+                          </label></div>
+                          <div className="col"><label>companies (multi-select)<br/>
+                            <select name="companies" multiple value={ownerForm.companies} onChange={onOwnerChange}>
+                              {companies.map(c => (
+                                <option key={c} value={c}>{c}</option>
+                              ))}
+                            </select>
+                          </label></div>
+                        </div>
+                        <div className="actions" style={{ marginTop: 12 }}>
+                          <button type="submit" disabled={savingOwner}>Add owner</button>
+                          <button type="button" onClick={load} disabled={loading}>Refresh</button>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div className="card">
+                      {loading ? (<div>Loading...</div>) : (
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>name</th>
+                              <th>bankaccounts</th>
+                              <th>properties</th>
+                              <th>companies</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {owners.map(x => (
+                              <tr key={x.name}>
+                                <td>{x.name}</td>
+                                <td>{x.bankaccounts.join(' | ')}</td>
+                                <td>{x.properties.join(' | ')}</td>
+                                <td>{x.companies.join(' | ')}</td>
+                                <td><button onClick={() => onOwnerDelete(x.name)}>Delete</button></td>
+                              </tr>
+                            ))}
+                            {owners.length === 0 && (<tr><td colSpan="5" className="muted">No owners</td></tr>)}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </React.Fragment>
+                )}
+              </React.Fragment>
+            )}
+
+            {topTab === 'transactions' && (
+              <div className="card"><div className="muted">Transactions UI coming soon.</div></div>
+            )}
+
+            {topTab === 'report' && (
+              <div className="card"><div className="muted">Report UI coming soon.</div></div>
+            )}
+          </div>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+  </body>
+</html>
