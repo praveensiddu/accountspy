@@ -19,7 +19,11 @@ async def add_bankaccount(payload: BankAccountRecord):
         raise HTTPException(status_code=400, detail="Invalid bankaccountname: lowercase alphanumeric and underscore only")
     if key in state.BA_DB:
         raise HTTPException(status_code=409, detail="Bank account already exists")
-    item = {"bankaccountname": key, "bankname": (payload.bankname or "").strip().lower()}
+    item = {
+        "bankaccountname": key,
+        "bankname": (payload.bankname or "").strip().lower(),
+        "statement_location": (payload.statement_location or "").strip(),
+    }
     if not item["bankname"]:
         raise HTTPException(status_code=400, detail="bankname is required")
     state.BA_DB[key] = item

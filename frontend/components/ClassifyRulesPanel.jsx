@@ -155,7 +155,14 @@ const ClassifyRulesPanelExt = ({ classifyRules, loading, reload, bankaccounts, i
                 <th></th>
               </tr>
               <tr>
-                <th><input placeholder="filter" value={filter.bankaccountname} onChange={(e)=> setFilter(f=>({...f, bankaccountname: e.target.value }))} /></th>
+                <th>
+                  <select value={filter.bankaccountname} onChange={(e)=> setFilter(f=>({...f, bankaccountname: e.target.value }))}>
+                    <option value="">All bank accounts</option>
+                    {(bankaccounts || []).slice().sort((a,b)=> (a.bankaccountname||'').localeCompare(b.bankaccountname||'', undefined, { sensitivity:'base' })).map(b => (
+                      <option key={b.bankaccountname} value={(b.bankaccountname || '').toLowerCase()}>{b.bankaccountname}</option>
+                    ))}
+                  </select>
+                </th>
                 <th><input placeholder="filter" value={filter.transaction_type} onChange={(e)=> setFilter(f=>({...f, transaction_type: e.target.value }))} /></th>
                 <th><input placeholder="filter" value={filter.pattern_match_logic} onChange={(e)=> setFilter(f=>({...f, pattern_match_logic: e.target.value }))} /></th>
                 <th><input placeholder="filter" value={filter.tax_category} onChange={(e)=> setFilter(f=>({...f, tax_category: e.target.value }))} /></th>
@@ -167,6 +174,16 @@ const ClassifyRulesPanelExt = ({ classifyRules, loading, reload, bankaccounts, i
             </thead>
             <tbody>
               {(classifyRules || [])
+                .slice()
+                .sort((a, b) => {
+                  const an = (a.bankaccountname || '').toLowerCase();
+                  const bn = (b.bankaccountname || '').toLowerCase();
+                  if (an < bn) return -1; if (an > bn) return 1;
+                  const at = (a.transaction_type || '').toLowerCase();
+                  const bt = (b.transaction_type || '').toLowerCase();
+                  if (at < bt) return -1; if (at > bt) return 1;
+                  return 0;
+                })
                 .filter(r => (
                   (filter.bankaccountname ? (r.bankaccountname||'').toLowerCase().includes(filter.bankaccountname.toLowerCase()) : true) &&
                   (filter.transaction_type ? (r.transaction_type||'').toLowerCase().includes(filter.transaction_type.toLowerCase()) : true) &&

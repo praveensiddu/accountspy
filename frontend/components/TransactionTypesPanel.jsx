@@ -69,6 +69,12 @@ const TransactionTypesPanelExt = ({ transactionTypes, loading, reload }) => {
             </thead>
             <tbody>
               {transactionTypes
+                .slice()
+                .sort((a, b) => {
+                  const at = (a.transactiontype || '').toLowerCase();
+                  const bt = (b.transactiontype || '').toLowerCase();
+                  if (at < bt) return -1; if (at > bt) return 1; return 0;
+                })
                 .filter(t => (filter.transactiontype ? (t.transactiontype||'').toLowerCase().includes(filter.transactiontype.toLowerCase()) : true))
                 .map(t => (
                 <tr key={t.transactiontype}>

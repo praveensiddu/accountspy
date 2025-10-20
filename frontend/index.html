@@ -314,6 +314,12 @@
                     </thead>
                     <tbody>
                       {(commonRules || [])
+                        .slice()
+                        .sort((a, b) => {
+                          const at = (a.transaction_type || '').toLowerCase();
+                          const bt = (b.transaction_type || '').toLowerCase();
+                          if (at < bt) return -1; if (at > bt) return 1; return 0;
+                        })
                         .filter(r => (
                           (commonFilter.transaction_type ? (r.transaction_type||'').toLowerCase().includes(commonFilter.transaction_type.toLowerCase()) : true) &&
                           (commonFilter.pattern_match_logic ? (r.pattern_match_logic||'').toLowerCase().includes(commonFilter.pattern_match_logic.toLowerCase()) : true)
@@ -424,6 +430,16 @@
                     </thead>
                     <tbody>
                       {(inheritRules || [])
+                        .slice()
+                        .sort((a, b) => {
+                          const an = (a.bankaccountname || '').toLowerCase();
+                          const bn = (b.bankaccountname || '').toLowerCase();
+                          if (an < bn) return -1; if (an > bn) return 1;
+                          const atc = (a.tax_category || '').toLowerCase();
+                          const btc = (b.tax_category || '').toLowerCase();
+                          if (atc < btc) return -1; if (atc > btc) return 1;
+                          return 0;
+                        })
                         .filter(r => (
                           (inheritFilter.bankaccountname ? (r.bankaccountname||'').toLowerCase().includes(inheritFilter.bankaccountname.toLowerCase()) : true) &&
                           (inheritFilter.tax_category ? (r.tax_category||'').toLowerCase().includes(inheritFilter.tax_category.toLowerCase()) : true) &&

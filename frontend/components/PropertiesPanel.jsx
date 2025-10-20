@@ -154,6 +154,12 @@ const PropertiesPanelExt = ({ items, companies, loading, reload }) => {
             </thead>
             <tbody>
               {items
+                .slice()
+                .sort((a, b) => {
+                  const ap = (a.property || '').toLowerCase();
+                  const bp = (b.property || '').toLowerCase();
+                  if (ap < bp) return -1; if (ap > bp) return 1; return 0;
+                })
                 .filter(x => {
                   const lcc = (x.loanClosingCost != null ? x.loanClosingCost : x.loanClosingCOst);
                   return (

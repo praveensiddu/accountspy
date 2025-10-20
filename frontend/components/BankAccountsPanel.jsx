@@ -1,16 +1,17 @@
 const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
   const Modal = window.Modal;
-  const empty = { bankaccountname: '', bankname: '' };
+  const empty = { bankaccountname: '', bankname: '', statement_location: '' };
   const [form, setForm] = React.useState(empty);
   const [saving, setSaving] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [mode, setMode] = React.useState('add');
   const [originalKey, setOriginalKey] = React.useState('');
-  const [filter, setFilter] = React.useState({ bankaccountname: '', bankname: '' });
+  const [filter, setFilter] = React.useState({ bankaccountname: '', bankname: '', statement_location: '' });
   const onChange = (e) => {
     const { name, value } = e.target;
     if (name === 'bankaccountname') setForm({ ...form, [name]: (value || '').toLowerCase().replace(/[^a-z0-9_]/g, '') });
     else if (name === 'bankname') setForm({ ...form, [name]: (value || '').toLowerCase() });
+    else if (name === 'statement_location') setForm({ ...form, [name]: value });
   };
   const onSubmit = async (e) => {
     e.preventDefault(); setSaving(true);
@@ -34,7 +35,7 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
   const onEdit = (x) => {
     setMode('edit');
     setOriginalKey(x.bankaccountname);
-    setForm({ bankaccountname: x.bankaccountname, bankname: x.bankname });
+    setForm({ bankaccountname: x.bankaccountname, bankname: x.bankname, statement_location: x.statement_location || '' });
     setOpen(true);
   };
   return (
@@ -69,6 +70,11 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
             </select>
             <p className="text-xs text-gray-500 mt-1">Bank provider</p>
           </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700">statement_location</label>
+            <input name="statement_location" value={form.statement_location} onChange={onChange} placeholder="e.g., /path/or/url" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+            <p className="text-xs text-gray-500 mt-1">Optional path or URL to statements 20XX/bank_stmts will be appended</p>
+          </div>
         </form>
       </Modal>
       <div className="card">
@@ -78,6 +84,7 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
               <tr>
                 <th>bankaccountname</th>
                 <th>bankname</th>
+                <th>statement_location</th>
                 <th></th>
               </tr>
               <tr>
@@ -87,19 +94,30 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
                 <th>
                   <input placeholder="filter" value={filter.bankname} onChange={(e)=> setFilter(f=>({...f, bankname: e.target.value }))} />
                 </th>
+                <th>
+                  <input placeholder="filter" value={filter.statement_location} onChange={(e)=> setFilter(f=>({...f, statement_location: e.target.value }))} />
+                </th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {bankaccounts
+                .slice()
+                .sort((a, b) => {
+                  const an = (a.bankaccountname || '').toLowerCase();
+                  const bn = (b.bankaccountname || '').toLowerCase();
+                  if (an < bn) return -1; if (an > bn) return 1; return 0;
+                })
                 .filter(x => (
                   (filter.bankaccountname ? (x.bankaccountname||'').toLowerCase().includes(filter.bankaccountname.toLowerCase()) : true) &&
-                  (filter.bankname ? (x.bankname||'').toLowerCase().includes(filter.bankname.toLowerCase()) : true)
+                  (filter.bankname ? (x.bankname||'').toLowerCase().includes(filter.bankname.toLowerCase()) : true) &&
+                  (filter.statement_location ? String(x.statement_location||'').toLowerCase().includes(filter.statement_location.toLowerCase()) : true)
                 ))
                 .map(x => (
                 <tr key={x.bankaccountname}>
                   <td>{x.bankaccountname}</td>
                   <td>{x.bankname}</td>
+                  <td className="whitespace-pre-wrap">{x.statement_location}</td>
                   <td>
                     <button onClick={() => onEdit(x)} className="px-2 py-1 mr-2 bg-gray-700 text-white rounded hover:bg-gray-800">Edit</button>
                     <button onClick={() => onDelete(x.bankaccountname)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>

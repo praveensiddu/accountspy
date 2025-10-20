@@ -201,6 +201,12 @@ const BanksPanelExt = ({ banks, loading, reload }) => {
             </thead>
             <tbody>
               {banks
+                .slice()
+                .sort((a, b) => {
+                  const an = (a.name || '').toLowerCase();
+                  const bn = (b.name || '').toLowerCase();
+                  if (an < bn) return -1; if (an > bn) return 1; return 0;
+                })
                 .filter(b => {
                   const ilc = (b.ignore_lines_contains || []).join(' ').toLowerCase();
                   const ils = (b.ignore_lines_startswith || []).join(' ').toLowerCase();
