@@ -61,6 +61,19 @@
             return v || 'bank';
           } catch (_) { return 'bank'; }
         });
+        // Local fallback for groups specifically for modals in this tab
+        const [inheritGroupsData, setInheritGroupsData] = useState(groups || []);
+        useEffect(() => { setInheritGroupsData(groups || []); }, [groups]);
+        useEffect(() => {
+          if (!groups || groups.length === 0) {
+            try {
+              const fn = (window.api && window.api.listGroups) ? window.api.listGroups : null;
+              if (typeof fn === 'function') {
+                fn().then(gs => { if (Array.isArray(gs)) setInheritGroupsData(gs); }).catch(()=>{});
+              }
+            } catch (_) {}
+          }
+        }, []);
         const [commonFilter, setCommonFilter] = useState({ transaction_type: '', pattern_match_logic: '' });
         const [inheritFilter, setInheritFilter] = useState({ bankaccountname: '', tax_category: '', property: '', group: '', otherentity: '' });
         const [commonRules, setCommonRules] = useState([]);
@@ -397,7 +410,7 @@
                       <label className="block text-sm font-medium text-gray-700">group</label>
                       <select name="group" value={inheritForm.group} onChange={onInheritChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500">
                         <option value="">Select group (optional)</option>
-                        {(groups || []).map(g => (
+                        {(inheritGroupsData || []).map(g => (
                           <option key={g.groupname} value={(g.groupname || '').toLowerCase()}>{g.groupname}</option>
                         ))}
                       </select>
@@ -1427,6 +1440,14 @@
         const [companyRecords, setCompanyRecords] = useState([]);
         const [bankaccounts, setBankaccounts] = useState([]);
         const [groups, setGroups] = useState([]);
+        // Local fallback cache for groups specifically for modals that may open before groups load
+        const [inheritGroupsData, setInheritGroupsData] = useState([]);
+        useEffect(() => { setInheritGroupsData(groups || []); }, [groups]);
+        useEffect(() => {
+          if (!groups || groups.length === 0) {
+            try { api.listGroups().then(gs => { if (Array.isArray(gs)) setInheritGroupsData(gs); }).catch(()=>{}); } catch (_) {}
+          }
+        }, []);
         const [owners, setOwners] = useState([]);
         const [taxCategories, setTaxCategories] = useState([]);
         const [transactionTypes, setTransactionTypes] = useState([]);

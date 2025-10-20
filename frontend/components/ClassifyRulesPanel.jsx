@@ -9,6 +9,20 @@ const ClassifyRulesPanelExt = ({ classifyRules, loading, reload, bankaccounts, i
   const [originalKey, setOriginalKey] = React.useState(null);
   const [filter, setFilter] = React.useState({ bankaccountname:'', transaction_type:'', pattern_match_logic:'', tax_category:'', property:'', group:'', otherentity:'' });
 
+  // Local fallback for groups if props are not yet populated
+  const [groupsData, setGroupsData] = React.useState(groups || []);
+  React.useEffect(() => { setGroupsData(groups || []); }, [groups]);
+  React.useEffect(() => {
+    if (!groups || groups.length === 0) {
+      try {
+        const fn = (window.api && window.api.listGroups) ? window.api.listGroups : null;
+        if (typeof fn === 'function') {
+          fn().then(gs => { if (Array.isArray(gs)) setGroupsData(gs); }).catch(() => {});
+        }
+      } catch (_) {}
+    }
+  }, []);
+
   const onChange = (e) => {
     const { name, value } = e.target;
     const v = (value || '').toString();
@@ -128,7 +142,7 @@ const ClassifyRulesPanelExt = ({ classifyRules, loading, reload, bankaccounts, i
             <label className="block text-sm font-medium text-gray-700">group</label>
             <select name="group" value={form.group} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500">
               <option value="">Select group (optional)</option>
-              {(groups || []).map(g => (
+              {(groupsData || []).map(g => (
                 <option key={g.groupname} value={(g.groupname || '').toLowerCase()}>{g.groupname}</option>
               ))}
             </select>
