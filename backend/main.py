@@ -504,11 +504,12 @@ def load_common_rules_yaml_into_memory(path: Path) -> None:
         logger.error(f"Failed to load common_rules.yaml: {e}")
 
 
-def load_classify_rules_yaml_into_memory(path: Path) -> None:
-    """Load manually curated bank rules from YAML into CLASSIFY_DB.
+def load_bank_rules_yaml_into_memory(path: Path) -> None:
+    """Load bank-specific classify rules from YAML into CLASSIFY_DB.
     Expected format: list of objects with fields bankaccountname, transaction_type, pattern_match_logic,
     tax_category, property, group, otherentity. Fields may be omitted; missing values default to ''.
     """
+    CLASSIFY_DB.clear()
     if not path or not path.exists():
         return
     try:
@@ -527,7 +528,6 @@ def load_classify_rules_yaml_into_memory(path: Path) -> None:
                 prop = (item.get('property') or '').strip().lower()
                 group = (item.get('group') or '').strip().lower()
                 other = (item.get('otherentity') or '').strip()
-                # Only require bank; rest are optional
                 if not bank:
                     continue
                 key = f"{bank}|{ttype}|{prop}|{group}|{patt_norm}"
@@ -541,7 +541,7 @@ def load_classify_rules_yaml_into_memory(path: Path) -> None:
                     'otherentity': other,
                 }
     except Exception as e:
-        logger.error(f"Failed to load classify_rules.yaml: {e}")
+        logger.error(f"Failed to load bank_rules.yaml: {e}")
 
 
 def load_inherit_rules_yaml_into_memory(path: Path) -> None:
@@ -629,15 +629,14 @@ async def startup_event():
     logger.info(f"Loaded {len(TT_DB)} transaction types from {TT_CSV_PATH}")
     load_banks_yaml_into_memory(BANKS_YAML_PATH)
     logger.info(f"Loaded {len(BANKS_CFG_DB)} bank configs from {BANKS_YAML_PATH}")
-    load_classify_rules_csv_into_memory(CLASSIFY_CSV_PATH)
-    logger.info(f"Loaded {len(CLASSIFY_DB)} classify rules from {CLASSIFY_CSV_PATH}")
 
     # Load manually curated common and inherit rules
     try:
         if CLASSIFY_CSV_PATH:
             base_dir = CLASSIFY_CSV_PATH.parent
-            # Optional manual overlays from YAMLs; tolerate missing fields
-            load_classify_rules_yaml_into_memory(base_dir / 'classify_rules.yaml')
+            # Load primary bank rules from YAML (for BankRules tab)
+            load_bank_rules_yaml_into_memory(base_dir / 'bank_rules.yaml')
+            # Load common and inherit YAMLs
             load_common_rules_yaml_into_memory(base_dir / 'common_rules.yaml')
             load_inherit_rules_yaml_into_memory(base_dir / 'inherit_common_to_bank.yaml')
             logger.info(
