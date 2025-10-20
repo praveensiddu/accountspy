@@ -3,6 +3,7 @@ from typing import List
 
 from .. import main as state
 from ..core.models import GroupRecord
+from ..core.utils import dump_yaml_entities
 
 router = APIRouter(prefix="/api", tags=["groups"])
 
@@ -20,6 +21,12 @@ async def add_group(payload: GroupRecord):
     if key in state.GROUP_DB:
         raise HTTPException(status_code=409, detail="Group already exists")
     state.GROUP_DB[key] = {"groupname": key, "propertylist": [p.strip().lower() for p in payload.propertylist]}
+    # persist YAML
+    try:
+        if state.GROUPS_CSV_PATH:
+            dump_yaml_entities(state.GROUPS_CSV_PATH.with_suffix('.yaml'), list(state.GROUP_DB.values()), key_field='groupname')
+    except Exception:
+        pass
     return state.GROUP_DB[key]
 
 
@@ -29,4 +36,10 @@ async def delete_group(groupname: str):
     if key not in state.GROUP_DB:
         raise HTTPException(status_code=404, detail="Group not found")
     del state.GROUP_DB[key]
+    # persist YAML
+    try:
+        if state.GROUPS_CSV_PATH:
+            dump_yaml_entities(state.GROUPS_CSV_PATH.with_suffix('.yaml'), list(state.GROUP_DB.values()), key_field='groupname')
+    except Exception:
+        pass
     return

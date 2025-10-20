@@ -3,6 +3,7 @@ from typing import List
 
 from .. import main as state
 from ..core.models import CompanyRecord
+from ..core.utils import dump_yaml_entities
 
 router = APIRouter(prefix="/api", tags=["companies"])
 
@@ -27,6 +28,12 @@ async def add_company_record(payload: CompanyRecord):
     item = payload.dict()
     item["companyname"] = key
     state.COMP_DB[key] = item
+    # persist YAML
+    try:
+        if state.COMP_CSV_PATH:
+            dump_yaml_entities(state.COMP_CSV_PATH.with_suffix('.yaml'), list(state.COMP_DB.values()), key_field='companyname')
+    except Exception:
+        pass
     return state.COMP_DB[key]
 
 
@@ -36,4 +43,10 @@ async def delete_company_record(companyname: str):
     if key not in state.COMP_DB:
         raise HTTPException(status_code=404, detail="Company record not found")
     del state.COMP_DB[key]
+    # persist YAML
+    try:
+        if state.COMP_CSV_PATH:
+            dump_yaml_entities(state.COMP_CSV_PATH.with_suffix('.yaml'), list(state.COMP_DB.values()), key_field='companyname')
+    except Exception:
+        pass
     return

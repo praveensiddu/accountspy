@@ -158,37 +158,46 @@ def _get_any(row: Dict[str, str], keys: List[str]) -> str:
     return ""
 
 
-def load_csv_into_memory(csv_path: Path) -> None:
+def load_properties_yaml_into_memory(properties_yaml_path: Path) -> None:
     DB.clear()
-    if not csv_path or not csv_path.exists():
+    if not properties_yaml_path or not properties_yaml_path.exists():
         return
-    with csv_path.open(newline="", encoding="utf-8") as f:
-        reader = _dict_reader_ignoring_comments(f)
-        for row in reader:
-            row = _normalize_row_keys(row)
-            # Header may have been '#property' which is normalized above
-            prop_raw = (row.get("property") or "").strip()
-            if not prop_raw:
-                continue
-            key = prop_raw.lower()
-            row["property"] = key
-            # Cast numeric fields
-            try:
-                row["cost"] = int(row.get("cost") or 0)
-                row["landValue"] = int(row.get("landValue") or 0)
-                row["renovation"] = int(row.get("renovation") or 0)
-                row["loanClosingCOst"] = int(row.get("loanClosingCOst") or 0)
-                row["ownerCount"] = int(row.get("ownerCount") or 0)
-            except ValueError:
-                continue
-            # Normalize and validate propMgmgtComp against companies
-            comp_raw = (row.get("propMgmgtComp") or "").strip().lower()
-            if not comp_raw or not ALNUM_LOWER_RE.match(comp_raw):
-                continue
-            if comp_raw not in COMP_DB:
-                continue
-            row["propMgmgtComp"] = comp_raw
-            DB[key] = row
+    try:
+        with properties_yaml_path.open('r', encoding='utf-8') as yf:
+            data = yaml.safe_load(yf) or []
+            if not isinstance(data, list):
+                return
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                prop = (item.get('property') or '').strip().lower()
+                if not prop:
+                    continue
+                try:
+                    cost = int(item.get('cost') or 0)
+                    land_value = int(item.get('landValue') or 0)
+                    renov = int(item.get('renovation') or 0)
+                    lcc = int(item.get('loanClosingCOst') or 0)
+                    owners = int(item.get('ownerCount') or 0)
+                except Exception:
+                    continue
+                comp_raw = (item.get('propMgmgtComp') or '').strip().lower()
+                if not comp_raw or not ALNUM_LOWER_RE.match(comp_raw):
+                    continue
+                if comp_raw not in COMP_DB:
+                    continue
+                DB[prop] = {
+                    'property': prop,
+                    'cost': cost,
+                    'landValue': land_value,
+                    'renovation': renov,
+                    'loanClosingCOst': lcc,
+                    'ownerCount': owners,
+                    'purchaseDate': (item.get('purchaseDate') or '').strip(),
+                    'propMgmgtComp': comp_raw,
+                }
+    except Exception as e:
+        logger.error(f"Failed to load properties.yaml: {e}")
 
 
 # Banks endpoints moved to routers/banks.py
@@ -225,47 +234,58 @@ def _dump_yaml_entities(path: Path, entities: List[Dict], key_field: str) -> Non
 # Owners moved to routers/owners.py
 
 
-def load_companies_csv_into_memory(companies_csv_path: Path) -> None:
+def load_companies_yaml_into_memory(companies_yaml_path: Path) -> None:
     COMP_DB.clear()
-    if not companies_csv_path or not companies_csv_path.exists():
+    if not companies_yaml_path or not companies_yaml_path.exists():
         return
-    with companies_csv_path.open(newline="", encoding="utf-8") as f:
-        reader = _dict_reader_ignoring_comments(f)
-        for row in reader:
-            row = _normalize_row_keys(row)
-            # Normalize header '#companyname' and values
-            if not row.get("companyname"):
-                continue
-            key = row["companyname"].strip().lower()
-            if not ALNUM_LOWER_RE.match(key):
-                # Skip names that are not strictly lowercase alphanumeric
-                continue
-            try:
-                row["rentPercentage"] = int(row.get("rentPercentage") or 0)
-            except ValueError:
-                continue
-            row["companyname"] = key.lower()  # Lowercase companyname during CSV load
-            COMP_DB[key] = row
+    try:
+        with companies_yaml_path.open('r', encoding='utf-8') as yf:
+            data = yaml.safe_load(yf) or []
+            if not isinstance(data, list):
+                return
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                raw = (item.get('companyname') or '').strip().lower()
+                if not raw or not ALNUM_LOWER_RE.match(raw):
+                    continue
+                try:
+                    rp = int(item.get('rentPercentage') or 0)
+                except Exception:
+                    rp = 0
+                COMP_DB[raw] = { 'companyname': raw, 'rentPercentage': rp }
+    except Exception as e:
+        logger.error(f"Failed to load companies.yaml: {e}")
 
 
-def load_bankaccounts_csv_into_memory(bank_csv_path: Path) -> None:
+def load_bankaccounts_yaml_into_memory(yaml_path: Path) -> None:
+    """Load bank accounts from bankaccounts.yaml into BA_DB.
+    Expected list of objects with fields: bankaccountname, bankname, optional statement_location.
+    """
     BA_DB.clear()
-    if not bank_csv_path or not bank_csv_path.exists():
+    if not yaml_path or not yaml_path.exists():
         return
-    with bank_csv_path.open(newline="", encoding="utf-8") as f:
-        reader = _dict_reader_ignoring_comments(f)
-        for row in reader:
-            row = _normalize_row_keys(row)
-            if not row.get("bankaccountname"):
-                continue
-            key = row["bankaccountname"].strip().lower()
-            # allow underscore in account names
-            if not ALNUM_UNDERSCORE_LOWER_RE.match(key):
-                continue
-            bank = (row.get("bankname") or "").strip().lower()
-            if not bank:
-                continue
-            BA_DB[key] = {"bankaccountname": key, "bankname": bank}
+    try:
+        with yaml_path.open('r', encoding='utf-8') as yf:
+            data = yaml.safe_load(yf) or []
+            if not isinstance(data, list):
+                return
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                key = (item.get('bankaccountname') or '').strip().lower()
+                if not key or not ALNUM_UNDERSCORE_LOWER_RE.match(key):
+                    continue
+                bank = (item.get('bankname') or '').strip().lower()
+                if not bank:
+                    continue
+                BA_DB[key] = {
+                    'bankaccountname': key,
+                    'bankname': bank,
+                    'statement_location': (item.get('statement_location') or '').strip(),
+                }
+    except Exception as e:
+        logger.error(f"Failed to load bankaccounts.yaml: {e}")
 
 
 def _split_pipe_list(value: str) -> List[str]:
@@ -274,46 +294,59 @@ def _split_pipe_list(value: str) -> List[str]:
     return [x.strip().lower() for x in value.split("|") if x.strip()]
 
 
-def load_groups_csv_into_memory(groups_csv_path: Path) -> None:
+def load_groups_yaml_into_memory(groups_yaml_path: Path) -> None:
     GROUP_DB.clear()
-    if not groups_csv_path or not groups_csv_path.exists():
+    if not groups_yaml_path or not groups_yaml_path.exists():
         return
-    with groups_csv_path.open(newline="", encoding="utf-8") as f:
-        reader = _dict_reader_ignoring_comments(f)
-        for row in reader:
-            row = _normalize_row_keys(row)
-            if not row.get("groupname"):
-                continue
-            key = row["groupname"].strip().lower()
-            if not ALNUM_UNDERSCORE_LOWER_RE.match(key):
-                continue
-            plist = _split_pipe_list(row.get("propertylist") or "")
-            plist = sorted(set(plist))
-            GROUP_DB[key] = {"groupname": key, "propertylist": plist}
+    try:
+        with groups_yaml_path.open('r', encoding='utf-8') as yf:
+            data = yaml.safe_load(yf) or []
+            if not isinstance(data, list):
+                return
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                key = (item.get('groupname') or '').strip().lower()
+                if not key or not ALNUM_UNDERSCORE_LOWER_RE.match(key):
+                    continue
+                plist = item.get('propertylist') or []
+                try:
+                    plist_norm = sorted(set([(p or '').strip().lower() for p in plist if (p or '').strip()]))
+                except Exception:
+                    plist_norm = []
+                GROUP_DB[key] = { 'groupname': key, 'propertylist': plist_norm }
+    except Exception as e:
+        logger.error(f"Failed to load groups.yaml: {e}")
 
 
-def load_owners_csv_into_memory(owners_csv_path: Path) -> None:
+def load_owners_yaml_into_memory(owners_yaml_path: Path) -> None:
     OWNER_DB.clear()
-    if not owners_csv_path or not owners_csv_path.exists():
+    if not owners_yaml_path or not owners_yaml_path.exists():
         return
-    with owners_csv_path.open(newline="", encoding="utf-8") as f:
-        reader = _dict_reader_ignoring_comments(f)
-        for row in reader:
-            row = _normalize_row_keys(row)
-            if not row.get("name"):
-                continue
-            key = row["name"].strip().lower()
-            if not ALNUM_UNDERSCORE_LOWER_RE.match(key):
-                continue
-            bankaccounts = sorted(set(_split_pipe_list(row.get("bankaccounts pipe separated") or "")))
-            properties = sorted(set(_split_pipe_list(row.get("properties pipe separated") or "")))
-            companies = sorted(set(_split_pipe_list(row.get("companies pipe separated") or "")))
-            OWNER_DB[key] = {
-                "name": key,
-                "bankaccounts": bankaccounts,
-                "properties": properties,
-                "companies": companies,
-            }
+    try:
+        with owners_yaml_path.open('r', encoding='utf-8') as yf:
+            data = yaml.safe_load(yf) or []
+            if not isinstance(data, list):
+                return
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                key = (item.get('name') or '').strip().lower()
+                if not key or not ALNUM_UNDERSCORE_LOWER_RE.match(key):
+                    continue
+                def _norm_list(val):
+                    try:
+                        return sorted(set([(v or '').strip().lower() for v in (val or []) if (v or '').strip()]))
+                    except Exception:
+                        return []
+                OWNER_DB[key] = {
+                    'name': key,
+                    'bankaccounts': _norm_list(item.get('bankaccounts')),
+                    'properties': _norm_list(item.get('properties')),
+                    'companies': _norm_list(item.get('companies')),
+                }
+    except Exception as e:
+        logger.error(f"Failed to load owners.yaml: {e}")
 
 
 def load_banks_yaml_into_memory(banks_yaml_path: Path) -> None:
@@ -359,80 +392,44 @@ def load_banks_yaml_into_memory(banks_yaml_path: Path) -> None:
         logger.error(f"Failed to load banks.yaml: {e}")
 
 
-def load_tax_categories_csv_into_memory(tax_csv_path: Path) -> None:
+def load_tax_categories_yaml_into_memory(tax_yaml_path: Path) -> None:
     TAX_DB.clear()
-    if not tax_csv_path or not tax_csv_path.exists():
+    if not tax_yaml_path or not tax_yaml_path.exists():
         return
-    with tax_csv_path.open(newline="", encoding="utf-8") as f:
-        reader = _dict_reader_ignoring_comments(f)
-        for row in reader:
-            row = _normalize_row_keys(row)
-            # Accept 'category' or 'name' header (any casing)
-            raw = _get_any(row, ["category", "name"]) or ""
-            val = raw.strip().lower() if isinstance(raw, str) else ""
-            if not isinstance(val, str) or not val:
-                # Fallback: take the first non-empty cell value
-                for v in (row or {}).values():
-                    if isinstance(v, str) and v.strip():
-                        val = v.strip().lower()
-                        break
-            if not val:
-                continue
-            if not ALNUM_UNDERSCORE_LOWER_RE.match(val):
-                continue
-            TAX_DB[val] = {"category": val}
-    # Supplemental raw-line pass to include headerless first-line as a value and any missed rows
     try:
-        existing = set(TAX_DB.keys())
-        with tax_csv_path.open('r', encoding='utf-8') as rf:
-            for ln in rf:
-                s = ln.strip()
-                if not s or s.startswith('#'):
+        with tax_yaml_path.open('r', encoding='utf-8') as yf:
+            data = yaml.safe_load(yf) or []
+            if not isinstance(data, list):
+                return
+            for item in data:
+                if not isinstance(item, dict):
                     continue
-                first = s.split(',')[0].strip().lower()
-                if not first or first in existing or not ALNUM_UNDERSCORE_LOWER_RE.match(first):
+                raw = (item.get('category') or item.get('name') or '').strip().lower()
+                if not raw or not ALNUM_UNDERSCORE_LOWER_RE.match(raw):
                     continue
-                TAX_DB[first] = {"category": first}
-                existing.add(first)
+                TAX_DB[raw] = { 'category': raw }
     except Exception as e:
-        logger.error(f"Tax CSV raw-line supplement failed: {e}")
+        logger.error(f"Failed to load tax_category.yaml: {e}")
 
 
-def load_transaction_types_csv_into_memory(tt_csv_path: Path) -> None:
+def load_transaction_types_yaml_into_memory(tt_yaml_path: Path) -> None:
     TT_DB.clear()
-    if not tt_csv_path or not tt_csv_path.exists():
+    if not tt_yaml_path or not tt_yaml_path.exists():
         return
-    with tt_csv_path.open(newline="", encoding="utf-8") as f:
-        reader = _dict_reader_ignoring_comments(f)
-        for row in reader:
-            row = _normalize_row_keys(row)
-            # Accept 'transactiontype' or 'type' or 'name' (any casing)
-            val = _get_any(row, ["transactiontype", "type", "name"]).strip().lower()
-            if not isinstance(val, str) or not val:
-                # Fallback: take the first non-empty cell value
-                for v in (row or {}).values():
-                    if isinstance(v, str) and v.strip():
-                        val = v.strip().lower()
-                        break
-            if not val:
-                continue
-            if not ALNUM_UNDERSCORE_LOWER_RE.match(val):
-                continue
-            TT_DB[val] = {"transactiontype": val}
     try:
-        existing_tt = set(TT_DB.keys())
-        with tt_csv_path.open('r', encoding='utf-8') as rf:
-            for ln in rf:
-                s = ln.strip()
-                if not s or s.startswith('#'):
+        with tt_yaml_path.open('r', encoding='utf-8') as yf:
+            data = yaml.safe_load(yf) or []
+            if not isinstance(data, list):
+                return
+            for item in data:
+                if not isinstance(item, dict):
                     continue
-                first = s.split(',')[0].strip().lower()
-                if not first or first in existing_tt or not ALNUM_UNDERSCORE_LOWER_RE.match(first):
+                raw = (item.get('transactiontype') or item.get('type') or item.get('name') or '').strip().lower()
+                if not raw or not ALNUM_UNDERSCORE_LOWER_RE.match(raw):
                     continue
-                TT_DB[first] = {"transactiontype": first}
-                existing_tt.add(first)
+                TT_DB[raw] = { 'transactiontype': raw }
     except Exception as e:
-        logger.error(f"Transaction types CSV raw-line supplement failed: {e}")
+        logger.error(f"Failed to load transaction_types.yaml: {e}")
 
 
 def _normalize_str(val: Optional[str]) -> str:
@@ -613,20 +610,29 @@ async def startup_event():
     CLASSIFY_CSV_PATH = (entities_dir / "classify_rules.csv") if entities_dir else None
 
     # Load CSVs
-    load_companies_csv_into_memory(COMP_CSV_PATH)  # load companies first for validation
-    logger.info(f"Loaded {len(COMP_DB)} company records from {COMP_CSV_PATH}")
-    load_csv_into_memory(CSV_PATH)
-    logger.info(f"Loaded {len(DB)} properties from {CSV_PATH}")
-    load_bankaccounts_csv_into_memory(BANK_CSV_PATH)
-    logger.info(f"Loaded {len(BA_DB)} bank accounts from {BANK_CSV_PATH}")
-    load_groups_csv_into_memory(GROUPS_CSV_PATH)
-    logger.info(f"Loaded {len(GROUP_DB)} groups from {GROUPS_CSV_PATH}")
-    load_owners_csv_into_memory(OWNERS_CSV_PATH)
-    logger.info(f"Loaded {len(OWNER_DB)} owners from {OWNERS_CSV_PATH}")
-    load_tax_categories_csv_into_memory(TAX_CSV_PATH)
-    logger.info(f"Loaded {len(TAX_DB)} tax categories from {TAX_CSV_PATH}")
-    load_transaction_types_csv_into_memory(TT_CSV_PATH)
-    logger.info(f"Loaded {len(TT_DB)} transaction types from {TT_CSV_PATH}")
+    # Load companies and properties from YAML (not CSV)
+    comp_yaml_path = COMP_CSV_PATH.with_suffix('.yaml') if COMP_CSV_PATH else None
+    load_companies_yaml_into_memory(comp_yaml_path)
+    logger.info(f"Loaded {len(COMP_DB)} company records from {comp_yaml_path}")
+    prop_yaml_path = CSV_PATH.with_suffix('.yaml') if CSV_PATH else None
+    load_properties_yaml_into_memory(prop_yaml_path)
+    logger.info(f"Loaded {len(DB)} properties from {prop_yaml_path}")
+    # Load bank accounts from YAML instead of CSV
+    bank_yaml_path = BANK_CSV_PATH.with_suffix('.yaml') if BANK_CSV_PATH else None
+    load_bankaccounts_yaml_into_memory(bank_yaml_path)
+    logger.info(f"Loaded {len(BA_DB)} bank accounts from {bank_yaml_path}")
+    grp_yaml_path = GROUPS_CSV_PATH.with_suffix('.yaml') if GROUPS_CSV_PATH else None
+    load_groups_yaml_into_memory(grp_yaml_path)
+    logger.info(f"Loaded {len(GROUP_DB)} groups from {grp_yaml_path}")
+    owners_yaml_path = OWNERS_CSV_PATH.with_suffix('.yaml') if OWNERS_CSV_PATH else None
+    load_owners_yaml_into_memory(owners_yaml_path)
+    logger.info(f"Loaded {len(OWNER_DB)} owners from {owners_yaml_path}")
+    tax_yaml_path = TAX_CSV_PATH.with_suffix('.yaml') if TAX_CSV_PATH else None
+    load_tax_categories_yaml_into_memory(tax_yaml_path)
+    logger.info(f"Loaded {len(TAX_DB)} tax categories from {tax_yaml_path}")
+    tt_yaml_path = TT_CSV_PATH.with_suffix('.yaml') if TT_CSV_PATH else None
+    load_transaction_types_yaml_into_memory(tt_yaml_path)
+    logger.info(f"Loaded {len(TT_DB)} transaction types from {tt_yaml_path}")
     load_banks_yaml_into_memory(BANKS_YAML_PATH)
     logger.info(f"Loaded {len(BANKS_CFG_DB)} bank configs from {BANKS_YAML_PATH}")
 
@@ -647,48 +653,10 @@ async def startup_event():
 
     # Emit YAML snapshots sorted by primary key
     try:
-        if COMP_CSV_PATH:
-            _dump_yaml_entities(
-                path=COMP_CSV_PATH.with_suffix('.yaml'),
-                entities=list(COMP_DB.values()),
-                key_field='companyname',
-            )
-        if CSV_PATH:
-            _dump_yaml_entities(
-                path=CSV_PATH.with_suffix('.yaml'),
-                entities=list(DB.values()),
-                key_field='property',
-            )
-        if BANK_CSV_PATH:
-            _dump_yaml_entities(
-                path=BANK_CSV_PATH.with_suffix('.yaml'),
-                entities=list(BA_DB.values()),
-                key_field='bankaccountname',
-            )
-        if GROUPS_CSV_PATH:
-            _dump_yaml_entities(
-                path=GROUPS_CSV_PATH.with_suffix('.yaml'),
-                entities=list(GROUP_DB.values()),
-                key_field='groupname',
-            )
-        if OWNERS_CSV_PATH:
-            _dump_yaml_entities(
-                path=OWNERS_CSV_PATH.with_suffix('.yaml'),
-                entities=list(OWNER_DB.values()),
-                key_field='name',
-            )
-        if TAX_CSV_PATH:
-            _dump_yaml_entities(
-                path=TAX_CSV_PATH.with_suffix('.yaml'),
-                entities=list(TAX_DB.values()),
-                key_field='category',
-            )
-        if TT_CSV_PATH:
-            _dump_yaml_entities(
-                path=TT_CSV_PATH.with_suffix('.yaml'),
-                entities=list(TT_DB.values()),
-                key_field='transactiontype',
-            )
+        # Do not dump companies.yaml or properties.yaml at startup; YAMLs are sources of truth now.
+        # Do not dump bankaccounts.yaml at startup; it is the source of truth now.
+        # Do not dump groups.yaml or owners.yaml at startup; YAMLs are sources of truth now.
+        # Do not dump tax_category.yaml or transaction_types.yaml at startup; YAMLs are sources of truth now.
         if BANKS_YAML_PATH:
             # Dump sorted by name; keep keys order stable
             _dump_yaml_entities(

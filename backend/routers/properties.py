@@ -3,6 +3,7 @@ from typing import List
 
 from .. import main as state
 from ..core.models import Property
+from ..core.utils import dump_yaml_entities
 
 router = APIRouter(prefix="/api", tags=["properties"])
 
@@ -33,6 +34,12 @@ async def add_property(payload: Property):
     item = payload.dict()
     item["propMgmgtComp"] = comp
     state.DB[key] = item
+    # persist YAML
+    try:
+        if state.CSV_PATH:
+            dump_yaml_entities(state.CSV_PATH.with_suffix('.yaml'), list(state.DB.values()), key_field='property')
+    except Exception:
+        pass
     return state.DB[key]
 
 
@@ -41,4 +48,10 @@ async def delete_property(prop_id: str):
     if prop_id not in state.DB:
         raise HTTPException(status_code=404, detail="Property not found")
     del state.DB[prop_id]
+    # persist YAML
+    try:
+        if state.CSV_PATH:
+            dump_yaml_entities(state.CSV_PATH.with_suffix('.yaml'), list(state.DB.values()), key_field='property')
+    except Exception:
+        pass
     return
