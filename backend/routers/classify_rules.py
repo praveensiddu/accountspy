@@ -62,6 +62,10 @@ async def add_classify_rule(payload: ClassifyRuleRecord):
         "otherentity": other,
     }
     state.CLASSIFY_DB[key] = rec
+    # Persist to bank_rules.yaml
+    if state.CLASSIFY_CSV_PATH:
+        base_dir = state.CLASSIFY_CSV_PATH.parent
+        dump_yaml_entities(base_dir / 'bank_rules.yaml', list(state.CLASSIFY_DB.values()), key_field='bankaccountname')
 
     return rec
 
@@ -86,6 +90,10 @@ async def delete_classify_rule(
         raise HTTPException(status_code=404, detail="Classify rule not found")
     for k in to_delete:
         del state.CLASSIFY_DB[k]
+    # Persist to bank_rules.yaml
+    if state.CLASSIFY_CSV_PATH:
+        base_dir = state.CLASSIFY_CSV_PATH.parent
+        dump_yaml_entities(base_dir / 'bank_rules.yaml', list(state.CLASSIFY_DB.values()), key_field='bankaccountname')
     return
 
 
