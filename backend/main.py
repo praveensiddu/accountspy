@@ -39,6 +39,11 @@ TT_CSV_PATH = None  # set on startup from ENTITIES_DIR
 CLASSIFY_CSV_PATH = None  # set on startup from ENTITIES_DIR
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
+# Mandatory environment configuration
+ACCOUNTS_DIR_PATH: Optional[Path] = None
+CURRENT_YEAR: Optional[str] = None
+PROCESSED_DIR_PATH: Optional[Path] = None
+
 # Companies list loaded from env
 COMPANIES: List[str] = []
 
@@ -101,6 +106,7 @@ try:
     from .routers import groups as groups_router
     from .routers import owners as owners_router
     from .routers import classify_rules as classify_rules_router
+    from .routers import transactions as transactions_router
     app.include_router(banks_router.router)
     app.include_router(tax_categories_router.router)
     app.include_router(transaction_types_router.router)
@@ -110,6 +116,7 @@ try:
     app.include_router(groups_router.router)
     app.include_router(owners_router.router)
     app.include_router(classify_rules_router.router)
+    app.include_router(transactions_router.router)
 except Exception:
     # In case of import issues during incremental refactor, continue with inline endpoints
     pass
@@ -597,6 +604,38 @@ async def startup_event():
     if entities_dir:
         entities_dir = entities_dir.expanduser().resolve()
     logger.info(f"ENTITIES_DIR: {entities_dir} exists={entities_dir.exists() if entities_dir else False}")
+
+    # Read and validate mandatory ACCOUNTS_DIR and CURRENT_YEAR
+    global ACCOUNTS_DIR_PATH, CURRENT_YEAR
+    accounts_dir_env = (os.getenv("ACCOUNTS_DIR", "") or "").strip()
+    year_env = (os.getenv("CURRENT_YEAR", "") or "").strip()
+    if not accounts_dir_env:
+        logger.error("Missing mandatory environment variable: ACCOUNTS_DIR")
+        raise RuntimeError("Missing mandatory environment variable: ACCOUNTS_DIR")
+    if not year_env:
+        logger.error("Missing mandatory environment variable: CURRENT_YEAR")
+        raise RuntimeError("Missing mandatory environment variable: CURRENT_YEAR")
+    try:
+        ACCOUNTS_DIR_PATH = Path(accounts_dir_env).expanduser().resolve()
+    except Exception:
+        logger.error(f"Invalid ACCOUNTS_DIR path: {accounts_dir_env}")
+        raise RuntimeError("Invalid ACCOUNTS_DIR path")
+    if not ACCOUNTS_DIR_PATH.exists() or not ACCOUNTS_DIR_PATH.is_dir():
+        logger.error(f"ACCOUNTS_DIR is not a directory: {ACCOUNTS_DIR_PATH}")
+        raise RuntimeError(f"ACCOUNTS_DIR is not a directory: {ACCOUNTS_DIR_PATH}")
+    CURRENT_YEAR = year_env
+    logger.info(f"ACCOUNTS_DIR={ACCOUNTS_DIR_PATH}")
+    logger.info(f"CURRENT_YEAR={CURRENT_YEAR}")
+
+    # Ensure ACCOUNTS_DIR/CURRENT_YEAR/processed exists
+    try:
+        global PROCESSED_DIR_PATH
+        PROCESSED_DIR_PATH = ACCOUNTS_DIR_PATH / CURRENT_YEAR / 'processed'
+        PROCESSED_DIR_PATH.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Ensured processed dir: {PROCESSED_DIR_PATH}")
+    except Exception as e:
+        logger.error(f"Failed to create processed directory: {e}")
+        raise
 
     # Compute CSV paths from ENTITIES_DIR
     global CSV_PATH, COMP_CSV_PATH, BANK_CSV_PATH, GROUPS_CSV_PATH, OWNERS_CSV_PATH, TAX_CSV_PATH, TT_CSV_PATH, BANKS_YAML_PATH, CLASSIFY_CSV_PATH

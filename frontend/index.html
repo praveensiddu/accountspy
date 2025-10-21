@@ -1280,6 +1280,14 @@
           const res = await fetch(`/api/transaction-types/${encodeURIComponent(tt)}`, { method: 'DELETE' });
           if (!res.ok && res.status !== 204) throw new Error('Failed to delete transaction type');
         },
+        // Transactions persistence
+        async saveTransactions(bankaccountname, rows) {
+          const res = await fetch(`/api/transactions/${encodeURIComponent(bankaccountname)}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows })
+          });
+          if (!res.ok) throw new Error(await res.text());
+          return res.json();
+        },
         // Classify rules
         async listClassifyRules() {
           const res = await fetch('/api/classify-rules');
@@ -1484,11 +1492,13 @@
           try {
             const ba = txnBATab || '';
             if (!ba) throw new Error('Select a bank account');
-            setTransactionsByBA(prev => {
-              const arr = prev[ba] ? [...prev[ba]] : [];
-              arr.push({ ...txnForm });
-              return { ...prev, [ba]: arr };
-            });
+            const newRows = (() => {
+              const existing = transactionsByBA[ba] ? [...transactionsByBA[ba]] : [];
+              existing.push({ ...txnForm });
+              return existing;
+            })();
+            await api.saveTransactions(ba, newRows);
+            setTransactionsByBA(prev => ({ ...prev, [ba]: newRows }));
             setTxnOpen(false);
           } catch (err) { alert(err.message || 'Error'); } finally { setTxnSaving(false); }
         };
