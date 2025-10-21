@@ -19,6 +19,7 @@ class BankAccountRecord(BaseModel):
     bankaccountname: str = Field(..., description="Unique bank account name")
     bankname: str
     statement_location: str = ''
+    abbreviation: str = ''
 
 class GroupRecord(BaseModel):
     groupname: str = Field(..., description="Unique group name")

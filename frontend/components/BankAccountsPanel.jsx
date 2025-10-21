@@ -75,6 +75,7 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
             <input name="statement_location" value={form.statement_location} onChange={onChange} placeholder="e.g., /path/or/url" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
             <p className="text-xs text-gray-500 mt-1">Optional path or URL to statements 20XX/bank_stmts will be appended</p>
           </div>
+          
         </form>
       </Modal>
       <div className="card">
@@ -97,6 +98,7 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
                 <th>
                   <input placeholder="filter" value={filter.statement_location} onChange={(e)=> setFilter(f=>({...f, statement_location: e.target.value }))} />
                 </th>
+                
                 <th></th>
               </tr>
             </thead>

@@ -1453,6 +1453,45 @@
         const [transactionTypes, setTransactionTypes] = useState([]);
         const [banks, setBanks] = useState([]);
         const [classifyRules, setClassifyRules] = useState([]);
+        // Transactions subtabs state (per bankaccount)
+        const [txnBATab, setTxnBATab] = useState(() => {
+          try { return window.localStorage.getItem('txnBATab') || ''; } catch(_) { return ''; }
+        });
+        useEffect(() => {
+          if (!txnBATab && (bankaccounts || []).length > 0) {
+            setTxnBATab((bankaccounts[0].bankaccountname || ''));
+          }
+        }, [txnBATab, bankaccounts]);
+        useEffect(() => {
+          try { window.localStorage.setItem('txnBATab', txnBATab || ''); } catch(_) {}
+        }, [txnBATab]);
+        // Local per-account transactions state (placeholder until backend wiring)
+        const [transactionsByBA, setTransactionsByBA] = useState({});
+        const [txnOpen, setTxnOpen] = useState(false);
+        const [txnSaving, setTxnSaving] = useState(false);
+        const emptyTxn = { date: '', description: '', debit: '', comment: '', transaction_type: '', tax_category: '', property: '', company: '', otherentity: '', override: '' };
+        const [txnForm, setTxnForm] = useState(emptyTxn);
+        const onTxnChange = (e) => {
+          const { name, value } = e.target;
+          setTxnForm(prev => ({ ...prev, [name]: value }));
+        };
+        const onTxnAdd = () => {
+          setTxnForm(emptyTxn);
+          setTxnOpen(true);
+        };
+        const onTxnSubmit = async (e) => {
+          e.preventDefault(); setTxnSaving(true);
+          try {
+            const ba = txnBATab || '';
+            if (!ba) throw new Error('Select a bank account');
+            setTransactionsByBA(prev => {
+              const arr = prev[ba] ? [...prev[ba]] : [];
+              arr.push({ ...txnForm });
+              return { ...prev, [ba]: arr };
+            });
+            setTxnOpen(false);
+          } catch (err) { alert(err.message || 'Error'); } finally { setTxnSaving(false); }
+        };
         const [taxCatForm, setTaxCatForm] = useState({ category: '' });
         const [txTypeForm, setTxTypeForm] = useState({ transactiontype: '' });
         const [bankForm, setBankForm] = useState({ name: '', date_format: '', delim: '', ignore_lines_contains: '', ignore_lines_startswith: '', columnsText: '' });
@@ -1847,7 +1886,133 @@
             )}
 
             {topTab === 'transactions' && (
-              <div className="tabcontent"><div className="muted">Transactions UI coming soon.</div></div>
+              <div className="tabcontent">
+                <div className="tabs" style={{ marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {(bankaccounts || []).map(b => {
+                    const name = b.bankaccountname || '';
+                    return (
+                      <button key={name} className={`tab ${txnBATab===name ? 'active' : ''}`} onClick={() => setTxnBATab(name)}>{name}</button>
+                    );
+                  })}
+                </div>
+                <div className="card">
+                  {(() => {
+                    const currentBA = (bankaccounts || []).find(b => (b.bankaccountname || '') === txnBATab);
+                    if (!currentBA) return (<div className="muted">Select a bank account to view transactions.</div>);
+                    const rows = transactionsByBA[txnBATab] || [];
+                    return (
+                      <div>
+                        <div className="actions" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                          <div className="muted">Transactions for: <strong>{currentBA.bankaccountname}</strong></div>
+                          <div>
+                            <button type="button" onClick={onTxnAdd} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add</button>
+                          </div>
+                        </div>
+                        <Modal title={'Add Transaction'} open={txnOpen} onClose={() => setTxnOpen(false)} onSubmit={onTxnSubmit} submitLabel={txnSaving ? 'Saving...' : 'Save'}>
+                          <form onSubmit={onTxnSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">date</label>
+                              <input name="date" value={txnForm.date} onChange={onTxnChange} placeholder="YYYY-MM-DD" className="mt-1 w-full border border-gray-300 rounded-md p-2" />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">description</label>
+                              <input name="description" value={txnForm.description} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">debit</label>
+                              <input name="debit" value={txnForm.debit} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">comment</label>
+                              <input name="comment" value={txnForm.comment} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">transaction_type</label>
+                              <select name="transaction_type" value={txnForm.transaction_type} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2">
+                                <option value="">Select</option>
+                                {(transactionTypes || []).map(t => (
+                                  <option key={t.transactiontype} value={(t.transactiontype || '').toLowerCase()}>{t.transactiontype}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">tax_category</label>
+                              <select name="tax_category" value={txnForm.tax_category} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2">
+                                <option value="">Select</option>
+                                {(taxCategories || []).map(c => (
+                                  <option key={c.category} value={(c.category || '').toLowerCase()}>{c.category}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">property</label>
+                              <select name="property" value={txnForm.property} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2">
+                                <option value="">Select</option>
+                                {(items || []).map(p => (
+                                  <option key={p.property} value={(p.property || '').toLowerCase()}>{p.property}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">company</label>
+                              <select name="company" value={txnForm.company} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2">
+                                <option value="">Select</option>
+                                {(companies || []).map(c => (
+                                  <option key={c} value={(c || '').toLowerCase()}>{c}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">otherentity</label>
+                              <input name="otherentity" value={txnForm.otherentity} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">override</label>
+                              <input name="override" value={txnForm.override} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
+                            </div>
+                          </form>
+                        </Modal>
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>date</th>
+                              <th>description</th>
+                              <th>debit</th>
+                              <th>comment</th>
+                              <th>transaction_type</th>
+                              <th>tax_category</th>
+                              <th>property</th>
+                              <th>company</th>
+                              <th>otherentity</th>
+                              <th>override</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.length === 0 ? (
+                              <tr><td colSpan="10" className="muted">No transactions</td></tr>
+                            ) : (
+                              rows.map((r, idx) => (
+                                <tr key={`txn-${idx}`}>
+                                  <td>{r.date}</td>
+                                  <td>{r.description}</td>
+                                  <td>{r.debit}</td>
+                                  <td>{r.comment}</td>
+                                  <td>{r.transaction_type}</td>
+                                  <td>{r.tax_category}</td>
+                                  <td>{r.property}</td>
+                                  <td>{r.company}</td>
+                                  <td>{r.otherentity}</td>
+                                  <td>{r.override}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
             )}
 
             {topTab === 'report' && (

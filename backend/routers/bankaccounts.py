@@ -24,6 +24,7 @@ async def add_bankaccount(payload: BankAccountRecord):
         "bankaccountname": key,
         "bankname": (payload.bankname or "").strip().lower(),
         "statement_location": (payload.statement_location or "").strip(),
+        "abbreviation": (getattr(payload, 'abbreviation', '') or '').strip(),
     }
     if not item["bankname"]:
         raise HTTPException(status_code=400, detail="bankname is required")

@@ -283,6 +283,7 @@ def load_bankaccounts_yaml_into_memory(yaml_path: Path) -> None:
                     'bankaccountname': key,
                     'bankname': bank,
                     'statement_location': (item.get('statement_location') or '').strip(),
+                    'abbreviation': (item.get('abbreviation') or '').strip(),
                 }
     except Exception as e:
         logger.error(f"Failed to load bankaccounts.yaml: {e}")
