@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 import yaml
 from datetime import datetime
 from .bank_statement_parser import process_bank_statements_from_sources as process_bank_stmts
+from . import load_entities as loaders
 
 ALNUM_LOWER_RE = re.compile(r"^[a-z0-9]+$")
 ALNUM_UNDERSCORE_LOWER_RE = re.compile(r"^[a-z0-9_]+$")
@@ -168,46 +169,7 @@ def _get_any(row: Dict[str, str], keys: List[str]) -> str:
     return ""
 
 
-def load_properties_yaml_into_memory(properties_yaml_path: Path) -> None:
-    DB.clear()
-    if not properties_yaml_path or not properties_yaml_path.exists():
-        return
-    try:
-        with properties_yaml_path.open('r', encoding='utf-8') as yf:
-            data = yaml.safe_load(yf) or []
-            if not isinstance(data, list):
-                return
-            for item in data:
-                if not isinstance(item, dict):
-                    continue
-                prop = (item.get('property') or '').strip().lower()
-                if not prop:
-                    continue
-                try:
-                    cost = int(item.get('cost') or 0)
-                    land_value = int(item.get('landValue') or 0)
-                    renov = int(item.get('renovation') or 0)
-                    lcc = int(item.get('loanClosingCOst') or 0)
-                    owners = int(item.get('ownerCount') or 0)
-                except Exception:
-                    continue
-                comp_raw = (item.get('propMgmgtComp') or '').strip().lower()
-                if not comp_raw or not ALNUM_LOWER_RE.match(comp_raw):
-                    continue
-                if comp_raw not in COMP_DB:
-                    continue
-                DB[prop] = {
-                    'property': prop,
-                    'cost': cost,
-                    'landValue': land_value,
-                    'renovation': renov,
-                    'loanClosingCOst': lcc,
-                    'ownerCount': owners,
-                    'purchaseDate': (item.get('purchaseDate') or '').strip(),
-                    'propMgmgtComp': comp_raw,
-                }
-    except Exception as e:
-        logger.error(f"Failed to load properties.yaml: {e}")
+ 
 
 
 # Banks endpoints moved to routers/banks.py
@@ -244,59 +206,10 @@ def _dump_yaml_entities(path: Path, entities: List[Dict], key_field: str) -> Non
 # Owners moved to routers/owners.py
 
 
-def load_companies_yaml_into_memory(companies_yaml_path: Path) -> None:
-    COMP_DB.clear()
-    if not companies_yaml_path or not companies_yaml_path.exists():
-        return
-    try:
-        with companies_yaml_path.open('r', encoding='utf-8') as yf:
-            data = yaml.safe_load(yf) or []
-            if not isinstance(data, list):
-                return
-            for item in data:
-                if not isinstance(item, dict):
-                    continue
-                raw = (item.get('companyname') or '').strip().lower()
-                if not raw or not ALNUM_LOWER_RE.match(raw):
-                    continue
-                try:
-                    rp = int(item.get('rentPercentage') or 0)
-                except Exception:
-                    rp = 0
-                COMP_DB[raw] = { 'companyname': raw, 'rentPercentage': rp }
-    except Exception as e:
-        logger.error(f"Failed to load companies.yaml: {e}")
+ 
 
 
-def load_bankaccounts_yaml_into_memory(yaml_path: Path) -> None:
-    """Load bank accounts from bankaccounts.yaml into BA_DB.
-    Expected list of objects with fields: bankaccountname, bankname, optional statement_location.
-    """
-    BA_DB.clear()
-    if not yaml_path or not yaml_path.exists():
-        return
-    try:
-        with yaml_path.open('r', encoding='utf-8') as yf:
-            data = yaml.safe_load(yf) or []
-            if not isinstance(data, list):
-                return
-            for item in data:
-                if not isinstance(item, dict):
-                    continue
-                key = (item.get('bankaccountname') or '').strip().lower()
-                if not key or not ALNUM_UNDERSCORE_LOWER_RE.match(key):
-                    continue
-                bank = (item.get('bankname') or '').strip().lower()
-                if not bank:
-                    continue
-                BA_DB[key] = {
-                    'bankaccountname': key,
-                    'bankname': bank,
-                    'statement_location': (item.get('statement_location') or '').strip(),
-                    'abbreviation': (item.get('abbreviation') or '').strip(),
-                }
-    except Exception as e:
-        logger.error(f"Failed to load bankaccounts.yaml: {e}")
+ 
 
 
 def _split_pipe_list(value: str) -> List[str]:
@@ -305,312 +218,59 @@ def _split_pipe_list(value: str) -> List[str]:
     return [x.strip().lower() for x in value.split("|") if x.strip()]
 
 
-def load_groups_yaml_into_memory(groups_yaml_path: Path) -> None:
-    GROUP_DB.clear()
-    if not groups_yaml_path or not groups_yaml_path.exists():
-        return
-    try:
-        with groups_yaml_path.open('r', encoding='utf-8') as yf:
-            data = yaml.safe_load(yf) or []
-            if not isinstance(data, list):
-                return
-            for item in data:
-                if not isinstance(item, dict):
-                    continue
-                key = (item.get('groupname') or '').strip().lower()
-                if not key or not ALNUM_UNDERSCORE_LOWER_RE.match(key):
-                    continue
-                plist = item.get('propertylist') or []
-                try:
-                    plist_norm = sorted(set([(p or '').strip().lower() for p in plist if (p or '').strip()]))
-                except Exception:
-                    plist_norm = []
-                GROUP_DB[key] = { 'groupname': key, 'propertylist': plist_norm }
-    except Exception as e:
-        logger.error(f"Failed to load groups.yaml: {e}")
-
-
-def load_owners_yaml_into_memory(owners_yaml_path: Path) -> None:
-    OWNER_DB.clear()
-    if not owners_yaml_path or not owners_yaml_path.exists():
-        return
-    try:
-        with owners_yaml_path.open('r', encoding='utf-8') as yf:
-            data = yaml.safe_load(yf) or []
-            if not isinstance(data, list):
-                return
-            for item in data:
-                if not isinstance(item, dict):
-                    continue
-                key = (item.get('name') or '').strip().lower()
-                if not key or not ALNUM_UNDERSCORE_LOWER_RE.match(key):
-                    continue
-                def _norm_list(val):
-                    try:
-                        return sorted(set([(v or '').strip().lower() for v in (val or []) if (v or '').strip()]))
-                    except Exception:
-                        return []
-                OWNER_DB[key] = {
-                    'name': key,
-                    'bankaccounts': _norm_list(item.get('bankaccounts')),
-                    'properties': _norm_list(item.get('properties')),
-                    'companies': _norm_list(item.get('companies')),
-                }
-    except Exception as e:
-        logger.error(f"Failed to load owners.yaml: {e}")
-
-
-def load_banks_yaml_into_memory(banks_yaml_path: Path) -> None:
-    """Load bank parsing configuration from banks.yaml. If missing, create with defaults."""
-    BANKS_CFG_DB.clear()
-    if not banks_yaml_path:
-        return
-    if not banks_yaml_path.exists():
-        # Create default content as provided
-        default_cfg = [
-            {"name": "amex", "ignore_lines_startswith": ["Transaction Type"], "date_format": "M/d/yyyy", "columns": [{"date": 1, "description": 4, "debit": 3}]},
-            {"name": "bbt", "ignore_lines_startswith": ["Transaction Type"], "date_format": "M/d/yyyy", "columns": [{"date": 1, "description": 4, "debit": 5, "checkno": 3}]},
-            {"name": "boa", "ignore_lines_contains": ["Ending balance"], "ignore_lines_startswith": ["Description", "Beginning balance", "Total credits", "Total debits", "Date"], "date_format": "M/d/yyyy", "delim": "|", "columns": [{"date": 1, "description": 2, "debit": 3, "checkno": 3}]},
-            {"name": "citicard", "ignore_lines_startswith": ["Status"], "date_format": "M/d/yyyy", "columns": [{"date": 2, "description": 3, "debit": 4, "credit": 5}]},
-            {"name": "dcu", "ignore_lines_contains": ["date range", "account number", "Account Name", "DATE"], "ignore_lines_startswith": ["Transaction Number"], "date_format": "M/d/yyyy", "columns": [{"date": 1, "description": 3, "memo": 6, "debit": 4}]},
-            {"name": "dcuvisa", "ignore_lines_contains": ["date range", "account number", "Account Name", "DATE"], "ignore_lines_startswith": ["Transaction Number"], "date_format": "M/d/yyyy", "columns": [{"date": 2, "description": 3, "memo": 4, "debit": 5, "credit": 6, "checkno": 8, "fees": 9}]},
-            {"name": "wellsfargo", "ignore_lines_contains": ["date range", "account number", "Account Name", "DATE"], "ignore_lines_startswith": ["Transaction Number"], "date_format": "M/d/yyyy", "columns": [{"date": 1, "description": 5, "debit": 2, "checkno": 4}]},
-        ]
-        banks_yaml_path.parent.mkdir(parents=True, exist_ok=True)
-        with banks_yaml_path.open('w', encoding='utf-8') as yf:
-            yaml.safe_dump(default_cfg, yf, sort_keys=False, allow_unicode=True)
-    # Load YAML content
-    try:
-        with banks_yaml_path.open('r', encoding='utf-8') as yf:
-            data = yaml.safe_load(yf) or []
-            if not isinstance(data, list):
-                data = []
-            # Normalize names to lowercase and index by name
-            normalized = []
-            for item in data:
-                if not isinstance(item, dict):
-                    continue
-                name = (item.get("name") or "").strip().lower()
-                if not name:
-                    continue
-                cfg = dict(item)
-                cfg["name"] = name
-                normalized.append(cfg)
-            # Save to in-memory indexed by name
-            for cfg in normalized:
-                BANKS_CFG_DB[cfg["name"]] = cfg
-    except Exception as e:
-        logger.error(f"Failed to load banks.yaml: {e}")
+ 
 
 
  
 
-def load_tax_categories_yaml_into_memory(tax_yaml_path: Path) -> None:
-    TAX_DB.clear()
-    if not tax_yaml_path or not tax_yaml_path.exists():
-        return
-    try:
-        with tax_yaml_path.open('r', encoding='utf-8') as yf:
-            data = yaml.safe_load(yf) or []
-            if not isinstance(data, list):
-                return
-            for item in data:
-                if not isinstance(item, dict):
-                    continue
-                raw = (item.get('category') or item.get('name') or '').strip().lower()
-                if not raw or not ALNUM_UNDERSCORE_LOWER_RE.match(raw):
-                    continue
-                TAX_DB[raw] = { 'category': raw }
-    except Exception as e:
-        logger.error(f"Failed to load tax_category.yaml: {e}")
+
+ 
 
 
-def load_transaction_types_yaml_into_memory(tt_yaml_path: Path) -> None:
-    TT_DB.clear()
-    if not tt_yaml_path or not tt_yaml_path.exists():
-        return
-    try:
-        with tt_yaml_path.open('r', encoding='utf-8') as yf:
-            data = yaml.safe_load(yf) or []
-            if not isinstance(data, list):
-                return
-            for item in data:
-                if not isinstance(item, dict):
-                    continue
-                raw = (item.get('transactiontype') or item.get('type') or item.get('name') or '').strip().lower()
-                if not raw or not ALNUM_UNDERSCORE_LOWER_RE.match(raw):
-                    continue
-                TT_DB[raw] = { 'transactiontype': raw }
-    except Exception as e:
-        logger.error(f"Failed to load transaction_types.yaml: {e}")
+ 
+
+ 
+
+
+ 
 
 
 def _normalize_str(val: Optional[str]) -> str:
     return (val or "").strip()
 
 
-def load_classify_rules_csv_into_memory(csv_path: Path) -> None:
-    CLASSIFY_DB.clear()
-    COMMON_RULES_DB.clear()
-    INHERIT_RULES_DB.clear()
-    if not csv_path or not csv_path.exists():
-        return
-    with csv_path.open(newline="", encoding="utf-8") as f:
-        reader = _dict_reader_ignoring_comments(f)
-        for row in reader:
-            row = _normalize_row_keys(row)
-            # Accept variant headers
-            bank = _normalize_str(_get_any(row, ["bankaccountname", "account", "bank_account", "bank"])) .lower()
-            ttype = _normalize_str(_get_any(row, ["transaction_type", "transactiontype", "type"])) .lower()
-            patt = _normalize_str(_get_any(row, ["pattern_match_logic", "pattern", "match", "rule"])) .lower()
-            tax = _normalize_str(_get_any(row, ["tax_category", "category", "tax"])) .lower()
-            prop = _normalize_str(_get_any(row, ["property", "prop"])) .lower()
-            other = _normalize_str(_get_any(row, ["otherentity", "entity", "payee", "vendor"]))
-            # Require minimum fields
-            if not (bank and ttype and patt):
-                continue
-            # Build a composite key that includes pattern to avoid overwrites
-            key = f"{bank}|{ttype}|{prop}|{patt}"
-            CLASSIFY_DB[key] = {
-                "bankaccountname": bank,
-                "transaction_type": ttype,
-                "pattern_match_logic": patt,
-                "tax_category": tax,
-                "property": prop,
-                "otherentity": other,
-            }
+ 
 
 
-def load_common_rules_yaml_into_memory(path: Path) -> None:
-    """Load manually curated common rules from YAML into COMMON_RULES_DB.
-    Expected format: list of objects with fields transaction_type, pattern_match_logic.
-    """
-    COMMON_RULES_DB.clear()
-    if not path or not path.exists():
-        return
-    try:
-        with path.open('r', encoding='utf-8') as yf:
-            data = yaml.safe_load(yf) or []
-            if not isinstance(data, list):
-                return
-            for item in data:
-                if not isinstance(item, dict):
-                    continue
-                ttype = (item.get('transaction_type') or '').strip().lower()
-                patt = (item.get('pattern_match_logic') or '').strip()
-                patt_norm = ' '.join(patt.split()).lower()
-                if not (ttype and patt_norm):
-                    continue
-                key = f"common|{ttype}|{patt_norm}"
-                COMMON_RULES_DB[key] = {
-                    'bankaccountname': 'common',
-                    'transaction_type': ttype,
-                    'pattern_match_logic': patt_norm,
-                    'tax_category': '',
-                    'property': '',
-                    'otherentity': '',
-                }
-    except Exception as e:
-        logger.error(f"Failed to load common_rules.yaml: {e}")
+ 
 
 
-def load_bank_rules_yaml_into_memory(path: Path) -> None:
-    """Load bank-specific classify rules from YAML into CLASSIFY_DB.
-    Expected format: list of objects with fields bankaccountname, transaction_type, pattern_match_logic,
-    tax_category, property, group, otherentity. Fields may be omitted; missing values default to ''.
-    """
-    CLASSIFY_DB.clear()
-    if not path or not path.exists():
-        return
-    try:
-        with path.open('r', encoding='utf-8') as yf:
-            data = yaml.safe_load(yf) or []
-            if not isinstance(data, list):
-                return
-            for item in data:
-                if not isinstance(item, dict):
-                    continue
-                bank = (item.get('bankaccountname') or '').strip().lower()
-                ttype = (item.get('transaction_type') or '').strip().lower()
-                patt = (item.get('pattern_match_logic') or '').strip()
-                patt_norm = ' '.join(patt.split()).lower() if patt else ''
-                tax = (item.get('tax_category') or '').strip().lower()
-                prop = (item.get('property') or '').strip().lower()
-                group = (item.get('group') or '').strip().lower()
-                other = (item.get('otherentity') or '').strip()
-                if not bank:
-                    continue
-                key = f"{bank}|{ttype}|{prop}|{group}|{patt_norm}"
-                CLASSIFY_DB[key] = {
-                    'bankaccountname': bank,
-                    'transaction_type': ttype,
-                    'pattern_match_logic': patt_norm,
-                    'tax_category': tax,
-                    'property': prop,
-                    'group': group,
-                    'otherentity': other,
-                }
-    except Exception as e:
-        logger.error(f"Failed to load bank_rules.yaml: {e}")
+ 
 
 
-def load_inherit_rules_yaml_into_memory(path: Path) -> None:
-    """Load manually curated inherit rules from YAML into INHERIT_RULES_DB.
-    Expected format: list of objects with fields bankaccountname, transaction_type, pattern_match_logic, tax_category, property, otherentity.
-    """
-    INHERIT_RULES_DB.clear()
-    if not path or not path.exists():
-        return
-    try:
-        with path.open('r', encoding='utf-8') as yf:
-            data = yaml.safe_load(yf) or []
-            if not isinstance(data, list):
-                return
-            for item in data:
-                if not isinstance(item, dict):
-                    continue
-                bank = (item.get('bankaccountname') or '').strip().lower()
-                ttype = (item.get('transaction_type') or '').strip().lower()
-                patt = (item.get('pattern_match_logic') or '').strip()
-                patt_norm = ' '.join(patt.split()).lower() if patt else ''
-                tax = (item.get('tax_category') or '').strip().lower()
-                prop = (item.get('property') or '').strip().lower()
-                group = (item.get('group') or '').strip().lower()
-                other = (item.get('otherentity') or '').strip()
-                # Only require bank; others are optional in YAML
-                if not bank:
-                    continue
-                key = f"{bank}|{ttype}|{prop}|{group}|{patt_norm}|{tax}|{other}"
-                INHERIT_RULES_DB[key] = {
-                    'bankaccountname': bank,
-                    'transaction_type': ttype,
-                    'pattern_match_logic': patt_norm,
-                    'tax_category': tax,
-                    'property': prop,
-                    'group': group,
-                    'otherentity': other,
-                }
-    except Exception as e:
-        logger.error(f"Failed to load inherit_common_to_bank.yaml: {e}")
+ 
 
 
-@app.on_event("startup")
-async def startup_event():
+def _init_fs_and_env() -> Path:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
-    # Load .env from project root
     project_root = Path(__file__).resolve().parent.parent
     env_path = project_root / ".env"
     load_dotenv(env_path)
     logger.info(f"ENV path: {env_path} exists={env_path.exists()}")
-    # Resolve ENTITIES_DIR
+    return project_root
+
+
+def _resolve_entities_dir() -> Optional[Path]:
     entities_dir_env = os.getenv("ENTITIES_DIR", "").strip()
     entities_dir = Path(entities_dir_env) if entities_dir_env else None
     if entities_dir:
         entities_dir = entities_dir.expanduser().resolve()
     logger.info(f"ENTITIES_DIR: {entities_dir} exists={entities_dir.exists() if entities_dir else False}")
+    return entities_dir
 
-    # Read and validate mandatory ACCOUNTS_DIR and CURRENT_YEAR
+
+def _read_mandatory_envs() -> None:
     global ACCOUNTS_DIR_PATH, CURRENT_YEAR
     accounts_dir_env = (os.getenv("ACCOUNTS_DIR", "") or "").strip()
     year_env = (os.getenv("CURRENT_YEAR", "") or "").strip()
@@ -632,7 +292,8 @@ async def startup_event():
     logger.info(f"ACCOUNTS_DIR={ACCOUNTS_DIR_PATH}")
     logger.info(f"CURRENT_YEAR={CURRENT_YEAR}")
 
-    # Ensure ACCOUNTS_DIR/CURRENT_YEAR/processed and normalized exist
+
+def _ensure_year_dirs() -> None:
     try:
         global PROCESSED_DIR_PATH, NORMALIZED_DIR_PATH
         PROCESSED_DIR_PATH = ACCOUNTS_DIR_PATH / CURRENT_YEAR / 'processed'
@@ -645,7 +306,8 @@ async def startup_event():
         logger.error(f"Failed to create processed directory: {e}")
         raise
 
-    # Compute CSV paths from ENTITIES_DIR
+
+def _compute_entity_paths(entities_dir: Optional[Path]) -> None:
     global CSV_PATH, COMP_CSV_PATH, BANK_CSV_PATH, GROUPS_CSV_PATH, OWNERS_CSV_PATH, TAX_CSV_PATH, TT_CSV_PATH, BANKS_YAML_PATH, CLASSIFY_CSV_PATH
     CSV_PATH = (entities_dir / "properties.csv") if entities_dir else None
     COMP_CSV_PATH = (entities_dir / "companies.csv") if entities_dir else None
@@ -657,62 +319,55 @@ async def startup_event():
     TT_CSV_PATH = (entities_dir / "transaction_types.csv") if entities_dir else None
     CLASSIFY_CSV_PATH = (entities_dir / "classify_rules.csv") if entities_dir else None
 
-    # Load CSVs
-    # Load companies and properties from YAML (not CSV)
+
+def _load_entities() -> None:
     comp_yaml_path = COMP_CSV_PATH.with_suffix('.yaml') if COMP_CSV_PATH else None
-    load_companies_yaml_into_memory(comp_yaml_path)
+    loaders.load_companies_yaml_into_memory(comp_yaml_path, COMP_DB, logger)
     logger.info(f"Loaded {len(COMP_DB)} company records from {comp_yaml_path}")
     prop_yaml_path = CSV_PATH.with_suffix('.yaml') if CSV_PATH else None
-    load_properties_yaml_into_memory(prop_yaml_path)
+    loaders.load_properties_yaml_into_memory(prop_yaml_path, DB, COMP_DB, logger)
     logger.info(f"Loaded {len(DB)} properties from {prop_yaml_path}")
-    # Load bank accounts from YAML instead of CSV
     bank_yaml_path = BANK_CSV_PATH.with_suffix('.yaml') if BANK_CSV_PATH else None
-    load_bankaccounts_yaml_into_memory(bank_yaml_path)
+    loaders.load_bankaccounts_yaml_into_memory(bank_yaml_path, BA_DB, logger)
     logger.info(f"Loaded {len(BA_DB)} bank accounts from {bank_yaml_path}")
     grp_yaml_path = GROUPS_CSV_PATH.with_suffix('.yaml') if GROUPS_CSV_PATH else None
-    load_groups_yaml_into_memory(grp_yaml_path)
+    loaders.load_groups_yaml_into_memory(grp_yaml_path, GROUP_DB, logger)
     logger.info(f"Loaded {len(GROUP_DB)} groups from {grp_yaml_path}")
     owners_yaml_path = OWNERS_CSV_PATH.with_suffix('.yaml') if OWNERS_CSV_PATH else None
-    load_owners_yaml_into_memory(owners_yaml_path)
+    loaders.load_owners_yaml_into_memory(owners_yaml_path, OWNER_DB, logger)
     logger.info(f"Loaded {len(OWNER_DB)} owners from {owners_yaml_path}")
     tax_yaml_path = TAX_CSV_PATH.with_suffix('.yaml') if TAX_CSV_PATH else None
-    load_tax_categories_yaml_into_memory(tax_yaml_path)
+    loaders.load_tax_categories_yaml_into_memory(tax_yaml_path, TAX_DB, logger)
     logger.info(f"Loaded {len(TAX_DB)} tax categories from {tax_yaml_path}")
     tt_yaml_path = TT_CSV_PATH.with_suffix('.yaml') if TT_CSV_PATH else None
-    load_transaction_types_yaml_into_memory(tt_yaml_path)
+    loaders.load_transaction_types_yaml_into_memory(tt_yaml_path, TT_DB, logger)
     logger.info(f"Loaded {len(TT_DB)} transaction types from {tt_yaml_path}")
-    load_banks_yaml_into_memory(BANKS_YAML_PATH)
+    loaders.load_banks_yaml_into_memory(BANKS_YAML_PATH, BANKS_CFG_DB, logger)
     logger.info(f"Loaded {len(BANKS_CFG_DB)} bank configs from {BANKS_YAML_PATH}")
 
-    # Load manually curated common and inherit rules
+
+def _load_manual_rules() -> None:
     try:
         if CLASSIFY_CSV_PATH:
             base_dir = CLASSIFY_CSV_PATH.parent
-            # Load primary bank rules from YAML (for BankRules tab)
-            load_bank_rules_yaml_into_memory(base_dir / 'bank_rules.yaml')
-            # Load common and inherit YAMLs
-            load_common_rules_yaml_into_memory(base_dir / 'common_rules.yaml')
-            load_inherit_rules_yaml_into_memory(base_dir / 'inherit_common_to_bank.yaml')
+            loaders.load_bank_rules_yaml_into_memory(base_dir / 'bank_rules.yaml', CLASSIFY_DB, logger)
+            loaders.load_common_rules_yaml_into_memory(base_dir / 'common_rules.yaml', COMMON_RULES_DB, logger)
+            loaders.load_inherit_rules_yaml_into_memory(base_dir / 'inherit_common_to_bank.yaml', INHERIT_RULES_DB, logger)
             logger.info(
                 f"Loaded manual lists -> bank_rules={len(CLASSIFY_DB)}, common_rules={len(COMMON_RULES_DB)}, inherit_rules={len(INHERIT_RULES_DB)}"
             )
     except Exception as e:
         logger.error(f"Failed to load manual lists: {e}")
 
-    # Emit YAML snapshots sorted by primary key
+
+def _emit_yaml_snapshots() -> None:
     try:
-        # Do not dump companies.yaml or properties.yaml at startup; YAMLs are sources of truth now.
-        # Do not dump bankaccounts.yaml at startup; it is the source of truth now.
-        # Do not dump groups.yaml or owners.yaml at startup; YAMLs are sources of truth now.
-        # Do not dump tax_category.yaml or transaction_types.yaml at startup; YAMLs are sources of truth now.
         if BANKS_YAML_PATH:
-            # Dump sorted by name; keep keys order stable
             _dump_yaml_entities(
                 path=BANKS_YAML_PATH,
                 entities=list(BANKS_CFG_DB.values()),
                 key_field='name',
             )
-        # Write derived YAMLs (do not write classify_rules.yaml)
         if CLASSIFY_CSV_PATH:
             base_dir = CLASSIFY_CSV_PATH.parent
             _dump_yaml_entities(
@@ -720,16 +375,28 @@ async def startup_event():
                 entities=list(CLASSIFY_DB.values()),
                 key_field='bankaccountname',
             )
-            # Do not write inherit_common_to_bank.yaml; it is manually curated.
-            # Do not write common_rules.yaml; it is manually curated.
     except Exception as e:
         logger.error(f"Failed to write YAML snapshots: {e}")
 
-    # Process raw statements into normalized CSVs
+
+def _process_statements() -> None:
     try:
         process_bank_stmts(BA_DB, BANKS_CFG_DB, CURRENT_YEAR, NORMALIZED_DIR_PATH, logger)
     except Exception as e:
         logger.error(f"Failed processing bank statements from sources: {e}")
+
+
+@app.on_event("startup")
+async def startup_event():
+    _init_fs_and_env()
+    entities_dir = _resolve_entities_dir()
+    _read_mandatory_envs()
+    _ensure_year_dirs()
+    _compute_entity_paths(entities_dir)
+    _load_entities()
+    _load_manual_rules()
+    _emit_yaml_snapshots()
+    _process_statements()
 
 
 # Properties moved to routers/properties.py
