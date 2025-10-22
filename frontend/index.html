@@ -1281,6 +1281,11 @@
           if (!res.ok && res.status !== 204) throw new Error('Failed to delete transaction type');
         },
         // Transactions persistence
+        async listTransactions() {
+          const res = await fetch('/api/transactions');
+          if (!res.ok) throw new Error('Failed to fetch transactions');
+          return res.json();
+        },
         async saveTransactions(bankaccountname, rows) {
           const res = await fetch(`/api/transactions/${encodeURIComponent(bankaccountname)}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows })
@@ -1477,7 +1482,7 @@
         const [transactionsByBA, setTransactionsByBA] = useState({});
         const [txnOpen, setTxnOpen] = useState(false);
         const [txnSaving, setTxnSaving] = useState(false);
-        const emptyTxn = { date: '', description: '', debit: '', comment: '', transaction_type: '', tax_category: '', property: '', company: '', otherentity: '', override: '' };
+        const emptyTxn = { date: '', description: '', credit: '', comment: '', transaction_type: '', tax_category: '', property: '', company: '', otherentity: '', override: '' };
         const [txnForm, setTxnForm] = useState(emptyTxn);
         const onTxnChange = (e) => {
           const { name, value } = e.target;
@@ -1525,7 +1530,7 @@
           setError('');
           setLoading(true);
           try {
-            const [data, comps, compRecs, bas, grps, ownrs, taxcats, txtypes, banksCfg, rules] = await Promise.all([
+            const [data, comps, compRecs, bas, grps, ownrs, taxcats, txtypes, banksCfg, rules, txnsMap] = await Promise.all([
               api.list(),
               api.companies(),
               api.listCompanyRecords(),
@@ -1535,7 +1540,8 @@
               api.listTaxCategories(),
               api.listTransactionTypes(),
               api.listBanks(),
-              api.listClassifyRules()
+              api.listClassifyRules(),
+              api.listTransactions()
             ]);
             setItems(data);
             setCompanies(comps);
@@ -1547,6 +1553,8 @@
             setTransactionTypes(txtypes);
             setBanks(banksCfg);
             setClassifyRules(rules);
+            // Processed transactions map: { [bankaccountname]: rows[] }
+            if (txnsMap && typeof txnsMap === 'object') setTransactionsByBA(txnsMap);
           } catch (e) {
             setError(e.message || 'Error');
           } finally {
@@ -1929,8 +1937,8 @@
                               <input name="description" value={txnForm.description} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
                             </div>
                             <div>
-                              <label className="block text-sm font-medium text-gray-700">debit</label>
-                              <input name="debit" value={txnForm.debit} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
+                              <label className="block text-sm font-medium text-gray-700">credit</label>
+                              <input name="credit" value={txnForm.credit} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
                             </div>
                             <div>
                               <label className="block text-sm font-medium text-gray-700">comment</label>
@@ -1987,7 +1995,7 @@
                             <tr>
                               <th>date</th>
                               <th>description</th>
-                              <th>debit</th>
+                              <th>credit</th>
                               <th>comment</th>
                               <th>transaction_type</th>
                               <th>tax_category</th>
@@ -2005,7 +2013,7 @@
                                 <tr key={`txn-${idx}`}>
                                   <td>{r.date}</td>
                                   <td>{r.description}</td>
-                                  <td>{r.debit}</td>
+                                  <td>{r.credit}</td>
                                   <td>{r.comment}</td>
                                   <td>{r.transaction_type}</td>
                                   <td>{r.tax_category}</td>

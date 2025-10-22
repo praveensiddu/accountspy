@@ -10,6 +10,7 @@ import logging
 from pathlib import Path
 from dotenv import load_dotenv
 import yaml
+from datetime import datetime
 
 ALNUM_LOWER_RE = re.compile(r"^[a-z0-9]+$")
 ALNUM_UNDERSCORE_LOWER_RE = re.compile(r"^[a-z0-9_]+$")
@@ -43,6 +44,7 @@ FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 ACCOUNTS_DIR_PATH: Optional[Path] = None
 CURRENT_YEAR: Optional[str] = None
 PROCESSED_DIR_PATH: Optional[Path] = None
+NORMALIZED_DIR_PATH: Optional[Path] = None
 
 # Companies list loaded from env
 COMPANIES: List[str] = []
@@ -400,6 +402,195 @@ def load_banks_yaml_into_memory(banks_yaml_path: Path) -> None:
         logger.error(f"Failed to load banks.yaml: {e}")
 
 
+def _process_bank_statement_for_account(bankaccountname: str, cfg: Dict[str, any], src_path: Path) -> None:
+    """Process a single bankaccount's raw CSV text file using bank config and write processed CSV.
+    Inputs:
+      - bankaccountname: lowercase key in BA_DB
+      - cfg: bank configuration entry from BANKS_CFG_DB
+      - src_path: path to raw csv file: <statement_location>/<CURRENT_YEAR>/bank_stmts/<bankaccountname>.csv
+    Output written to: PROCESSED_DIR_PATH/<bankaccountname>.csv with header matching transactions table.
+    """
+    if not NORMALIZED_DIR_PATH:
+        return
+    if not src_path.exists() or not src_path.is_file():
+        return
+    delim = (cfg.get('delim') or ',')
+    starts = cfg.get('ignore_lines_startswith') or []
+    contains = cfg.get('ignore_lines_contains') or []
+    columns_list = cfg.get('columns') or []
+    # Choose first columns mapping
+    colmap = {}
+    for entry in columns_list:
+        if isinstance(entry, dict) and entry:
+            colmap = entry
+            break
+    date_idx = int(colmap.get('date') or 0)
+    desc_idx = int(colmap.get('description') or 0)
+    debit_idx = int(colmap.get('debit') or 0)
+    credit_idx = int(colmap.get('credit') or 0)
+    if not (date_idx and desc_idx and (debit_idx or credit_idx)):
+        return
+    # Prepare date parsing from cfg date_format (e.g., M/d/yyyy)
+    raw_fmt = (cfg.get('date_format') or '').strip()
+    def _py_strptime(fmt: str) -> str:
+        # Map simple tokens to Python strptime
+        m = fmt
+        m = m.replace('yyyy', '%Y').replace('yy', '%y')
+        # Handle month/day tokens with and without zero padding
+        m = m.replace('MM', '%m').replace('M', '%-m')
+        m = m.replace('dd', '%d').replace('d', '%-d')
+        return m
+    py_fmt = _py_strptime(raw_fmt) if raw_fmt else ''
+    def normalize_date(s: str) -> str:
+        if not s:
+            return ''
+        ss = s.strip()
+        if not ss:
+            return ''
+        # Try configured format first
+        fmts = [py_fmt] if py_fmt else []
+        # Add common fallbacks
+        fmts += ['%m/%d/%Y', '%-m/%-d/%Y', '%Y-%m-%d']
+        for f in fmts:
+            try:
+                dt = datetime.strptime(ss, f)
+                return dt.strftime('%Y-%m-%d')
+            except Exception:
+                continue
+        return ss
+    def parse_amount(s: str) -> str:
+        # Normalize currency strings to signed decimal in string
+        if s is None:
+            return ''
+        txt = str(s).strip()
+        if not txt:
+            return ''
+        neg = False
+        if txt.startswith('(') and txt.endswith(')'):
+            neg = True
+            txt = txt[1:-1]
+        # Remove currency symbols and commas
+        for ch in ['$', ',', ' ']:
+            txt = txt.replace(ch, '')
+        try:
+            val = float(txt)
+            if neg:
+                val = -val
+            # format without trailing .0 if integer-like
+            if abs(val - int(val)) < 1e-9:
+                return str(int(val))
+            return f"{val}"
+        except Exception:
+            return s
+    def parse_amount_num(s: str) -> Optional[float]:
+        try:
+            txt = parse_amount(s)
+            if txt == '' or txt is None:
+                return None
+            return float(txt)
+        except Exception:
+            return None
+    out_rows: List[Dict[str, str]] = []
+    try:
+        with src_path.open('r', encoding='utf-8') as rf:
+            for raw_line in rf:
+                line = raw_line.rstrip('\n')
+                if not line.strip():
+                    continue
+                skip = False
+                for s in starts:
+                    try:
+                        if s and line.startswith(s):
+                            skip = True; break
+                    except Exception:
+                        continue
+                if skip:
+                    continue
+                for c in contains:
+                    try:
+                        if c and (c in line):
+                            skip = True; break
+                    except Exception:
+                        continue
+                if skip:
+                    continue
+                parts = line.split(delim)
+                # 1-based indexes in config
+                def get_part(idx: int) -> str:
+                    if idx <= 0:
+                        return ''
+                    return (parts[idx-1].strip() if len(parts) >= idx else '')
+                date_val = get_part(date_idx)
+                desc_val = get_part(desc_idx)
+                debit_val = get_part(debit_idx) if debit_idx else ''
+                credit_val = get_part(credit_idx) if credit_idx else ''
+                # Normalize date
+                date_out = normalize_date(date_val)
+                # Determine credit amount with sign convention: debits negative, credits positive
+                amt_out = ''
+                dv = parse_amount_num(debit_val) if debit_val else None
+                cv = parse_amount_num(credit_val) if credit_val else None
+                if dv is not None:
+                    amt = -abs(dv)
+                    amt_out = str(int(amt)) if abs(amt - int(amt)) < 1e-9 else f"{amt}"
+                elif cv is not None:
+                    amt = abs(cv)
+                    amt_out = str(int(amt)) if abs(amt - int(amt)) < 1e-9 else f"{amt}"
+                if not (date_out and desc_val):
+                    continue
+                out_rows.append({
+                    'date': date_out,
+                    'description': desc_val,
+                    'credit': amt_out,
+                    'comment': '',
+                    'transaction_type': '',
+                    'tax_category': '',
+                    'property': '',
+                    'company': '',
+                    'otherentity': '',
+                    'override': '',
+                })
+    except Exception as e:
+        logger.error(f"Failed reading raw CSV for {bankaccountname}: {e}")
+        return
+    # Write normalized CSV
+    if out_rows:
+        header = ['date','description','credit','comment','transaction_type','tax_category','property','company','otherentity','override']
+        out_path = NORMALIZED_DIR_PATH / f"{bankaccountname}.csv"
+        try:
+            with out_path.open('w', newline='', encoding='utf-8') as wf:
+                writer = csv.DictWriter(wf, fieldnames=header, extrasaction='ignore')
+                writer.writeheader()
+                for r in out_rows:
+                    writer.writerow(r)
+            logger.info(f"Wrote normalized CSV for {bankaccountname}: {out_path} rows={len(out_rows)}")
+        except Exception as e:
+            logger.error(f"Failed to write normalized CSV for {bankaccountname}: {e}")
+
+
+def process_bank_statements_from_sources() -> None:
+    """Discover and process raw statement CSVs under each account's statement_location.
+    For each bank account in BA_DB:
+      - If statement_location is set, look for: <statement_location>/<CURRENT_YEAR>/bank_stmts/<bankaccountname>.csv
+      - Resolve bank config by BA_DB[bankaccountname]['bankname'] and use to parse
+      - Write processed output to PROCESSED_DIR_PATH/<bankaccountname>.csv
+    """
+    if not (BA_DB and BANKS_CFG_DB and PROCESSED_DIR_PATH and CURRENT_YEAR):
+        return
+    for key, ba in list(BA_DB.items()):
+        try:
+            stmt_loc = (ba.get('statement_location') or '').strip()
+            bankname = (ba.get('bankname') or '').strip().lower()
+            if not (stmt_loc and bankname):
+                continue
+            cfg = BANKS_CFG_DB.get(bankname)
+            if not cfg:
+                continue
+            src = Path(stmt_loc).expanduser().resolve() / str(CURRENT_YEAR) / 'bank_stmts' / f"{key}.csv"
+            _process_bank_statement_for_account(key, cfg, src)
+        except Exception as e:
+            logger.error(f"Failed processing account {key}: {e}")
+
 def load_tax_categories_yaml_into_memory(tax_yaml_path: Path) -> None:
     TAX_DB.clear()
     if not tax_yaml_path or not tax_yaml_path.exists():
@@ -627,12 +818,15 @@ async def startup_event():
     logger.info(f"ACCOUNTS_DIR={ACCOUNTS_DIR_PATH}")
     logger.info(f"CURRENT_YEAR={CURRENT_YEAR}")
 
-    # Ensure ACCOUNTS_DIR/CURRENT_YEAR/processed exists
+    # Ensure ACCOUNTS_DIR/CURRENT_YEAR/processed and normalized exist
     try:
-        global PROCESSED_DIR_PATH
+        global PROCESSED_DIR_PATH, NORMALIZED_DIR_PATH
         PROCESSED_DIR_PATH = ACCOUNTS_DIR_PATH / CURRENT_YEAR / 'processed'
         PROCESSED_DIR_PATH.mkdir(parents=True, exist_ok=True)
         logger.info(f"Ensured processed dir: {PROCESSED_DIR_PATH}")
+        NORMALIZED_DIR_PATH = ACCOUNTS_DIR_PATH / CURRENT_YEAR / 'normalized'
+        NORMALIZED_DIR_PATH.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Ensured normalized dir: {NORMALIZED_DIR_PATH}")
     except Exception as e:
         logger.error(f"Failed to create processed directory: {e}")
         raise
@@ -716,6 +910,12 @@ async def startup_event():
             # Do not write common_rules.yaml; it is manually curated.
     except Exception as e:
         logger.error(f"Failed to write YAML snapshots: {e}")
+
+    # Process raw statements into processed CSVs
+    try:
+        process_bank_statements_from_sources()
+    except Exception as e:
+        logger.error(f"Failed processing bank statements from sources: {e}")
 
 
 # Properties moved to routers/properties.py
