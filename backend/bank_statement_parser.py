@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Any
 from pathlib import Path
 import csv
 from datetime import datetime
+import hashlib
 
 
 def _py_strptime(fmt: str) -> str:
@@ -82,6 +83,8 @@ def _process_bank_statement_for_account(bankaccountname: str, cfg: Dict[str, Any
     desc_idx = int(colmap.get('description') or 0)
     debit_idx = int(colmap.get('debit') or 0)
     credit_idx = int(colmap.get('credit') or 0)
+    checkno_idx = int(colmap.get('checkno') or 0)
+    memo_idx = int(colmap.get('memo') or 0)
     print(f"_process_bank_statement_for_account: bankaccountname={bankaccountname} date_idx={date_idx} desc_idx={desc_idx} debit_idx={debit_idx} credit_idx={credit_idx}")
     if not (date_idx and desc_idx and (debit_idx or credit_idx)):
         return
@@ -127,6 +130,8 @@ def _process_bank_statement_for_account(bankaccountname: str, cfg: Dict[str, Any
                 desc_val = get_part(desc_idx)
                 debit_val = get_part(debit_idx) if debit_idx else ''
                 credit_val = get_part(credit_idx) if credit_idx else ''
+                check_val = get_part(checkno_idx) if checkno_idx else ''
+                memo_val = get_part(memo_idx) if memo_idx else ''
                 date_out = _normalize_date(date_val, raw_fmt)
                 amt_out = ''
                 dv = _parse_amount_num(debit_val) if debit_val else None
@@ -140,9 +145,17 @@ def _process_bank_statement_for_account(bankaccountname: str, cfg: Dict[str, Any
                 print(f"debit_val={debit_val} credit_val={credit_val} dv={dv} cv={cv} amt_out={amt_out}")
                 if not (date_out and desc_val):
                     continue
+                desc_out = desc_val
+                if check_val:
+                    desc_out = f"{desc_out} (check {check_val})"
+                if memo_val:
+                    desc_out = f"{desc_out} (memo {memo_val})"
+                s = (bankaccountname + date_out + desc_out + amt_out).lower()
+                s = ''.join(s.split())
+                tr_id = hashlib.sha256(s.encode()).hexdigest()[:10]
                 out_rows.append({
                     'date': date_out,
-                    'description': desc_val,
+                    'description': desc_out,
                     'credit': amt_out,
                     'comment': '',
                     'transaction_type': '',
@@ -151,6 +164,7 @@ def _process_bank_statement_for_account(bankaccountname: str, cfg: Dict[str, Any
                     'company': '',
                     'otherentity': '',
                     'override': '',
+                    'tr_id': tr_id,
                 })
     except Exception as e:
         try:
@@ -160,7 +174,7 @@ def _process_bank_statement_for_account(bankaccountname: str, cfg: Dict[str, Any
         return
 
     if out_rows:
-        header = ['date','description','credit','comment','transaction_type','tax_category','property','company','otherentity','override']
+        header = ['tr_id','date','description','credit','comment','transaction_type','tax_category','property','company','otherentity','override']
         out_path = normalized_dir / f"{bankaccountname}.csv"
         try:
             with out_path.open('w', newline='', encoding='utf-8') as wf:
