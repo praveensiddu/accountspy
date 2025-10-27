@@ -8,11 +8,26 @@ import csv
 import os
 import logging
 from pathlib import Path
+import sys
 from dotenv import load_dotenv
 import yaml
 from datetime import datetime
-from .bank_statement_parser import process_bank_statements_from_sources as process_bank_stmts
-from . import load_entities as loaders
+
+# Ensure project root is on sys.path when running as a script (python backend/main.py)
+_THIS_FILE = Path(__file__).resolve()
+_PROJECT_ROOT = _THIS_FILE.parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+# Ensure a single module instance for state across imports
+# When running `python backend/main.py`, this file is `__main__`.
+# Routers import `backend.main`, which would otherwise be a second module copy with separate globals.
+if __name__ == "__main__":
+    sys.modules["backend.main"] = sys.modules[__name__]
+
+from backend.bank_statement_parser import process_bank_statements_from_sources as process_bank_stmts
+from backend import load_entities as loaders
+import uvicorn
 
 ALNUM_LOWER_RE = re.compile(r"^[a-z0-9]+$")
 ALNUM_UNDERSCORE_LOWER_RE = re.compile(r"^[a-z0-9_]+$")
@@ -101,16 +116,16 @@ app.add_middleware(
 
 # Routers (incremental modularization)
 try:
-    from .routers import banks as banks_router
-    from .routers import tax_categories as tax_categories_router
-    from .routers import transaction_types as transaction_types_router
-    from .routers import properties as properties_router
-    from .routers import companies as companies_router
-    from .routers import bankaccounts as bankaccounts_router
-    from .routers import groups as groups_router
-    from .routers import owners as owners_router
-    from .routers import classify_rules as classify_rules_router
-    from .routers import transactions as transactions_router
+    from backend.routers import banks as banks_router
+    from backend.routers import tax_categories as tax_categories_router
+    from backend.routers import transaction_types as transaction_types_router
+    from backend.routers import properties as properties_router
+    from backend.routers import companies as companies_router
+    from backend.routers import bankaccounts as bankaccounts_router
+    from backend.routers import groups as groups_router
+    from backend.routers import owners as owners_router
+    from backend.routers import classify_rules as classify_rules_router
+    from backend.routers import transactions as transactions_router
     app.include_router(banks_router.router)
     app.include_router(tax_categories_router.router)
     app.include_router(transaction_types_router.router)
@@ -408,4 +423,10 @@ async def startup_event():
 # Serve static frontend
 if FRONTEND_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="static")
+
+
+if __name__ == "__main__":
+    import os
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run(app, host="127.0.0.1", port=port)
 

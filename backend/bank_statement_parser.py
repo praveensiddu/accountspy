@@ -82,6 +82,7 @@ def _process_bank_statement_for_account(bankaccountname: str, cfg: Dict[str, Any
     desc_idx = int(colmap.get('description') or 0)
     debit_idx = int(colmap.get('debit') or 0)
     credit_idx = int(colmap.get('credit') or 0)
+    print(f"_process_bank_statement_for_account: bankaccountname={bankaccountname} date_idx={date_idx} desc_idx={desc_idx} debit_idx={debit_idx} credit_idx={credit_idx}")
     if not (date_idx and desc_idx and (debit_idx or credit_idx)):
         return
     raw_fmt = (cfg.get('date_format') or '').strip()
@@ -89,6 +90,7 @@ def _process_bank_statement_for_account(bankaccountname: str, cfg: Dict[str, Any
     out_rows: List[Dict[str, str]] = []
     try:
         with src_path.open('r', encoding='utf-8') as rf:
+            kept_lines: List[str] = []
             for raw_line in rf:
                 line = raw_line.rstrip('\n')
                 if not line.strip():
@@ -110,7 +112,13 @@ def _process_bank_statement_for_account(bankaccountname: str, cfg: Dict[str, Any
                         continue
                 if skip:
                     continue
-                parts = line.split(delim)
+                kept_lines.append(line)
+
+            reader = csv.reader(kept_lines, delimiter=delim)
+            for parts in reader:
+                if not parts:
+                    continue
+                parts = [p.strip() for p in parts]
                 def get_part(idx: int) -> str:
                     if idx <= 0:
                         return ''
@@ -129,6 +137,7 @@ def _process_bank_statement_for_account(bankaccountname: str, cfg: Dict[str, Any
                 elif cv is not None:
                     amt = abs(cv)
                     amt_out = str(int(amt)) if abs(amt - int(amt)) < 1e-9 else f"{amt}"
+                print(f"debit_val={debit_val} credit_val={credit_val} dv={dv} cv={cv} amt_out={amt_out}")
                 if not (date_out and desc_val):
                     continue
                 out_rows.append({
