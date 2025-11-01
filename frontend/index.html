@@ -58,13 +58,13 @@
         const [active, setActive] = useState('');
         const [rules, setRules] = useState([]);
         const [loading, setLoading] = useState(false);
-        const [filter, setFilter] = useState({ transaction_type:'', pattern_match_logic:'', tax_category:'', property:'', group:'', otherentity:'' });
+        const [filter, setFilter] = useState({ order:'', transaction_type:'', pattern_match_logic:'', tax_category:'', property:'', group:'', otherentity:'' });
         const Modal = window.Modal;
         const confirmAsync = async (message) => {
           try { if (typeof window.showConfirm === 'function') return await window.showConfirm(message); } catch (_) {}
           return window.confirm(message);
         };
-        const emptyForm = { bankaccountname:'', transaction_type:'', pattern_match_logic:'', tax_category:'', property:'', group:'', otherentity:'' };
+        const emptyForm = { bankaccountname:'', order: 10000, transaction_type:'', pattern_match_logic:'', tax_category:'', property:'', group:'', otherentity:'' };
         const [open, setOpen] = useState(false);
         const [mode, setMode] = useState('add');
         const [saving, setSaving] = useState(false);
@@ -72,6 +72,7 @@
         const [form, setForm] = useState(emptyForm);
         const onChange = (e) => {
           const { name, value } = e.target; const v = (value||'').toString();
+          if (name === 'order') { setForm(prev => ({ ...prev, order: Number(v || 0) })); return; }
           if (['bankaccountname','transaction_type','tax_category','property','group'].includes(name)) setForm(prev => ({...prev, [name]: v.toLowerCase()}));
           else setForm(prev => ({...prev, [name]: v}));
         };
@@ -110,13 +111,14 @@
 
         const handleAdd = () => {
           setMode('add'); setOriginal(null);
-          setForm({ ...emptyForm, bankaccountname: (active||'').toLowerCase() });
+          setForm({ ...emptyForm, bankaccountname: (active||'').toLowerCase(), order: 10000 });
           setOpen(true);
         };
         const handleEdit = (r) => {
           setMode('edit'); setOriginal(r);
           setForm({
             bankaccountname: (r.bankaccountname||'').toLowerCase(),
+            order: Number(r.order || 10000),
             transaction_type: (r.transaction_type||'').toLowerCase(),
             pattern_match_logic: r.pattern_match_logic||'',
             tax_category: (r.tax_category||'').toLowerCase(),
@@ -133,6 +135,7 @@
             setSaving(true);
             const payload = {
               bankaccountname: (form.bankaccountname||'').trim().toLowerCase(),
+              order: Number(form.order || 10000),
               transaction_type: (form.transaction_type||'').trim().toLowerCase(),
               pattern_match_logic: (form.pattern_match_logic||'').trim(),
               tax_category: (form.tax_category||'').trim().toLowerCase(),
@@ -224,6 +227,10 @@
                       <input name="bankaccountname" value={form.bankaccountname} onChange={onChange} readOnly className="mt-1 w-full border border-gray-300 rounded-md p-2 bg-gray-100" />
                     </div>
                     <div>
+                      <label className="block text-sm font-medium text-gray-700">order</label>
+                      <input name="order" type="number" value={form.order} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div>
                       <label className="block text-sm font-medium text-gray-700">transaction_type</label>
                       <select name="transaction_type" value={form.transaction_type} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
                         <option value="">Select transaction type</option>
@@ -274,6 +281,7 @@
                   <table className="min-w-full" style={{ tableLayout: 'fixed' }}>
                     <thead>
                       <tr>
+                        <th>order</th>
                         <th>transaction_type</th>
                         <th>pattern_match_logic</th>
                         <th>tax_category</th>
@@ -283,6 +291,7 @@
                         <th>actions</th>
                       </tr>
                       <tr>
+                        <th><input placeholder="filter" value={filter.order} onChange={(e)=> setFilter(f => ({...f, order: e.target.value}))} /></th>
                         <th><input placeholder="filter" value={filter.transaction_type} onChange={(e)=> setFilter(f => ({...f, transaction_type: e.target.value}))} /></th>
                         <th><input placeholder="filter" value={filter.pattern_match_logic} onChange={(e)=> setFilter(f => ({...f, pattern_match_logic: e.target.value}))} /></th>
                         <th><input placeholder="filter" value={filter.tax_category} onChange={(e)=> setFilter(f => ({...f, tax_category: e.target.value}))} /></th>
@@ -292,14 +301,18 @@
                       </tr>
                     </thead>
                     <tbody>
-                      {(rules||[])
-                        .slice()
-                        .sort((a,b) => {
+                       {(rules||[])
+                         .slice()
+                        .sort((a,b)=> {
+                          const ao = Number(a.order||10000);
+                          const bo = Number(b.order||10000);
+                          if (ao !== bo) return ao - bo;
                           const at = (a.transaction_type||'').toLowerCase();
                           const bt = (b.transaction_type||'').toLowerCase();
                           if (at < bt) return -1; if (at > bt) return 1; return 0;
                         })
                         .filter(r => (
+                          (filter.order ? String(r.order||'').toLowerCase().includes(String(filter.order).toLowerCase()) : true) &&
                           (filter.transaction_type ? (r.transaction_type||'').toLowerCase().includes(filter.transaction_type.toLowerCase()) : true) &&
                           (filter.pattern_match_logic ? (r.pattern_match_logic||'').toLowerCase().includes(filter.pattern_match_logic.toLowerCase()) : true) &&
                           (filter.tax_category ? (r.tax_category||'').toLowerCase().includes(filter.tax_category.toLowerCase()) : true) &&
@@ -309,6 +322,7 @@
                         ))
                         .map((r, idx) => (
                           <tr key={`bankrules-${active}-${idx}`}>
+                            <td className="break-words whitespace-pre-wrap">{r.order || 10000}</td>
                             <td className="break-words whitespace-pre-wrap">{r.transaction_type}</td>
                             <td className="break-words whitespace-pre-wrap">{r.pattern_match_logic}</td>
                             <td className="break-words whitespace-pre-wrap">{r.tax_category}</td>
@@ -322,7 +336,7 @@
                           </tr>
                         ))}
                       {(rules||[]).length === 0 && (
-                        <tr><td colSpan="7" className="muted">No rules</td></tr>
+                        <tr><td colSpan="8" className="muted">No rules</td></tr>
                       )}
                     </tbody>
                   </table>

@@ -136,6 +136,7 @@ def main() -> int:
     final_map: Dict[str, Dict[str, Any]] = dict()
     for cr in classify_rules:
         rec = {
+            'order': 10000,
             'bankaccountname': _normalize_str(cr.get('bankaccountname')),
             'transaction_type': _normalize_str(cr.get('transaction_type')),
             'pattern_match_logic': _normalize_pattern(cr.get('pattern_match_logic')),
@@ -154,7 +155,7 @@ def main() -> int:
         final_map[k] = rec
 
     # Union: include merged common rules and classify extras for output
-    union_map: Dict[str, Dict[str, Any]] = dict()
+    union_map: Dict[str, Dict[str, Any]] = dict(merged_map)
     # Only extras remain in final_map; merged_map takes precedence by construction
     union_map.update(final_map)
 

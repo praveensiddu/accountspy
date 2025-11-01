@@ -80,6 +80,7 @@ async def get_bank_rules(bankaccountname: str = Query("")):
                 'property': (item.get('property') or ''),
                 'group': (item.get('group') or ''),
                 'otherentity': (item.get('otherentity') or ''),
+                'order': int(item.get('order') or 0),
             }
             out.append(rec)
         return out
@@ -131,6 +132,13 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
     prop = (payload.property or '').strip().lower()
     group = (payload.group or '').strip().lower()
     other = (payload.otherentity or '').strip()
+    order = None
+    try:
+        order = int(getattr(payload, 'order', 0) or 0)
+    except Exception:
+        order = 0
+    if order == 0:
+        order = 10000
     if not (bank and ttype and patt):
         raise HTTPException(status_code=400, detail="bankaccountname, transaction_type, pattern_match_logic are required")
     rec = {
@@ -141,6 +149,7 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
         'property': prop,
         'group': group,
         'otherentity': other,
+        'order': order,
     }
     items = _read_bank_rules_list(base_dir, bank)
     # de-dup by composite key

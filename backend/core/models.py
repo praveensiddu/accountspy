@@ -54,3 +54,4 @@ class ClassifyRuleRecord(BaseModel):
     property: str = Field(..., description="Property id")
     group: str = Field('', description="Optional group name")
     otherentity: str = Field(..., description="Other entity (e.g., vendor/payee)")
+    order: int = Field(0, description="Order/priority for rule evaluation")
