@@ -80,7 +80,7 @@ async def get_bank_rules(bankaccountname: str = Query("")):
                 'property': (item.get('property') or ''),
                 'group': (item.get('group') or ''),
                 'otherentity': (item.get('otherentity') or ''),
-                'order': int(item.get('order') or 0),
+                'order': int(item.get('order', 0) or 0),
             }
             out.append(rec)
         return out
@@ -132,13 +132,13 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
     prop = (payload.property or '').strip().lower()
     group = (payload.group or '').strip().lower()
     other = (payload.otherentity or '').strip()
-    order = None
+    # order is mandatory integer
     try:
-        order = int(getattr(payload, 'order', 0) or 0)
+        order = int(getattr(payload, 'order'))
     except Exception:
-        order = 0
-    if order == 0:
-        order = 10000
+        raise HTTPException(status_code=400, detail="order must be an integer starting at 1")
+    if order < 1:
+        raise HTTPException(status_code=400, detail="order must be >= 1")
     if not (bank and ttype and patt):
         raise HTTPException(status_code=400, detail="bankaccountname, transaction_type, pattern_match_logic are required")
     rec = {
@@ -151,11 +151,39 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
         'otherentity': other,
         'order': order,
     }
-    items = _read_bank_rules_list(base_dir, bank)
-    # de-dup by composite key
-    seen = { _rule_key(x): x for x in items if isinstance(x, dict) }
-    seen[_rule_key(rec)] = rec
-    _write_bank_rules_list(base_dir, bank, list(seen.values()))
+    items = [dict(x) for x in _read_bank_rules_list(base_dir, bank) if isinstance(x, dict)]
+    new_key = _rule_key(rec)
+    # Map existing items by key for quick lookup
+    key_to_item = { _rule_key(x): x for x in items }
+
+    if new_key in key_to_item:
+        # Update existing: keep original order, ignore payload order
+        existing = key_to_item[new_key]
+        rec['order'] = int(existing.get('order') or 0) or 1
+        # Replace fields except we keep order as above
+        key_to_item[new_key] = rec
+        merged_list = list(key_to_item.values())
+    else:
+        # Insert new: clamp order into [1..len(items)+1]
+        n = len(items)
+        insert_order = order if order <= n + 1 else (n + 1)
+        # Shift items with order >= insert_order by +1
+        for it in items:
+            try:
+                o = int(it.get('order') or 0)
+            except Exception:
+                o = 0
+            if o >= insert_order and o > 0:
+                it['order'] = o + 1
+        rec['order'] = insert_order
+        merged_list = items + [rec]
+
+    # Renumber to ensure continuous 1..n
+    merged_list.sort(key=lambda x: int(x.get('order') or 0))
+    for idx, it in enumerate(merged_list, start=1):
+        it['order'] = idx
+
+    _write_bank_rules_list(base_dir, bank, merged_list)
     return rec
 
 
@@ -194,80 +222,19 @@ async def delete_bank_rule(
     remaining = [x for x in items if _rule_key(x) != target_key]
     if len(remaining) == len(items):
         raise HTTPException(status_code=404, detail="Rule not found")
+    # Renumber remaining to continuous 1..n
+    remaining = [dict(x) for x in remaining]
+    try:
+        remaining.sort(key=lambda x: int(x.get('order') or 0))
+    except Exception:
+        pass
+    for idx, it in enumerate(remaining, start=1):
+        it['order'] = idx
     _write_bank_rules_list(base_dir, bank, remaining)
     return
 
 
-@router.post("/classify-rules", response_model=ClassifyRuleRecord, status_code=201)
-async def add_classify_rule(payload: ClassifyRuleRecord):
-    bank = (payload.bankaccountname or "").strip().lower()
-    ttype = (payload.transaction_type or "").strip().lower()
-    patt = (payload.pattern_match_logic or "").strip()
-    tax = (payload.tax_category or "").strip().lower()
-    prop = (payload.property or "").strip().lower()
-    group = (payload.group or "").strip().lower()
-    other = (payload.otherentity or "").strip()
-
-    if not (bank and ttype and patt and tax and prop and other):
-        raise HTTPException(status_code=400, detail="All fields are required")
-    # Enforce simple allowed patterns similar to other entities
-    if not state.ALNUM_UNDERSCORE_LOWER_RE.match(bank):
-        raise HTTPException(status_code=400, detail="Invalid bankaccountname: lowercase alphanumeric and underscore only")
-    if not state.ALNUM_UNDERSCORE_LOWER_RE.match(ttype):
-        raise HTTPException(status_code=400, detail="Invalid transaction_type: lowercase alphanumeric and underscore only")
-    if not state.ALNUM_UNDERSCORE_LOWER_RE.match(tax):
-        raise HTTPException(status_code=400, detail="Invalid tax_category: lowercase alphanumeric and underscore only")
-    if not state.ALNUM_UNDERSCORE_LOWER_RE.match(prop):
-        raise HTTPException(status_code=400, detail="Invalid property: lowercase alphanumeric and underscore only")
-    if group and not state.ALNUM_UNDERSCORE_LOWER_RE.match(group):
-        raise HTTPException(status_code=400, detail="Invalid group: lowercase alphanumeric and underscore only")
-
-    # Allow multiple rules per triplet; use pattern in composite key to avoid overwrites
-    key = f"{bank}|{ttype}|{prop}|{group}|{patt}"
-
-    rec = {
-        "bankaccountname": bank,
-        "transaction_type": ttype,
-        "pattern_match_logic": patt,
-        "tax_category": tax,
-        "property": prop,
-        "group": group,
-        "otherentity": other,
-    }
-    state.CLASSIFY_DB[key] = rec
-    # Persist to bank_rules.yaml
-    if state.CLASSIFY_CSV_PATH:
-        base_dir = state.CLASSIFY_CSV_PATH.parent
-        dump_yaml_entities(base_dir / 'bank_rules.yaml', list(state.CLASSIFY_DB.values()), key_field='bankaccountname')
-
-    return rec
-
-
-@router.delete("/classify-rules", status_code=204)
-async def delete_classify_rule(
-    bankaccountname: str = Query(""),
-    transaction_type: str = Query(""),
-    property: str = Query(""),
-    group: str = Query("")
-):
-    bank = (bankaccountname or "").strip().lower()
-    ttype = (transaction_type or "").strip().lower()
-    prop = (property or "").strip().lower()
-    grp = (group or "").strip().lower()
-    # Delete all rules that match the triplet, regardless of pattern
-    to_delete = [
-        k for k, v in state.CLASSIFY_DB.items()
-        if v.get("bankaccountname") == bank and v.get("transaction_type") == ttype and v.get("property") == prop and (not grp or v.get("group", "") == grp)
-    ]
-    if not to_delete:
-        raise HTTPException(status_code=404, detail="Classify rule not found")
-    for k in to_delete:
-        del state.CLASSIFY_DB[k]
-    # Persist to bank_rules.yaml
-    if state.CLASSIFY_CSV_PATH:
-        base_dir = state.CLASSIFY_CSV_PATH.parent
-        dump_yaml_entities(base_dir / 'bank_rules.yaml', list(state.CLASSIFY_DB.values()), key_field='bankaccountname')
-    return
+ 
 
 
 # Common Rules CRUD

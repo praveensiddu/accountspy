@@ -111,7 +111,12 @@
 
         const handleAdd = () => {
           setMode('add'); setOriginal(null);
-          setForm({ ...emptyForm, bankaccountname: (active||'').toLowerCase(), order: 10000 });
+          const maxOrder = (rules || []).reduce((m, r) => {
+            const o = Number((r && r.order) != null ? r.order : 10000);
+            return isNaN(o) ? m : Math.max(m, o);
+          }, 0);
+          const nextOrder = (maxOrder || 0) + 1;
+          setForm({ ...emptyForm, bankaccountname: (active||'').toLowerCase(), order: nextOrder });
           setOpen(true);
         };
         const handleEdit = (r) => {
@@ -227,8 +232,15 @@
                       <input name="bankaccountname" value={form.bankaccountname} onChange={onChange} readOnly className="mt-1 w-full border border-gray-300 rounded-md p-2 bg-gray-100" />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">order</label>
-                      <input name="order" type="number" value={form.order} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+                      <label className="block text-sm font-medium text-gray-700">{mode==='edit' ? 'order' : 'insert as order'}</label>
+                      <input
+                        name="order"
+                        type="number"
+                        value={form.order}
+                        onChange={onChange}
+                        readOnly={mode==='edit'}
+                        className={`mt-1 w-full border rounded-md p-2 shadow-sm ${mode==='edit' ? 'bg-gray-100 border-gray-300 text-gray-600 cursor-not-allowed' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">transaction_type</label>

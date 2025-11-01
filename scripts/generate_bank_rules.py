@@ -168,8 +168,14 @@ def main() -> int:
             continue
         per_bank.setdefault(bank, []).append(rec)
 
+    # Assign sequential order per bank starting at 1
     total_rules = 0
     for bank, items in sorted(per_bank.items()):
+        for idx, rec in enumerate(items, start=1):
+            try:
+                rec['order'] = int(idx)
+            except Exception:
+                rec['order'] = idx
         bank_file = out_dir / f'{bank}.yaml'
         _write_yaml_list(bank_file, items)
         print(f'Wrote {len(items)} rules -> {bank_file}')
