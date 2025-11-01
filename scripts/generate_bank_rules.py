@@ -171,6 +171,11 @@ def main() -> int:
     # Assign sequential order per bank starting at 1
     total_rules = 0
     for bank, items in sorted(per_bank.items()):
+        # Sort rules by transaction_type before assigning order
+        try:
+            items.sort(key=lambda r: (r.get('transaction_type') or '').lower())
+        except Exception:
+            pass
         for idx, rec in enumerate(items, start=1):
             try:
                 rec['order'] = int(idx)
