@@ -38,6 +38,14 @@ class TransactionTypeRecord(BaseModel):
     transactiontype: str = Field(..., description="Transaction type name")
 
 
+class InheritRuleRecord(BaseModel):
+    bankaccountname: str = Field(..., description="Bank account name")
+    tax_category: str = Field('', description="Tax category")
+    property: str = Field('', description="Property id")
+    group: str = Field('', description="Optional group name")
+    otherentity: str = Field('', description="Other entity (e.g., vendor/payee)")
+
+
 class ClassifyRuleRecord(BaseModel):
     bankaccountname: str = Field(..., description="Bank account name")
     transaction_type: str = Field(..., description="Transaction type")

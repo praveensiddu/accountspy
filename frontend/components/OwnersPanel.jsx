@@ -56,10 +56,21 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
     });
     setOpen(true);
   };
+  const onExport = async (name) => {
+    try {
+      const res = await fetch('/api/owners/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json().catch(()=>({ status:'ok' }));
+      alert(`Export requested: ${data.owner || name}`);
+    } catch (e) {
+      alert(e.message || 'Export failed');
+    }
+  };
   return (
     <React.Fragment>
       <h2>Owners</h2>
       <div className="actions" style={{ marginBottom: 12 }}>
+        <span className="mr-3 text-gray-600">Total: {owners.length}</span>
         <button type="button" onClick={() => { setForm(empty); setMode('add'); setOriginalKey(''); setOpen(true); }} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add owner</button>
         <button type="button" onClick={reload} disabled={loading} className="px-3 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-60">Refresh</button>
       </div>
@@ -141,6 +152,7 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
                   <td>{x.companies.join(' | ')}</td>
                   <td>
                     <button onClick={() => onEdit(x)} className="px-2 py-1 mr-2 bg-gray-700 text-white rounded hover:bg-gray-800">Edit</button>
+                    <button onClick={() => onExport(x.name)} className="px-2 py-1 mr-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Export</button>
                     <button onClick={() => onDelete(x.name)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
                   </td>
                 </tr>

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
+from pydantic import BaseModel
 
 from .. import main as state
 from ..core.models import OwnerRecord
@@ -48,3 +49,16 @@ async def delete_owner(name: str):
     except Exception:
         pass
     return
+
+
+class OwnerExportPayload(BaseModel):
+    name: str
+
+
+@router.post("/owners/export")
+async def export_owner(payload: OwnerExportPayload):
+    name = (payload.name or "").strip().lower()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    # Intentionally do nothing and return success
+    return {"status": "ok", "owner": name}

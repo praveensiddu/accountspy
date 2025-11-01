@@ -50,6 +50,7 @@ const GroupsPanelExt = ({ groups, loading, reload, items }) => {
     <React.Fragment>
       <h2>Groups</h2>
       <div className="actions" style={{ marginBottom: 12 }}>
+        <span className="mr-3 text-gray-600">Total: {groups.length}</span>
         <button type="button" onClick={() => { setForm(empty); setMode('add'); setOriginalKey(''); setOpen(true); }} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add group</button>
         <button type="button" onClick={reload} disabled={loading} className="px-3 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-60">Refresh</button>
       </div>

@@ -386,20 +386,15 @@ def load_inherit_rules_yaml_into_memory(path: Path, inherit_rules_db: Dict[str, 
                 if not isinstance(item, dict):
                     continue
                 bank = (item.get('bankaccountname') or '').strip().lower()
-                ttype = (item.get('transaction_type') or '').strip().lower()
-                patt = (item.get('pattern_match_logic') or '').strip()
-                patt_norm = ' '.join(patt.split()).lower() if patt else ''
                 tax = (item.get('tax_category') or '').strip().lower()
                 prop = (item.get('property') or '').strip().lower()
                 group = (item.get('group') or '').strip().lower()
                 other = (item.get('otherentity') or '').strip()
                 if not bank:
                     continue
-                key = f"{bank}|{ttype}|{prop}|{group}|{patt_norm}|{tax}|{other}"
+                key = f"{bank}|{prop}|{group}|{tax}|{other}"
                 inherit_rules_db[key] = {
                     'bankaccountname': bank,
-                    'transaction_type': ttype,
-                    'pattern_match_logic': patt_norm,
                     'tax_category': tax,
                     'property': prop,
                     'group': group,

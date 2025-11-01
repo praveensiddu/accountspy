@@ -103,6 +103,7 @@ const BanksPanelExt = ({ banks, loading, reload }) => {
     <React.Fragment>
       <h2>Banks</h2>
       <div className="actions" style={{ marginBottom: 12 }}>
+        <span className="mr-3 text-gray-600">Total: {banks.length}</span>
         <button type="button" onClick={() => { setForm({ name: '', date_format: 'M/d/yyyy', delim: '', ignore_lines_contains: '', ignore_lines_startswith: '', col_checkno: '', col_credit: '', col_date: '', col_debit: '', col_description: '', col_fees: '', col_memo: '' }); setMode('add'); setOriginalKey(''); setOpen(true); }} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add bank</button>
         <button type="button" onClick={reload} disabled={loading} className="px-3 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-60">Refresh</button>
       </div>
