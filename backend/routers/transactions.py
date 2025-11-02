@@ -126,6 +126,29 @@ async def save_transactions(bankaccountname: str, payload: TransactionsPayload) 
         raise HTTPException(status_code=404, detail="Bank account not found")
     if not state.PROCESSED_DIR_PATH:
         raise HTTPException(status_code=500, detail="Processed directory not configured")
+
+    # Guard: Do not allow deletion of normalized rows (identified by tr_id from normalized CSV)
+    try:
+        required_tr_ids = set()
+        if state.NORMALIZED_DIR_PATH:
+            norm_csv = state.NORMALIZED_DIR_PATH / f"{key}.csv"
+            if norm_csv.exists():
+                with norm_csv.open('r', encoding='utf-8') as nf:
+                    reader = csv.DictReader(nf)
+                    for row in reader:
+                        tid = (row.get('tr_id') or '').strip()
+                        if tid:
+                            required_tr_ids.add(tid)
+        incoming_tr_ids = set((r.tr_id or '').strip() for r in payload.rows if isinstance(r.tr_id, str))
+        # All required tr_id must be present in incoming rows
+        missing = [tid for tid in required_tr_ids if tid not in incoming_tr_ids]
+        if missing:
+            raise HTTPException(status_code=400, detail=f"Cannot delete normalized rows; missing tr_id: {', '.join(missing[:5])}{'...' if len(missing)>5 else ''}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Fail safe: if guard check fails unexpectedly, reject to avoid destructive loss
+        raise HTTPException(status_code=500, detail=f"Validation failed: {e}")
     # Write CSV with fixed header
     header = [
         'tr_id','date','description','credit','ruleid','comment','transaction_type','tax_category','property','company','otherentity','override'

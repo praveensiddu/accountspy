@@ -141,6 +141,12 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
         raise HTTPException(status_code=400, detail="order must be >= 1")
     if not (bank and ttype and patt):
         raise HTTPException(status_code=400, detail="bankaccountname, transaction_type, pattern_match_logic are required")
+    # Require tax_category as well
+    if not tax:
+        raise HTTPException(status_code=400, detail="tax_category is required")
+    # Only one of property or group may be set (or neither)
+    if prop and group:
+        raise HTTPException(status_code=400, detail="Only one of property or group may be set, not both")
     rec = {
         'bankaccountname': bank,
         'transaction_type': ttype,
@@ -164,6 +170,24 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
         key_to_item[new_key] = rec
         merged_list = list(key_to_item.values())
     else:
+        # Validate requested order is within [1 .. highest+1]
+        try:
+            max_order = 0
+            for it in items:
+                try:
+                    o = int(it.get('order') or 0)
+                except Exception:
+                    o = 0
+                if o > max_order:
+                    max_order = o
+            if order > (max_order + 1):
+                raise HTTPException(status_code=400, detail=f"order must be <= {max_order + 1}")
+        except HTTPException:
+            raise
+        except Exception:
+            # Fallback: if we cannot determine max, allow only order == 1
+            if order > 1:
+                raise HTTPException(status_code=400, detail="order must be <= 1")
         # Insert new: clamp order into [1..len(items)+1]
         n = len(items)
         insert_order = order if order <= n + 1 else (n + 1)
