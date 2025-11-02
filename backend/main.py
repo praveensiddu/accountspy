@@ -363,17 +363,17 @@ def _load_entities() -> None:
 
 
 def _load_manual_rules() -> None:
-    try:
-        if CLASSIFY_CSV_PATH:
-            base_dir = CLASSIFY_CSV_PATH.parent
-            loaders.load_bank_rules_yaml_into_memory(base_dir / 'bank_rules.yaml', CLASSIFY_DB, logger)
-            loaders.load_common_rules_yaml_into_memory(base_dir / 'common_rules.yaml', COMMON_RULES_DB, logger)
-            loaders.load_inherit_rules_yaml_into_memory(base_dir / 'inherit_common_to_bank.yaml', INHERIT_RULES_DB, logger)
-            logger.info(
-                f"Loaded manual lists -> bank_rules={len(CLASSIFY_DB)}, common_rules={len(COMMON_RULES_DB)}, inherit_rules={len(INHERIT_RULES_DB)}"
-            )
-    except Exception as e:
-        logger.error(f"Failed to load manual lists: {e}")
+    if CLASSIFY_CSV_PATH:
+        base_dir = CLASSIFY_CSV_PATH.parent
+        # Dedupe per-bank YAML files to remove duplicate pattern_match_logic entries
+        loaders.dedupe_bank_rules_dir(base_dir / 'bank_rules', logger)
+        # Let exceptions propagate so startup fails (e.g., duplicate patterns)
+        loaders.load_bank_rules_yaml_into_memory(base_dir / 'bank_rules.yaml', CLASSIFY_DB, logger)
+        loaders.load_common_rules_yaml_into_memory(base_dir / 'common_rules.yaml', COMMON_RULES_DB, logger)
+        loaders.load_inherit_rules_yaml_into_memory(base_dir / 'inherit_common_to_bank.yaml', INHERIT_RULES_DB, logger)
+        logger.info(
+            f"Loaded manual lists -> bank_rules={len(CLASSIFY_DB)}, common_rules={len(COMMON_RULES_DB)}, inherit_rules={len(INHERIT_RULES_DB)}"
+        )
 
 
 def _emit_yaml_snapshots() -> None:

@@ -162,6 +162,50 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
     # Map existing items by key for quick lookup
     key_to_item = { _rule_key(x): x for x in items }
 
+    # First: if any existing item in this bank has the same normalized pattern_match_logic,
+    # update it and retain order. If multiple exist, collapse to a single one keeping the smallest order.
+    patt_norm = ' '.join(patt.split()).lower()
+    same_pattern_items = []
+    for it in items:
+        try:
+            it_patt_norm = ' '.join(((it.get('pattern_match_logic') or '').strip()).split()).lower()
+        except Exception:
+            it_patt_norm = ''
+        if it_patt_norm == patt_norm:
+            same_pattern_items.append(it)
+
+    if same_pattern_items:
+        # Determine the minimal order among duplicates (default to 1 if invalid)
+        keep_order = 1
+        try:
+            keep_order = min([int(x.get('order') or 0) or 1 for x in same_pattern_items]) or 1
+        except Exception:
+            keep_order = 1
+        # Build the updated single record (ignore posted order)
+        updated = {
+            'bankaccountname': bank,
+            'transaction_type': ttype,
+            'pattern_match_logic': patt,
+            'tax_category': tax,
+            'property': prop,
+            'group': group,
+            'otherentity': other,
+            'order': keep_order,
+        }
+        # Remove all items with this pattern and add the single updated one
+        merged_list = []
+        for it in items:
+            it_patt_norm = ' '.join(((it.get('pattern_match_logic') or '').strip()).split()).lower()
+            if it_patt_norm != patt_norm:
+                merged_list.append(it)
+        merged_list.append(updated)
+        # Renumber continuous 1..n by order
+        merged_list.sort(key=lambda x: int(x.get('order') or 0))
+        for idx, it in enumerate(merged_list, start=1):
+            it['order'] = idx
+        _write_bank_rules_list(base_dir, bank, merged_list)
+        return updated
+
     if new_key in key_to_item:
         # Update existing: keep original order, ignore payload order
         existing = key_to_item[new_key]

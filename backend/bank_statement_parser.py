@@ -142,7 +142,7 @@ def _process_bank_statement_for_account(bankaccountname: str, cfg: Dict[str, Any
                 elif cv is not None:
                     amt = abs(cv)
                     amt_out = str(int(amt)) if abs(amt - int(amt)) < 1e-9 else f"{amt}"
-                print(f"debit_val={debit_val} credit_val={credit_val} dv={dv} cv={cv} amt_out={amt_out}")
+                #print(f"debit_val={debit_val} credit_val={credit_val} dv={dv} cv={cv} amt_out={amt_out}")
                 if not (date_out and desc_val):
                     continue
                 desc_out = desc_val

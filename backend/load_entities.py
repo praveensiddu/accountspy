@@ -346,6 +346,8 @@ def load_bank_rules_yaml_into_memory(path: Path, classify_db: Dict[str, Dict], l
             data = yaml.safe_load(yf) or []
             if not isinstance(data, list):
                 return
+            # Validate uniqueness of pattern_match_logic per bank
+            seen_per_bank: Dict[str, set] = {}
             for item in data:
                 if not isinstance(item, dict):
                     continue
@@ -359,6 +361,14 @@ def load_bank_rules_yaml_into_memory(path: Path, classify_db: Dict[str, Dict], l
                 other = (item.get('otherentity') or '').strip()
                 if not bank:
                     continue
+                # Uniqueness check: pattern must be unique within the same bank file
+                if bank not in seen_per_bank:
+                    seen_per_bank[bank] = set()
+                if patt_norm in seen_per_bank[bank]:
+                    msg = f"Duplicate pattern_match_logic detected for bank '{bank}': '{patt_norm}'"
+                    logger.error(msg)
+                    raise RuntimeError(msg)
+                seen_per_bank[bank].add(patt_norm)
                 key = f"{bank}|{ttype}|{prop}|{group}|{patt_norm}"
                 classify_db[key] = {
                     'bankaccountname': bank,
@@ -371,6 +381,7 @@ def load_bank_rules_yaml_into_memory(path: Path, classify_db: Dict[str, Dict], l
                 }
     except Exception as e:
         logger.error(f"Failed to load bank_rules.yaml: {e}")
+        raise
 
 
 def load_inherit_rules_yaml_into_memory(path: Path, inherit_rules_db: Dict[str, Dict], logger) -> None:
@@ -402,3 +413,111 @@ def load_inherit_rules_yaml_into_memory(path: Path, inherit_rules_db: Dict[str, 
                 }
     except Exception as e:
         logger.error(f"Failed to load inherit_common_to_bank.yaml: {e}")
+
+def validate_bank_rules_yaml(path: Path, logger) -> None:
+    if not path or not path.exists():
+        return
+    try:
+        with path.open('r', encoding='utf-8') as yf:
+            data = yaml.safe_load(yf) or []
+            if not isinstance(data, list):
+                return
+            seen_patterns: set = set()
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                patt = (item.get('pattern_match_logic') or '').strip()
+                patt_norm = ' '.join(patt.split()).lower() if patt else ''
+                if patt_norm in seen_patterns:
+                    msg = f"Duplicate pattern_match_logic detected: '{patt_norm}'"
+                    logger.error(msg)
+                    raise RuntimeError(msg)
+                seen_patterns.add(patt_norm)
+    except Exception as e:
+        logger.error(f"Failed to validate bank_rules.yaml: {e}")
+
+def dedupe_bank_rules_dir(rules_dir: Path, logger) -> None:
+    """For each YAML in rules_dir, remove duplicate pattern_match_logic entries.
+    Keep the entry with the smallest valid order; then renumber 1..n and save back.
+    """
+    if not rules_dir or not rules_dir.exists() or not rules_dir.is_dir():
+        return
+    for p in rules_dir.glob('*.yaml'):
+        try:
+            with p.open('r', encoding='utf-8') as yf:
+                data = yaml.safe_load(yf) or []
+                if not isinstance(data, list):
+                    continue
+            # Build map patt_norm -> best item (smallest order)
+            best_by_pattern: Dict[str, dict] = {}
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                patt = (item.get('pattern_match_logic') or '').strip()
+                patt_norm = ' '.join(patt.split()).lower() if patt else ''
+                try:
+                    o = int(item.get('order') or 0)
+                except Exception:
+                    o = 0
+                cur = best_by_pattern.get(patt_norm)
+                if cur is None:
+                    best_by_pattern[patt_norm] = dict(item)
+                else:
+                    try:
+                        cur_o = int(cur.get('order') or 0)
+                    except Exception:
+                        cur_o = 0
+                    if o != 0 and (cur_o == 0 or o < cur_o):
+                        best_by_pattern[patt_norm] = dict(item)
+            # Prepare list and renumber by ascending order
+            merged = list(best_by_pattern.values())
+            try:
+                merged.sort(key=lambda x: int(x.get('order') or 0))
+            except Exception:
+                pass
+            for idx, it in enumerate(merged, start=1):
+                it['order'] = idx
+            with p.open('w', encoding='utf-8') as yf:
+                yaml.safe_dump(merged, yf, sort_keys=True, allow_unicode=True)
+            # Log action if duplicates were removed
+            if len(merged) < len(data):
+                logger.error(f"Removed {len(data) - len(merged)} duplicate pattern_match_logic entries in {p.name}")
+        except Exception as e:
+            logger.error(f"Failed to dedupe {p}: {e}")
+
+def load_bank_rules_yaml_into_memory(path: Path, classify_db: Dict[str, Dict], logger) -> None:
+    validate_bank_rules_yaml(path, logger)
+    classify_db.clear()
+    if not path or not path.exists():
+        return
+    try:
+        with path.open('r', encoding='utf-8') as yf:
+            data = yaml.safe_load(yf) or []
+            if not isinstance(data, list):
+                return
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                bank = (item.get('bankaccountname') or '').strip().lower()
+                ttype = (item.get('transaction_type') or '').strip().lower()
+                patt = (item.get('pattern_match_logic') or '').strip()
+                patt_norm = ' '.join(patt.split()).lower() if patt else ''
+                tax = (item.get('tax_category') or '').strip().lower()
+                prop = (item.get('property') or '').strip().lower()
+                group = (item.get('group') or '').strip().lower()
+                other = (item.get('otherentity') or '').strip()
+                if not bank:
+                    continue
+                key = f"{bank}|{ttype}|{prop}|{group}|{patt_norm}"
+                classify_db[key] = {
+                    'bankaccountname': bank,
+                    'transaction_type': ttype,
+                    'pattern_match_logic': patt_norm,
+                    'tax_category': tax,
+                    'property': prop,
+                    'group': group,
+                    'otherentity': other,
+                }
+    except Exception as e:
+        logger.error(f"Failed to load bank_rules.yaml: {e}")
+        raise
