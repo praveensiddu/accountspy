@@ -27,6 +27,7 @@ if __name__ == "__main__":
 
 from backend.bank_statement_parser import process_bank_statements_from_sources as process_bank_stmts
 from backend import load_entities as loaders
+from backend.classify import classify_all
 import uvicorn
 
 ALNUM_LOWER_RE = re.compile(r"^[a-z0-9]+$")
@@ -412,6 +413,11 @@ async def startup_event():
     _load_manual_rules()
     _emit_yaml_snapshots()
     _process_statements()
+    # Classify all bank accounts based on normalized files and bank rules
+    try:
+        classify_all()
+    except Exception as e:
+        logger.error(f"Failed to classify on startup: {e}")
 
 
 # Properties moved to routers/properties.py

@@ -1765,11 +1765,16 @@
         const [transactionsByBA, setTransactionsByBA] = useState({});
         const [txnOpen, setTxnOpen] = useState(false);
         const [txnSaving, setTxnSaving] = useState(false);
-        const emptyTxn = { date: '', description: '', credit: '', comment: '', transaction_type: '', tax_category: '', property: '', company: '', otherentity: '', override: '' };
+        const emptyTxn = { tr_id: '', date: '', description: '', credit: '', ruleid: '', comment: '', transaction_type: '', tax_category: '', property: '', company: '', otherentity: '', override: '' };
         const [txnForm, setTxnForm] = useState(emptyTxn);
+        const [txnFilters, setTxnFilters] = useState({ tr_id: '', date: '', description: '', credit: '', ruleid: '', comment: '', transaction_type: '', tax_category: '', property: '', company: '', otherentity: '', override: '' });
         const onTxnChange = (e) => {
           const { name, value } = e.target;
           setTxnForm(prev => ({ ...prev, [name]: value }));
+        };
+        const onTxnFilterChange = (e) => {
+          const { name, value } = e.target;
+          setTxnFilters(prev => ({ ...prev, [name]: value }));
         };
         const onTxnAdd = () => {
           setTxnForm(emptyTxn);
@@ -2217,12 +2222,20 @@
                               <input name="date" value={txnForm.date} onChange={onTxnChange} placeholder="YYYY-MM-DD" className="mt-1 w-full border border-gray-300 rounded-md p-2" />
                             </div>
                             <div>
+                              <label className="block text-sm font-medium text-gray-700">tr_id</label>
+                              <input name="tr_id" value={txnForm.tr_id} onChange={onTxnChange} readOnly className="mt-1 w-full border border-gray-300 rounded-md p-2 bg-gray-100" />
+                            </div>
+                            <div>
                               <label className="block text-sm font-medium text-gray-700">description</label>
                               <input name="description" value={txnForm.description} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
                             </div>
                             <div>
                               <label className="block text-sm font-medium text-gray-700">credit</label>
                               <input name="credit" value={txnForm.credit} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700">ruleid</label>
+                              <input name="ruleid" value={txnForm.ruleid} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
                             </div>
                             <div>
                               <label className="block text-sm font-medium text-gray-700">comment</label>
@@ -2274,12 +2287,26 @@
                             </div>
                           </form>
                         </Modal>
+                        {(() => { const filteredRows = (rows || []).filter(r => {
+                          const f = txnFilters;
+                          const keys = Object.keys(f);
+                          for (let k of keys) {
+                            const fv = (f[k] || '').toString().trim();
+                            if (!fv) continue;
+                            const rv = (r[k] == null ? '' : String(r[k])).toLowerCase();
+                            if (!rv.includes(fv.toLowerCase())) return false;
+                          }
+                          return true;
+                        });
+                        return (
                         <table>
                           <thead>
                             <tr>
+                              <th>tr_id</th>
                               <th>date</th>
                               <th>description</th>
                               <th>credit</th>
+                              <th>ruleid</th>
                               <th>comment</th>
                               <th>transaction_type</th>
                               <th>tax_category</th>
@@ -2288,16 +2315,32 @@
                               <th>otherentity</th>
                               <th>override</th>
                             </tr>
+                            <tr>
+                              <th><input name="tr_id" value={txnFilters.tr_id} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
+                              <th><input name="date" value={txnFilters.date} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
+                              <th><input name="description" value={txnFilters.description} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
+                              <th><input name="credit" value={txnFilters.credit} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
+                              <th><input name="ruleid" value={txnFilters.ruleid} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
+                              <th><input name="comment" value={txnFilters.comment} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
+                              <th><input name="transaction_type" value={txnFilters.transaction_type} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
+                              <th><input name="tax_category" value={txnFilters.tax_category} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
+                              <th><input name="property" value={txnFilters.property} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
+                              <th><input name="company" value={txnFilters.company} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
+                              <th><input name="otherentity" value={txnFilters.otherentity} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
+                              <th><input name="override" value={txnFilters.override} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
+                            </tr>
                           </thead>
                           <tbody>
-                            {rows.length === 0 ? (
+                            {filteredRows.length === 0 ? (
                               <tr><td colSpan="10" className="muted">No transactions</td></tr>
                             ) : (
-                              rows.map((r, idx) => (
+                              filteredRows.map((r, idx) => (
                                 <tr key={`txn-${idx}`}>
+                                  <td>{r.tr_id}</td>
                                   <td>{r.date}</td>
                                   <td>{r.description}</td>
                                   <td>{r.credit}</td>
+                                  <td>{r.ruleid}</td>
                                   <td>{r.comment}</td>
                                   <td>{r.transaction_type}</td>
                                   <td>{r.tax_category}</td>
@@ -2310,6 +2353,7 @@
                             )}
                           </tbody>
                         </table>
+                        ); })()}
                       </div>
                     );
                   })()}

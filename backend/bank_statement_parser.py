@@ -154,17 +154,10 @@ def _process_bank_statement_for_account(bankaccountname: str, cfg: Dict[str, Any
                 s = ''.join(s.split())
                 tr_id = hashlib.sha256(s.encode()).hexdigest()[:10]
                 out_rows.append({
+                    'tr_id': tr_id,
                     'date': date_out,
                     'description': desc_out,
                     'credit': amt_out,
-                    'comment': '',
-                    'transaction_type': '',
-                    'tax_category': '',
-                    'property': '',
-                    'company': '',
-                    'otherentity': '',
-                    'override': '',
-                    'tr_id': tr_id,
                 })
     except Exception as e:
         try:
@@ -174,7 +167,7 @@ def _process_bank_statement_for_account(bankaccountname: str, cfg: Dict[str, Any
         return
 
     if out_rows:
-        header = ['tr_id','date','description','credit','comment','transaction_type','tax_category','property','company','otherentity','override']
+        header = ['tr_id','date','description','credit']
         out_path = normalized_dir / f"{bankaccountname}.csv"
         try:
             with out_path.open('w', newline='', encoding='utf-8') as wf:

@@ -5,14 +5,17 @@ from typing import List, Dict, Any
 from .. import main as state
 import csv
 from pathlib import Path
+import yaml
 
 router = APIRouter(prefix="/api", tags=["transactions"])
 
 
 class TransactionRow(BaseModel):
+    tr_id: str = ''
     date: str = ''
     description: str = ''
     credit: str = ''  # positive for credit, negative for debit
+    ruleid: str = ''
     comment: str = ''
     transaction_type: str = ''
     tax_category: str = ''
@@ -34,9 +37,11 @@ def _read_processed_csv(path: Path) -> List[Dict[str, Any]]:
             for row in reader:
                 # Normalize to expected keys; ignore extra
                 rows.append({
+                    'tr_id': row.get('tr_id',''),
                     'date': row.get('date',''),
                     'description': row.get('description',''),
                     'credit': row.get('credit',''),
+                    'ruleid': row.get('ruleid',''),
                     'comment': row.get('comment',''),
                     'transaction_type': row.get('transaction_type',''),
                     'tax_category': row.get('tax_category',''),
@@ -50,23 +55,47 @@ def _read_processed_csv(path: Path) -> List[Dict[str, Any]]:
     return rows
 
 
+def _read_processed_yaml(path: Path) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    try:
+        with path.open('r', encoding='utf-8') as f:
+            data = yaml.safe_load(f) or []
+            if isinstance(data, list):
+                for item in data:
+                    if isinstance(item, dict):
+                        # Normalize to expected keys; ignore extra
+                        rows.append({
+                            'tr_id': item.get('tr_id',''),
+                            'date': item.get('date',''),
+                            'description': item.get('description',''),
+                            'credit': item.get('credit',''),
+                            'ruleid': item.get('ruleid',''),
+                            'comment': item.get('comment',''),
+                            'transaction_type': item.get('transaction_type',''),
+                            'tax_category': item.get('tax_category',''),
+                            'property': item.get('property',''),
+                            'company': item.get('company',''),
+                            'otherentity': item.get('otherentity',''),
+                            'override': item.get('override',''),
+                        })
+    except Exception:
+        pass
+    return rows
+
+
 @router.get("/transactions")
 async def list_all_transactions() -> Dict[str, Any]:
-    if not (state.PROCESSED_DIR_PATH or state.NORMALIZED_DIR_PATH):
-        raise HTTPException(status_code=500, detail="Processed/normalized directory not configured")
+    if not state.PROCESSED_DIR_PATH:
+        raise HTTPException(status_code=500, detail="Processed directory not configured")
     result: Dict[str, Any] = {}
     try:
         for key in state.BA_DB.keys():
-            p = None
-            if state.PROCESSED_DIR_PATH:
-                cand = state.PROCESSED_DIR_PATH / f"{key}.csv"
-                if cand.exists():
-                    p = cand
-            if p is None and state.NORMALIZED_DIR_PATH:
-                cand = state.NORMALIZED_DIR_PATH / f"{key}.csv"
-                if cand.exists():
-                    p = cand
-            result[key] = _read_processed_csv(p) if p else []
+            py = state.PROCESSED_DIR_PATH / f"{key}.yaml"
+            if py.exists():
+                result[key] = _read_processed_yaml(py)
+                continue
+            pc = state.PROCESSED_DIR_PATH / f"{key}.csv"
+            result[key] = _read_processed_csv(pc) if pc.exists() else []
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read processed CSVs: {e}")
     return result
@@ -77,18 +106,14 @@ async def get_transactions(bankaccountname: str) -> Dict[str, Any]:
     key = (bankaccountname or '').strip().lower()
     if not key:
         raise HTTPException(status_code=400, detail="bankaccountname is required")
-    if not (state.PROCESSED_DIR_PATH or state.NORMALIZED_DIR_PATH):
-        raise HTTPException(status_code=500, detail="Processed/normalized directory not configured")
-    p = None
-    if state.PROCESSED_DIR_PATH:
-        cand = state.PROCESSED_DIR_PATH / f"{key}.csv"
-        if cand.exists():
-            p = cand
-    if p is None and state.NORMALIZED_DIR_PATH:
-        cand = state.NORMALIZED_DIR_PATH / f"{key}.csv"
-        if cand.exists():
-            p = cand
-    rows = _read_processed_csv(p) if p else []
+    if not state.PROCESSED_DIR_PATH:
+        raise HTTPException(status_code=500, detail="Processed directory not configured")
+    py = state.PROCESSED_DIR_PATH / f"{key}.yaml"
+    if py.exists():
+        rows = _read_processed_yaml(py)
+    else:
+        pc = state.PROCESSED_DIR_PATH / f"{key}.csv"
+        rows = _read_processed_csv(pc) if pc.exists() else []
     return {"bankaccountname": key, "rows": rows}
 
 @router.post("/transactions/{bankaccountname}")
@@ -103,7 +128,7 @@ async def save_transactions(bankaccountname: str, payload: TransactionsPayload) 
         raise HTTPException(status_code=500, detail="Processed directory not configured")
     # Write CSV with fixed header
     header = [
-        'date','description','credit','comment','transaction_type','tax_category','property','company','otherentity','override'
+        'tr_id','date','description','credit','ruleid','comment','transaction_type','tax_category','property','company','otherentity','override'
     ]
     out_path = state.PROCESSED_DIR_PATH / f"{key}.csv"
     try:
