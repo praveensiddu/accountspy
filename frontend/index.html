@@ -1729,6 +1729,15 @@
           if (!res.ok) throw new Error(await res.text());
           return res.json();
         },
+        async updateBankaccount(name, item) {
+          const res = await fetch(`/api/bankaccounts/${encodeURIComponent(name)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(item),
+          });
+          if (!res.ok) throw new Error(await res.text());
+          return res.json();
+        },
         async removeBankaccount(name) {
           const res = await fetch(`/api/bankaccounts/${encodeURIComponent(name)}`, { method: 'DELETE' });
           if (!res.ok && res.status !== 204) throw new Error('Failed to delete bank account');
@@ -2653,23 +2662,23 @@
                           return true;
                         });
                         return (
-                        <table style={{ tableLayout: 'auto', width: 'max-content' }}>
+                        <table style={{ tableLayout: 'fixed', width: '100%' }}>
                           <thead>
                             <tr>
-                              <th>tr_id</th>
-                              <th>date</th>
-                              <th>description</th>
-                              <th>credit</th>
-                              <th>ruleid</th>
-                              <th>comment</th>
-                              <th>transaction_type</th>
-                              <th>tax_category</th>
-                              <th>property</th>
-                              <th>group</th>
-                              <th>company</th>
-                              <th>otherentity</th>
-                              <th>override</th>
-                              <th>actions</th>
+                              <th style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>tr_id</th>
+                              <th style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>date</th>
+                              <th style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>description</th>
+                              <th style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>credit</th>
+                              <th style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>ruleid</th>
+                              <th style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>comment</th>
+                              <th style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>transaction_type</th>
+                              <th style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>tax_category</th>
+                              <th style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>property</th>
+                              <th style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>group</th>
+                              <th style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>company</th>
+                              <th style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>otherentity</th>
+                              <th style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>override</th>
+                              <th style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>actions</th>
                             </tr>
                             <tr>
                               <th><input name="tr_id" value={txnFilters.tr_id} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
@@ -2694,11 +2703,11 @@
                             ) : (
                               filteredRows.map((r, idx) => (
                                 <tr key={`txn-${idx}`}>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{r.tr_id}</td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{r.date}</td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{r.description}</td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{r.credit}</td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>
+                                  <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.tr_id}</td>
+                                  <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.date}</td>
+                                  <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.description}</td>
+                                  <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.credit}</td>
+                                  <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
                                     {r.ruleid ? (
                                       <a href="#" className="link" onClick={(e)=>{ e.preventDefault();
                                         try {
@@ -2710,14 +2719,14 @@
                                       }}>{r.ruleid}</a>
                                     ) : ''}
                                   </td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{r.comment}</td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{r.transaction_type}</td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{r.tax_category}</td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{r.property}</td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{r.group}</td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{r.company}</td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{r.otherentity}</td>
-                                  <td style={{ whiteSpace: 'nowrap' }}>{r.override}</td>
+                                  <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.comment}</td>
+                                  <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.transaction_type}</td>
+                                  <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.tax_category}</td>
+                                  <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.property}</td>
+                                  <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.group}</td>
+                                  <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.company}</td>
+                                  <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.otherentity}</td>
+                                  <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.override}</td>
                                   <td>
                                     <div className="actions flex flex-col items-start gap-2">
                                       <button type="button" className="px-2 py-1 bg-gray-700 text-white rounded hover:bg-gray-800" onClick={()=>{ try {

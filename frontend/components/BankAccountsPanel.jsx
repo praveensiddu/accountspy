@@ -18,9 +18,10 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
     try {
       if (!form.bankaccountname || !form.bankname) throw new Error('bankaccountname and bankname are required');
       if (mode === 'edit' && originalKey) {
-        await window.api.removeBankaccount(originalKey);
+        await window.api.updateBankaccount(originalKey, form);
+      } else {
+        await window.api.addBankaccount(form);
       }
-      await window.api.addBankaccount(form);
       setForm(empty);
       setOriginalKey('');
       setMode('add');

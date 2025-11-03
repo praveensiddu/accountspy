@@ -133,15 +133,15 @@ def _process_bank_statement_for_account(bankaccountname: str, cfg: Dict[str, Any
                 check_val = get_part(checkno_idx) if checkno_idx else ''
                 memo_val = get_part(memo_idx) if memo_idx else ''
                 date_out = _normalize_date(date_val, raw_fmt)
+                # Normalize amount by removing currency symbols and commas; preserve inherent sign in text
                 amt_out = ''
-                dv = _parse_amount_num(debit_val) if debit_val else None
-                cv = _parse_amount_num(credit_val) if credit_val else None
-                if dv is not None:
-                    amt = -abs(dv)
-                    amt_out = str(int(amt)) if abs(amt - int(amt)) < 1e-9 else f"{amt}"
-                elif cv is not None:
-                    amt = abs(cv)
-                    amt_out = str(int(amt)) if abs(amt - int(amt)) < 1e-9 else f"{amt}"
+                chosen = ''
+                if debit_val:
+                    chosen = debit_val
+                elif credit_val:
+                    chosen = credit_val
+                if chosen:
+                    amt_out = _parse_amount(chosen)
                 #print(f"debit_val={debit_val} credit_val={credit_val} dv={dv} cv={cv} amt_out={amt_out}")
                 if not (date_out and desc_val):
                     continue
