@@ -103,7 +103,7 @@ async def export_owner(payload: OwnerExportPayload):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed copying bank rule files: {e}")
 
-    # Copy banks.yaml, classify_rules.yaml, common_rules.yaml to entities/
+    # Copy banks.yaml, ..... to entities/
     try:
         for fname in ['banks.yaml', 'transaction_types.yaml','tax_category.yaml','inherit_common_to_bank.yaml', 'common_rules.yaml']:
             src = entities_dir / fname
