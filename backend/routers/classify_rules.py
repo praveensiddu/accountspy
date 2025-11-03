@@ -90,6 +90,30 @@ async def get_bank_rules(bankaccountname: str = Query("")):
         return []
 
 
+@router.get("/bank-rules/max-order")
+async def get_bank_rules_max_order(bankaccountname: str = Query("")):
+    """Return the maximum valid (>0) order for rules in the given bank's YAML file.
+    If no rules or invalid orders, returns 0.
+    """
+    bank = (bankaccountname or "").strip().lower()
+    base_dir = state.CLASSIFY_CSV_PATH.parent if state.CLASSIFY_CSV_PATH else None
+    if not base_dir or not bank:
+        return {"max_order": 0}
+    try:
+        items = _read_bank_rules_list(base_dir, bank)
+        max_order = 0
+        for it in items:
+            try:
+                o = int(it.get('order') or 0)
+            except Exception:
+                o = 0
+            if o > 0 and o > max_order:
+                max_order = o
+        return {"max_order": max_order}
+    except Exception:
+        return {"max_order": 0}
+
+
 def _read_bank_rules_list(base_dir: Path, bank: str):
     path = base_dir / 'bank_rules' / f"{bank}.yaml"
     if not path.exists():

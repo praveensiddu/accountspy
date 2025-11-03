@@ -112,7 +112,12 @@
         const [form, setForm] = useState(emptyForm);
         const onChange = (e) => {
           const { name, value } = e.target; const v = (value||'').toString();
-          if (name === 'order') { setForm(prev => ({ ...prev, order: Number(v || 0) })); return; }
+          if (name === 'order') {
+            const n = Number(v);
+            const clamped = (Number.isFinite(n) && n >= 1) ? n : 1;
+            setForm(prev => ({ ...prev, order: clamped }));
+            return;
+          }
           if (name === 'match') { setForm(prev => ({ ...prev, match: v })); return; }
           if (['bankaccountname','transaction_type','tax_category','property','group','company'].includes(name)) setForm(prev => ({...prev, [name]: v.toLowerCase()}));
           else setForm(prev => ({...prev, [name]: v}));
@@ -160,100 +165,130 @@
         // Handle external prefill from Transactions: open Add/Edit modal with pattern, credit and order, and row attributes
         useEffect(() => {
           let consumed = false;
-          try {
-            const shouldOpen = window.localStorage.getItem('bankrules_prefill_open') === '1';
-            const patt = window.localStorage.getItem('bankrules_prefill_pattern') || '';
-            const orderPref = window.localStorage.getItem('bankrules_prefill_order') || '';
-            const creditPref = window.localStorage.getItem('bankrules_prefill_credit') || '';
-            const ttypePref = (window.localStorage.getItem('bankrules_prefill_ttype') || '').toLowerCase();
-            const taxPref = (window.localStorage.getItem('bankrules_prefill_tax') || '').toLowerCase();
-            const propPref = (window.localStorage.getItem('bankrules_prefill_property') || '').toLowerCase();
-            const groupPref = (window.localStorage.getItem('bankrules_prefill_group') || '').toLowerCase();
-            const companyPref = (window.localStorage.getItem('bankrules_prefill_company') || '').toLowerCase();
-            const otherPref = (window.localStorage.getItem('bankrules_prefill_otherentity') || '');
-            if (!shouldOpen) return;
-            if (!active) return;
-            if (!rulesReady) return; // wait until rules loaded to compute nextOrder accurately
-            // compute next order similar to handleAdd
-            const maxOrder = (rules || []).reduce((m, r) => {
-              const o = Number((r && r.order) != null ? r.order : 10000);
-              return isNaN(o) ? m : Math.max(m, o);
-            }, 0);
-            const nextOrder = (maxOrder || 0) + 1;
-            const parsedOrder = (() => { const n = Number((orderPref||'').trim()); return isNaN(n) ? null : n; })();
-            let existing = null;
-            if (parsedOrder != null) {
-              existing = (rules || []).find(r => Number(r.order||0) === parsedOrder);
-            }
-            // Parse patt into match + description/credit
-            let match = 'desc_contains', description = '', credit = '';
+          const run = async () => {
             try {
-              const m1 = patt.match(/^(desc_startswith|desc_contains)\s*=\s*(.*)$/i);
-              const m2 = patt.match(/^credit_equals\s*=\s*([-+]?[0-9]*\.?[0-9]+)$/i);
-              if (m1) { match = (m1[1]||'').toLowerCase(); description = m1[2] || ''; }
-              else if (m2) { match = 'credit_equals'; credit = m2[1] || ''; }
-            } catch(_) {}
-            if (!credit && creditPref) { credit = creditPref; }
-            if (existing) {
-              setMode('edit');
-              setOriginal(existing);
-              setForm({
-                bankaccountname: (active||'').toLowerCase(),
-                order: Number(existing.order||parsedOrder||nextOrder),
-                transaction_type: ttypePref || (existing.transaction_type||'').toLowerCase(),
-                match, description, credit,
-                tax_category: taxPref || (existing.tax_category||'').toLowerCase(),
-                property: propPref || (existing.property||'').toLowerCase(),
-                group: groupPref || (existing.group||'').toLowerCase(),
-                company: companyPref || (existing.company||'').toLowerCase(),
-                otherentity: otherPref || (existing.otherentity||'')
-              });
-            } else {
-              setMode('add');
-              setOriginal(null);
-              setForm({
-                bankaccountname: (active||'').toLowerCase(),
-                order: parsedOrder != null ? parsedOrder : nextOrder,
-                transaction_type: ttypePref || '',
-                match, description, credit,
-                tax_category: taxPref || '',
-                property: propPref || '',
-                group: groupPref || '',
-                company: companyPref || '',
-                otherentity: otherPref || ''
-              });
-            }
-            setOpen(true);
-            consumed = true;
-          } catch (_) { /* ignore */ }
-          finally {
-            if (consumed) {
+              const shouldOpen = window.localStorage.getItem('bankrules_prefill_open') === '1';
+              const patt = window.localStorage.getItem('bankrules_prefill_pattern') || '';
+              const orderPref = window.localStorage.getItem('bankrules_prefill_order') || '';
+              const creditPref = window.localStorage.getItem('bankrules_prefill_credit') || '';
+              const ttypePref = (window.localStorage.getItem('bankrules_prefill_ttype') || '').toLowerCase();
+              const taxPref = (window.localStorage.getItem('bankrules_prefill_tax') || '').toLowerCase();
+              const propPref = (window.localStorage.getItem('bankrules_prefill_property') || '').toLowerCase();
+              const groupPref = (window.localStorage.getItem('bankrules_prefill_group') || '').toLowerCase();
+              const companyPref = (window.localStorage.getItem('bankrules_prefill_company') || '').toLowerCase();
+              const otherPref = (window.localStorage.getItem('bankrules_prefill_otherentity') || '');
+              if (!shouldOpen) return;
+              if (!active) return;
+              if (!rulesReady) return; // wait until rules loaded to compute nextOrder accurately
+              // compute next order similar to handleAdd (max valid > 0 + 1)
+              const fallbackMax = (rules || []).reduce((m, r) => {
+                const o = Number(r && r.order);
+                return (Number.isFinite(o) && o > 0) ? Math.max(m, o) : m;
+              }, 0);
+              let nextOrder = fallbackMax + 1;
+              // Prefer server-computed max order
               try {
-                window.localStorage.removeItem('bankrules_prefill_open');
-                window.localStorage.removeItem('bankrules_prefill_pattern');
-                window.localStorage.removeItem('bankrules_prefill_order');
-                window.localStorage.removeItem('bankrules_prefill_credit');
-                window.localStorage.removeItem('bankrules_prefill_ttype');
-                window.localStorage.removeItem('bankrules_prefill_tax');
-                window.localStorage.removeItem('bankrules_prefill_property');
-                window.localStorage.removeItem('bankrules_prefill_group');
-                window.localStorage.removeItem('bankrules_prefill_company');
-                window.localStorage.removeItem('bankrules_prefill_otherentity');
-                // ensure we are on Bank subtab
-                window.localStorage.setItem('crSubTab','bank');
-              } catch (_) {}
+                const qsMO = new URLSearchParams({ bankaccountname: (active||'').toLowerCase() });
+                const resMO = await fetch(`/api/bank-rules/max-order?${qsMO}`);
+                if (resMO.ok) {
+                  const dataMO = await resMO.json();
+                  const mo = Number(dataMO && dataMO.max_order);
+                  if (Number.isFinite(mo) && mo >= 0) nextOrder = mo + 1;
+                }
+              } catch(_) { /* ignore and use fallback */ }
+              const parsedOrder = (() => { const n = Number((orderPref||'').trim()); return isNaN(n) ? null : n; })();
+              let existing = null;
+              if (parsedOrder != null) {
+                existing = (rules || []).find(r => Number(r.order||0) === parsedOrder);
+              }
+              // Parse patt into match + description/credit
+              let match = 'desc_contains', description = '', credit = '';
+              try {
+                const m1 = patt.match(/^(desc_startswith|desc_contains)\s*=\s*(.*)$/i);
+                const m2 = patt.match(/^credit_equals\s*=\s*([-+]?[0-9]*\.?[0-9]+)$/i);
+                if (m1) { match = (m1[1]||'').toLowerCase(); description = m1[2] || ''; }
+                else if (m2) { match = 'credit_equals'; credit = m2[1] || ''; }
+              } catch(_) {}
+              if (!credit && creditPref) { credit = creditPref; }
+              if (existing) {
+                setMode('edit');
+                setOriginal(existing);
+                const exo = Number(existing.order);
+                const finalOrder = (Number.isFinite(exo) && exo > 0)
+                  ? exo
+                  : ((Number.isFinite(parsedOrder) && parsedOrder > 0) ? parsedOrder : Math.max(1, Number(nextOrder)||1));
+                setForm({
+                  bankaccountname: (active||'').toLowerCase(),
+                  order: finalOrder,
+                  transaction_type: ttypePref || (existing.transaction_type||'').toLowerCase(),
+                  match, description, credit,
+                  tax_category: taxPref || (existing.tax_category||'').toLowerCase(),
+                  property: propPref || (existing.property||'').toLowerCase(),
+                  group: groupPref || (existing.group||'').toLowerCase(),
+                  company: companyPref || (existing.company||'').toLowerCase(),
+                  otherentity: otherPref || (existing.otherentity||'')
+                });
+              } else {
+                setMode('add');
+                setOriginal(null);
+                const finalOrder = (Number.isFinite(parsedOrder) && parsedOrder > 0) ? parsedOrder : Math.max(1, Number(nextOrder)||1);
+                setForm({
+                  bankaccountname: (active||'').toLowerCase(),
+                  order: finalOrder,
+                  transaction_type: ttypePref || '',
+                  match, description, credit,
+                  tax_category: taxPref || '',
+                  property: propPref || '',
+                  group: groupPref || '',
+                  company: companyPref || '',
+                  otherentity: otherPref || ''
+                });
+              }
+              setOpen(true);
+              consumed = true;
+            } catch (_) { /* ignore */ }
+            finally {
+              if (consumed) {
+                try {
+                  window.localStorage.removeItem('bankrules_prefill_open');
+                  window.localStorage.removeItem('bankrules_prefill_pattern');
+                  window.localStorage.removeItem('bankrules_prefill_order');
+                  window.localStorage.removeItem('bankrules_prefill_credit');
+                  window.localStorage.removeItem('bankrules_prefill_ttype');
+                  window.localStorage.removeItem('bankrules_prefill_tax');
+                  window.localStorage.removeItem('bankrules_prefill_property');
+                  window.localStorage.removeItem('bankrules_prefill_group');
+                  window.localStorage.removeItem('bankrules_prefill_company');
+                  window.localStorage.removeItem('bankrules_prefill_otherentity');
+                  // ensure we are on Bank subtab
+                  window.localStorage.setItem('crSubTab','bank');
+                } catch (_) {}
+              }
             }
-          }
+          };
+          run();
         }, [active, rules, rulesReady]);
 
-        const handleAdd = () => {
+        const handleAdd = async () => {
           setMode('add'); setOriginal(null);
-          const maxOrder = (rules || []).reduce((m, r) => {
-            const o = Number((r && r.order) != null ? r.order : 10000);
-            return isNaN(o) ? m : Math.max(m, o);
+          // Fallback: compute from currently loaded rules
+          const fallbackMax = (rules || []).reduce((m, r) => {
+            const o = Number(r && r.order);
+            return (Number.isFinite(o) && o > 0) ? Math.max(m, o) : m;
           }, 0);
-          const nextOrder = (maxOrder || 0) + 1;
-          setForm({ ...emptyForm, bankaccountname: (active||'').toLowerCase(), order: nextOrder, match: 'desc_contains', description: '', credit: '' });
+          let nextOrder = fallbackMax + 1;
+          // Prefer server-computed max order
+          try {
+            const qs = new URLSearchParams({ bankaccountname: (active||'').toLowerCase() });
+            const res = await fetch(`/api/bank-rules/max-order?${qs}`);
+            if (res.ok) {
+              const data = await res.json();
+              const mo = Number(data && data.max_order);
+              if (Number.isFinite(mo) && mo >= 0) nextOrder = mo + 1;
+            }
+          } catch (_) { /* ignore and use fallback */ }
+          const finalOrder = Math.max(1, Number(nextOrder)||1);
+          setForm({ ...emptyForm, bankaccountname: (active||'').toLowerCase(), order: finalOrder, match: 'desc_contains', description: '', credit: '' });
           setOpen(true);
         };
         const handleEdit = (r) => {
