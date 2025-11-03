@@ -2023,7 +2023,8 @@
         const [txnFilters, setTxnFilters] = useState({ tr_id: '', date: '', description: '', credit: '', ruleid: '', comment: '', transaction_type: '', tax_category: '', property: '', group: '', company: '', otherentity: '', override: '' });
         const onTxnChange = (e) => {
           const { name, value } = e.target;
-          setTxnForm(prev => ({ ...prev, [name]: value }));
+          const v = name === 'description' ? (value || '').toLowerCase() : value;
+          setTxnForm(prev => ({ ...prev, [name]: v }));
         };
         const onTxnFilterChange = (e) => {
           const { name, value } = e.target;
@@ -2769,7 +2770,7 @@
                         return true;
                       });
                       return (
-                        <table className="min-w-full" style={{ tableLayout: 'auto', width: 'max-content' }}>
+                        <table className="min-w-full" style={{ tableLayout: 'fixed', width: '100%' }}>
                           <thead>
                             <tr>
                               <th style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>Name</th>
@@ -2819,25 +2820,25 @@
                               <tr><td colSpan="19" className="muted">No rows</td></tr>
                             ) : rows.map((r, idx) => (
                               <tr key={`cs-${idx}`}>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.Name}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.income}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.rentpassedtoowners}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.bankfees}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_auto}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_donate}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_entertainment}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_internet}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_license}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_mobile}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_off_exp}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_parktoll}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_phone}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_website}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.ignore}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.insurane}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.proffees}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.utilities}</td>
-                                <td style={{ whiteSpace: 'nowrap' }}>{r.profit}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.Name}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.income}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.rentpassedtoowners}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.bankfees}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.c_auto}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.c_donate}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.c_entertainment}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.c_internet}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.c_license}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.c_mobile}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.c_off_exp}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.c_parktoll}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.c_phone}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.c_website}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.ignore}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.insurane}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.proffees}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.utilities}</td>
+                                <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.profit}</td>
                               </tr>
                             ))}
                           </tbody>

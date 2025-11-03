@@ -173,7 +173,12 @@ async def save_transactions(bankaccountname: str, payload: TransactionsPayload) 
             writer = csv.DictWriter(f, fieldnames=header, extrasaction='ignore')
             writer.writeheader()
             for row in payload.rows:
-                writer.writerow(row.dict())
+                d = row.dict()
+                try:
+                    d['description'] = (d.get('description') or '').lower()
+                except Exception:
+                    pass
+                writer.writerow(d)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to write CSV: {e}")
     # Regenerate processed CSV using classifier to ensure consistency
