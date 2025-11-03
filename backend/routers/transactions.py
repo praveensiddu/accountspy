@@ -104,6 +104,14 @@ async def list_all_transactions() -> Dict[str, Any]:
     return result
 
 
+@router.get("/transactions/config")
+async def get_transactions_config() -> Dict[str, Any]:
+    year = state.CURRENT_YEAR or ""
+    mydict = {"current_year": year}
+    state.logger.info(f"get_transactions_config: {mydict}")
+    return mydict
+
+
 @router.get("/transactions/{bankaccountname}")
 async def get_transactions(bankaccountname: str) -> Dict[str, Any]:
     key = (bankaccountname or '').strip().lower()
@@ -166,3 +174,6 @@ async def save_transactions(bankaccountname: str, payload: TransactionsPayload) 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to write CSV: {e}")
     return {"ok": True, "path": str(out_path)}
+
+
+ 

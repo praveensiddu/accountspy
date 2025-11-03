@@ -1964,6 +1964,9 @@
         }, [txnBATab]);
         // Local per-account transactions state (placeholder until backend wiring)
         const [transactionsByBA, setTransactionsByBA] = useState({});
+        const [currentYear, setCurrentYear] = useState('');
+        const [txnMonth, setTxnMonth] = useState('12');
+        const [txnDay, setTxnDay] = useState('31');
         const [txnOpen, setTxnOpen] = useState(false);
         const [txnSaving, setTxnSaving] = useState(false);
         const emptyTxn = { tr_id: '', date: '', description: '', credit: '', ruleid: '', comment: '', transaction_type: '', tax_category: '', property: '', group: '', company: '', otherentity: '', override: '' };
@@ -1977,10 +1980,52 @@
           const { name, value } = e.target;
           setTxnFilters(prev => ({ ...prev, [name]: value }));
         };
-        const onTxnAdd = () => {
+        const onTxnAdd = async () => {
           setTxnForm(emptyTxn);
+          setTxnMonth('12');
+          setTxnDay('31');
+          try {
+            const res = await fetch('/api/transactions/config');
+            if (res.ok) {
+              const j = await res.json();
+              setCurrentYear(String(j.current_year || ''));
+            }
+          } catch (_) {}
           setTxnOpen(true);
         };
+
+        // Load CURRENT_YEAR for date validation
+        useEffect(() => {
+          (async () => {
+            try {
+              const res = await fetch('/api/transactions/config');
+              if (!res.ok) return;
+              const j = await res.json();
+              setCurrentYear(String(j.current_year || ''));
+            } catch (_) {}
+          })();
+        }, []);
+
+        const isValidTxnDate = () => {
+          if (!currentYear) return false;
+          const m = Number(txnMonth);
+          const d = Number(txnDay);
+          if (!Number.isInteger(m) || m < 1 || m > 12) return false;
+          if (!Number.isInteger(d) || d < 1 || d > 31) return false;
+          return true;
+        };
+        const isValidCredit = (c) => {
+          if (c == null) return false;
+          const s = String(c).trim();
+          if (!s) return false;
+          const n = Number(s);
+          return Number.isFinite(n);
+        };
+        const isTxnSaveEnabled = (
+          isValidTxnDate() &&
+          String(txnForm.description || '').trim().length > 0 &&
+          isValidCredit(txnForm.credit)
+        );
         const saveTxnRows = async (ba, newRows) => {
           setTxnSaving(true);
           try {
@@ -1998,9 +2043,27 @@
           try {
             const ba = txnBATab || '';
             if (!ba) throw new Error('Select a bank account');
-            const current = transactionsByBA[ba] || [];
-            const newRows = [ ...current, { ...txnForm } ];
-            await saveTxnRows(ba, newRows);
+            const mm = String(txnMonth).padStart(2,'0');
+            const dd = String(txnDay).padStart(2,'0');
+            const payload = {
+              date: `${String(currentYear)}-${mm}-${dd}`,
+              description: (txnForm.description || ''),
+              credit: (txnForm.credit || ''),
+            };
+            const res = await fetch(`/api/addendum/${encodeURIComponent(ba)}` , {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            if (!res.ok) {
+              const msg = await res.text().catch(()=> '');
+              throw new Error(msg || 'Failed to save addendum');
+            }
+            // Refresh transactions map from processed outputs
+            try {
+              const txnsMap = await api.listTransactions();
+              if (txnsMap && typeof txnsMap === 'object') setTransactionsByBA(txnsMap);
+            } catch (_) {}
             setTxnOpen(false);
           } catch (err) {
             console.error(err);
@@ -2443,84 +2506,40 @@
                             <button type="button" onClick={onTxnAdd} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add</button>
                           </div>
                         </div>
-                        <Modal title={'Add Transaction'} open={txnOpen} onClose={() => setTxnOpen(false)} onSubmit={onTxnSubmit} submitLabel={txnSaving ? 'Saving...' : 'Save'}>
+                        <Modal title={'Add Transaction'} open={txnOpen} onClose={() => setTxnOpen(false)} onSubmit={onTxnSubmit} submitLabel={txnSaving ? 'Saving...' : 'Save'} submitDisabled={!isTxnSaveEnabled}>
                           <form onSubmit={onTxnSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div>
-                              <label className="block text-sm font-medium text-gray-700">date</label>
-                              <input name="date" value={txnForm.date} onChange={onTxnChange} placeholder="YYYY-MM-DD" className="mt-1 w-full border border-gray-300 rounded-md p-2" />
+                              <label className="block text-sm font-medium text-gray-700">month</label>
+                              <select name="month" value={txnMonth} onChange={(e)=> setTxnMonth(e.target.value)} className="mt-1 w-full border border-gray-300 rounded-md p-2">
+                                <option value="01">JAN</option>
+                                <option value="02">FEB</option>
+                                <option value="03">MAR</option>
+                                <option value="04">APR</option>
+                                <option value="05">MAY</option>
+                                <option value="06">JUN</option>
+                                <option value="07">JUL</option>
+                                <option value="08">AUG</option>
+                                <option value="09">SEP</option>
+                                <option value="10">OCT</option>
+                                <option value="11">NOV</option>
+                                <option value="12">DEC</option>
+                              </select>
                             </div>
                             <div>
-                              <label className="block text-sm font-medium text-gray-700">tr_id</label>
-                              <input name="tr_id" value={txnForm.tr_id} onChange={onTxnChange} readOnly className="mt-1 w-full border border-gray-300 rounded-md p-2 bg-gray-100" />
+                              <label className="block text-sm font-medium text-gray-700">day</label>
+                              <select name="day" value={txnDay} onChange={(e)=> setTxnDay(e.target.value)} className="mt-1 w-full border border-gray-300 rounded-md p-2">
+                                {Array.from({length:31}, (_,i)=> String(i+1)).map(d => (
+                                  <option key={d} value={d}>{d}</option>
+                                ))}
+                              </select>
                             </div>
-                            <div>
+                            <div className="md:col-span-2">
                               <label className="block text-sm font-medium text-gray-700">description</label>
                               <input name="description" value={txnForm.description} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
                             </div>
                             <div>
                               <label className="block text-sm font-medium text-gray-700">credit</label>
-                              <input name="credit" value={txnForm.credit} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">ruleid</label>
-                              <input name="ruleid" value={txnForm.ruleid} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">comment</label>
-                              <input name="comment" value={txnForm.comment} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">transaction_type</label>
-                              <select name="transaction_type" value={txnForm.transaction_type} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2">
-                                <option value="">Select</option>
-                                {(transactionTypes || []).map(t => (
-                                  <option key={t.transactiontype} value={(t.transactiontype || '').toLowerCase()}>{t.transactiontype}</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">tax_category</label>
-                              <select name="tax_category" value={txnForm.tax_category} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2">
-                                <option value="">Select</option>
-                                {(taxCategories || []).map(c => (
-                                  <option key={c.category} value={(c.category || '').toLowerCase()}>{c.category}</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">property</label>
-                              <select name="property" value={txnForm.property} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2">
-                                <option value="">Select</option>
-                                {(items || []).map(p => (
-                                  <option key={p.property} value={(p.property || '').toLowerCase()}>{p.property}</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">group</label>
-                              <select name="group" value={txnForm.group} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2">
-                                <option value="">Select</option>
-                                {(groups || []).map(g => (
-                                  <option key={g.groupname} value={(g.groupname || '').toLowerCase()}>{g.groupname}</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">company</label>
-                              <select name="company" value={txnForm.company} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2">
-                                <option value="">Select</option>
-                                {(companies || []).map(c => (
-                                  <option key={c} value={(c || '').toLowerCase()}>{c}</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">otherentity</label>
-                              <input name="otherentity" value={txnForm.otherentity} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">override</label>
-                              <input name="override" value={txnForm.override} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
+                              <input name="credit" type="number" step="any" value={txnForm.credit} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2" />
                             </div>
                           </form>
                         </Modal>

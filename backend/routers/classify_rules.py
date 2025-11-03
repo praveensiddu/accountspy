@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import List
 
 from .. import main as state
+from .. import classify as classifier
 from ..core.models import ClassifyRuleRecord, InheritRuleRecord
 from pydantic import BaseModel
 from ..core.utils import dump_yaml_entities
@@ -209,6 +210,10 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
         for idx, it in enumerate(merged_list, start=1):
             it['order'] = idx
         _write_bank_rules_list(base_dir, bank, merged_list)
+        try:
+            classifier.classify_bank(bank)
+        except Exception:
+            pass
         return updated
 
     if new_key in key_to_item:
@@ -257,6 +262,10 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
         it['order'] = idx
 
     _write_bank_rules_list(base_dir, bank, merged_list)
+    try:
+        classifier.classify_bank(bank)
+    except Exception:
+        pass
     return rec
 
 
@@ -307,6 +316,10 @@ async def delete_bank_rule(
     for idx, it in enumerate(remaining, start=1):
         it['order'] = idx
     _write_bank_rules_list(base_dir, bank, remaining)
+    try:
+        classifier.classify_bank(bank)
+    except Exception:
+        pass
     return
 
 

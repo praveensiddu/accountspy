@@ -63,6 +63,7 @@ ACCOUNTS_DIR_PATH: Optional[Path] = None
 CURRENT_YEAR: Optional[str] = None
 PROCESSED_DIR_PATH: Optional[Path] = None
 NORMALIZED_DIR_PATH: Optional[Path] = None
+ADDENDUM_DIR_PATH: Optional[Path] = None
 
 # Companies list loaded from env
 COMPANIES: List[str] = []
@@ -127,6 +128,7 @@ try:
     from backend.routers import owners as owners_router
     from backend.routers import classify_rules as classify_rules_router
     from backend.routers import transactions as transactions_router
+    from backend.routers import addendum as addendum_router
     app.include_router(banks_router.router)
     app.include_router(tax_categories_router.router)
     app.include_router(transaction_types_router.router)
@@ -137,6 +139,7 @@ try:
     app.include_router(owners_router.router)
     app.include_router(classify_rules_router.router)
     app.include_router(transactions_router.router)
+    app.include_router(addendum_router.router)
 except Exception:
     # In case of import issues during incremental refactor, continue with inline endpoints
     pass
@@ -311,13 +314,16 @@ def _read_mandatory_envs() -> None:
 
 def _ensure_year_dirs() -> None:
     try:
-        global PROCESSED_DIR_PATH, NORMALIZED_DIR_PATH
+        global PROCESSED_DIR_PATH, NORMALIZED_DIR_PATH, ADDENDUM_DIR_PATH
         PROCESSED_DIR_PATH = ACCOUNTS_DIR_PATH / CURRENT_YEAR / 'processed'
         PROCESSED_DIR_PATH.mkdir(parents=True, exist_ok=True)
         logger.info(f"Ensured processed dir: {PROCESSED_DIR_PATH}")
         NORMALIZED_DIR_PATH = ACCOUNTS_DIR_PATH / CURRENT_YEAR / 'normalized'
         NORMALIZED_DIR_PATH.mkdir(parents=True, exist_ok=True)
         logger.info(f"Ensured normalized dir: {NORMALIZED_DIR_PATH}")
+        ADDENDUM_DIR_PATH = ACCOUNTS_DIR_PATH / CURRENT_YEAR / 'addendum'
+        ADDENDUM_DIR_PATH.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Ensured addendum dir: {ADDENDUM_DIR_PATH}")
     except Exception as e:
         logger.error(f"Failed to create processed directory: {e}")
         raise
