@@ -43,10 +43,15 @@ async def get_company_summary() -> List[Dict[str, Any]]:
                     with p.open('r', encoding='utf-8') as yf:
                         data = yaml.safe_load(yf) or {}
                         if isinstance(data, dict):
+                            # Start with Name and defaults for all expected fields (empty string)
                             row: Dict[str, Any] = { 'Name': p.stem }
+                            for col in _EXPECTED_FIELDS:
+                                if col == 'Name':
+                                    continue
+                                row[col] = ''
+                            # Fill from YAML where present
                             for k, v in data.items():
                                 kk = str(k).strip()
-                                # match case-sensitively for "Name" otherwise as-is
                                 if kk in _EXPECTED_FIELDS and v is not None and str(v) != '':
                                     row[kk] = v
                             all_rows.append(row)
