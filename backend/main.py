@@ -379,8 +379,8 @@ def _load_manual_rules() -> None:
         base_dir = CLASSIFY_CSV_PATH.parent
         # Dedupe per-bank YAML files to remove duplicate pattern_match_logic entries
         loaders.dedupe_bank_rules_dir(base_dir / 'bank_rules', logger)
+        # Do not load bank_rules.yaml anymore; rules are sourced from per-bank files under bank_rules/
         # Let exceptions propagate so startup fails (e.g., duplicate patterns)
-        loaders.load_bank_rules_yaml_into_memory(base_dir / 'bank_rules.yaml', CLASSIFY_DB, logger)
         loaders.load_common_rules_yaml_into_memory(base_dir / 'common_rules.yaml', COMMON_RULES_DB, logger)
         loaders.load_inherit_rules_yaml_into_memory(base_dir / 'inherit_common_to_bank.yaml', INHERIT_RULES_DB, logger)
         logger.info(
