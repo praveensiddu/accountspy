@@ -450,15 +450,6 @@
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">transaction_type</label>
-                      <select name="transaction_type" value={form.transaction_type} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
-                        <option value="">Select transaction type</option>
-                        {(transactionTypes || []).map(t => (
-                          <option key={t.transactiontype} value={(t.transactiontype || '').toLowerCase()}>{t.transactiontype}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
                       <label className="block text-sm font-medium text-gray-700">match</label>
                       <select name="match" value={form.match} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
                         <option value="desc_startswith">desc_startswith</option>
@@ -478,6 +469,15 @@
                         <input name="credit" value={form.credit} onChange={onChange} placeholder="e.g., 100.00" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
                       </div>
                     )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">transaction_type</label>
+                      <select name="transaction_type" value={form.transaction_type} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+                        <option value="">Select transaction type</option>
+                        {(transactionTypes || []).map(t => (
+                          <option key={t.transactiontype} value={(t.transactiontype || '').toLowerCase()}>{t.transactiontype}</option>
+                        ))}
+                      </select>
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">tax_category</label>
                       <select name="tax_category" value={form.tax_category} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500">
@@ -514,7 +514,7 @@
                         ))}
                       </select>
                     </div>
-                    <div className="md:col-span-2">
+                    <div>
                       <label className="block text-sm font-medium text-gray-700">otherentity</label>
                       <input name="otherentity" value={form.otherentity} onChange={onChange} placeholder="optional" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
                     </div>
