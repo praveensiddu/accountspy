@@ -122,14 +122,27 @@ def classify_bank(bankaccountname: str) -> None:
 
     # 1b) Append addendum CSV rows if present (date, description, credit)
     try:
-        add_dir: Optional[Path] = state.ADDENDUM_DIR_PATH
-        if add_dir:
-            add_csv = add_dir / f"{bank}.csv"
-            if add_csv.exists():
-                with add_csv.open("r", encoding="utf-8") as af:
-                    areader = csv.DictReader(af)
-                    for row in areader:
-                        processed[bank].append(ProcRow.from_dict(row).to_dict())
+        add_csv: Optional[Path] = None
+        # Prefer per-bank statement_location
+        try:
+            ba = state.BA_DB.get(bank) or {}
+            sl = (ba.get('statement_location') or '').strip()
+            if sl and state.CURRENT_YEAR:
+                per_bank_add = Path(sl) / state.CURRENT_YEAR / 'addendum' / f"{bank}.csv"
+                if per_bank_add.exists():
+                    add_csv = per_bank_add
+        except Exception:
+            add_csv = None
+        # Fallback to global ADDENDUM_DIR_PATH
+        if add_csv is None and state.ADDENDUM_DIR_PATH:
+            candidate = state.ADDENDUM_DIR_PATH / f"{bank}.csv"
+            if candidate.exists():
+                add_csv = candidate
+        if add_csv and add_csv.exists():
+            with add_csv.open("r", encoding="utf-8") as af:
+                areader = csv.DictReader(af)
+                for row in areader:
+                    processed[bank].append(ProcRow.from_dict(row).to_dict())
     except Exception:
         # ignore addendum errors to avoid blocking classification
         pass
