@@ -28,16 +28,17 @@ async def add_bankaccount(payload: BankAccountRecord):
     }
     if not item["bankname"]:
         raise HTTPException(status_code=400, detail="bankname is required")
-    # Validate statement_location: strip edges, reject if whitespace in middle, ensure trailing '/'
+    # Validate statement_location: require non-empty, strip edges, reject if whitespace in middle, ensure trailing '/'
     try:
         raw_sl = payload.statement_location or ""
         sl = raw_sl.strip()
-        if sl:
-            # Any whitespace remaining implies internal whitespace -> reject
-            if any(ch.isspace() for ch in sl):
-                raise HTTPException(status_code=400, detail="statement_location must not contain spaces or whitespace")
-            if not sl.endswith('/'):
-                sl = sl + '/'
+        if not sl:
+            raise HTTPException(status_code=400, detail="statement_location is required")
+        # Any whitespace remaining implies internal whitespace -> reject
+        if any(ch.isspace() for ch in sl):
+            raise HTTPException(status_code=400, detail="statement_location must not contain spaces or whitespace")
+        if not sl.endswith('/'):
+            sl = sl + '/'
         item["statement_location"] = sl
     except HTTPException:
         raise
@@ -66,15 +67,16 @@ async def update_bankaccount(bankaccountname: str, payload: BankAccountRecord):
     if not bankname:
         raise HTTPException(status_code=400, detail="bankname is required")
     abbreviation = (getattr(payload, 'abbreviation', '') or '').strip()
-    # Validate statement_location: strip edges, reject if whitespace in middle, ensure trailing '/'
+    # Validate statement_location: require non-empty, strip edges, reject if whitespace in middle, ensure trailing '/'
     try:
         raw_sl = payload.statement_location or ""
         sl = raw_sl.strip()
-        if sl:
-            if any(ch.isspace() for ch in sl):
-                raise HTTPException(status_code=400, detail="statement_location must not contain spaces or whitespace")
-            if not sl.endswith('/'):
-                sl = sl + '/'
+        if not sl:
+            raise HTTPException(status_code=400, detail="statement_location is required")
+        if any(ch.isspace() for ch in sl):
+            raise HTTPException(status_code=400, detail="statement_location must not contain spaces or whitespace")
+        if not sl.endswith('/'):
+            sl = sl + '/'
     except HTTPException:
         raise
     except Exception:

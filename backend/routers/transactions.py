@@ -181,6 +181,34 @@ async def save_transactions(bankaccountname: str, payload: TransactionsPayload) 
                 writer.writerow(d)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to write CSV: {e}")
+
+    # Also write addendum CSV under <statement_location>/<CURRENT_YEAR>/addendum/<bankaccountname>.csv
+    try:
+        ba = state.BA_DB.get(key) or {}
+        sl = (ba.get('statement_location') or '').strip()
+        if not sl:
+            raise HTTPException(status_code=400, detail="statement_location not set for this bank account")
+        base = Path(sl)
+        addendum_dir = base / (state.CURRENT_YEAR or '') / 'addendum'
+        addendum_dir.mkdir(parents=True, exist_ok=True)
+        addendum_path = addendum_dir / f"{key}.csv"
+        # Write all submitted rows to addendum (unfiltered)
+        addendum_rows = list(payload.rows)
+        with addendum_path.open('w', newline='', encoding='utf-8') as af:
+            awriter = csv.DictWriter(af, fieldnames=header, extrasaction='ignore')
+            awriter.writeheader()
+            for row in addendum_rows:
+                d = row.dict()
+                try:
+                    d['description'] = (d.get('description') or '').lower()
+                except Exception:
+                    pass
+                awriter.writerow(d)
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Non-fatal: proceed even if addendum write fails, but report in response
+        state.logger.error(f"Failed to write addendum CSV for {key}: {e}")
     # Regenerate processed CSV using classifier to ensure consistency
     try:
         classifier.classify_bank(key)

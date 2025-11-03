@@ -47,7 +47,7 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
         <button type="button" onClick={() => { setForm(empty); setMode('add'); setOriginalKey(''); setOpen(true); }} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add bank account</button>
         <button type="button" onClick={reload} disabled={loading} className="px-3 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-60">Refresh</button>
       </div>
-      <Modal title={mode==='edit' ? 'Edit Bank Account' : 'Add Bank Account'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'} submitDisabled={!((form.bankaccountname || '').trim())}>
+      <Modal title={mode==='edit' ? 'Edit Bank Account' : 'Add Bank Account'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'} submitDisabled={!(((form.bankaccountname||'').trim()) && ((form.bankname||'').trim()) && ((form.statement_location||'').trim()))}>
         <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
             <label className="block text-sm font-medium text-gray-700">bankaccountname</label>
