@@ -67,12 +67,25 @@
         const [filter, setFilter] = useState(() => {
           try {
             const order = window.localStorage.getItem('bankrules_filter_order') || '';
-            return { order, transaction_type:'', pattern_match_logic:'', tax_category:'', property:'', group:'', otherentity:'' };
-          } catch(_) { return { order:'', transaction_type:'', pattern_match_logic:'', tax_category:'', property:'', group:'', otherentity:'' }; }
+            return { order, transaction_type:'', pattern_match_logic:'', tax_category:'', property:'', group:'', company:'', otherentity:'' };
+          } catch(_) { return { order:'', transaction_type:'', pattern_match_logic:'', tax_category:'', property:'', group:'', company:'', otherentity:'' }; }
         });
         // Local groups data sourced from Groups table
         const [bankGroupsData, setBankGroupsData] = useState(groups || []);
         useEffect(() => { setBankGroupsData(groups || []); }, [groups]);
+        // Companies for dropdown
+        const [companiesData, setCompaniesData] = useState([]);
+        useEffect(() => {
+          (async () => {
+            try {
+              const res = await fetch('/api/company-records');
+              if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data)) setCompaniesData(data);
+              }
+            } catch (_) {}
+          })();
+        }, []);
         useEffect(() => {
           if (!bankGroupsData || bankGroupsData.length === 0) {
             (async () => {
@@ -91,7 +104,7 @@
           try { if (typeof window.showConfirm === 'function') return await window.showConfirm(message); } catch (_) {}
           return window.confirm(message);
         };
-        const emptyForm = { bankaccountname:'', order: 10000, transaction_type:'', match:'desc_contains', description:'', credit:'', tax_category:'', property:'', group:'', otherentity:'' };
+        const emptyForm = { bankaccountname:'', order: 10000, transaction_type:'', match:'desc_contains', description:'', credit:'', tax_category:'', property:'', group:'', company:'', otherentity:'' };
         const [open, setOpen] = useState(false);
         const [mode, setMode] = useState('add');
         const [saving, setSaving] = useState(false);
@@ -101,7 +114,7 @@
           const { name, value } = e.target; const v = (value||'').toString();
           if (name === 'order') { setForm(prev => ({ ...prev, order: Number(v || 0) })); return; }
           if (name === 'match') { setForm(prev => ({ ...prev, match: v })); return; }
-          if (['bankaccountname','transaction_type','tax_category','property','group'].includes(name)) setForm(prev => ({...prev, [name]: v.toLowerCase()}));
+          if (['bankaccountname','transaction_type','tax_category','property','group','company'].includes(name)) setForm(prev => ({...prev, [name]: v.toLowerCase()}));
           else setForm(prev => ({...prev, [name]: v}));
         };
 
@@ -144,7 +157,7 @@
         }, [filter.order]);
         useEffect(() => { loadRules(active); }, [active, loadRules]);
 
-        // Handle external prefill from Transactions: open Add modal with pattern, credit and order
+        // Handle external prefill from Transactions: open Add/Edit modal with pattern, credit and order, and row attributes
         useEffect(() => {
           let consumed = false;
           try {
@@ -152,6 +165,12 @@
             const patt = window.localStorage.getItem('bankrules_prefill_pattern') || '';
             const orderPref = window.localStorage.getItem('bankrules_prefill_order') || '';
             const creditPref = window.localStorage.getItem('bankrules_prefill_credit') || '';
+            const ttypePref = (window.localStorage.getItem('bankrules_prefill_ttype') || '').toLowerCase();
+            const taxPref = (window.localStorage.getItem('bankrules_prefill_tax') || '').toLowerCase();
+            const propPref = (window.localStorage.getItem('bankrules_prefill_property') || '').toLowerCase();
+            const groupPref = (window.localStorage.getItem('bankrules_prefill_group') || '').toLowerCase();
+            const companyPref = (window.localStorage.getItem('bankrules_prefill_company') || '').toLowerCase();
+            const otherPref = (window.localStorage.getItem('bankrules_prefill_otherentity') || '');
             if (!shouldOpen) return;
             if (!active) return;
             if (!rulesReady) return; // wait until rules loaded to compute nextOrder accurately
@@ -162,8 +181,10 @@
             }, 0);
             const nextOrder = (maxOrder || 0) + 1;
             const parsedOrder = (() => { const n = Number((orderPref||'').trim()); return isNaN(n) ? null : n; })();
-            setMode('add');
-            setOriginal(null);
+            let existing = null;
+            if (parsedOrder != null) {
+              existing = (rules || []).find(r => Number(r.order||0) === parsedOrder);
+            }
             // Parse patt into match + description/credit
             let match = 'desc_contains', description = '', credit = '';
             try {
@@ -173,16 +194,35 @@
               else if (m2) { match = 'credit_equals'; credit = m2[1] || ''; }
             } catch(_) {}
             if (!credit && creditPref) { credit = creditPref; }
-            setForm({
-              bankaccountname: (active||'').toLowerCase(),
-              order: parsedOrder != null ? parsedOrder : nextOrder,
-              transaction_type: '',
-              match, description, credit,
-              tax_category: '',
-              property: '',
-              group: '',
-              otherentity: ''
-            });
+            if (existing) {
+              setMode('edit');
+              setOriginal(existing);
+              setForm({
+                bankaccountname: (active||'').toLowerCase(),
+                order: Number(existing.order||parsedOrder||nextOrder),
+                transaction_type: ttypePref || (existing.transaction_type||'').toLowerCase(),
+                match, description, credit,
+                tax_category: taxPref || (existing.tax_category||'').toLowerCase(),
+                property: propPref || (existing.property||'').toLowerCase(),
+                group: groupPref || (existing.group||'').toLowerCase(),
+                company: companyPref || (existing.company||'').toLowerCase(),
+                otherentity: otherPref || (existing.otherentity||'')
+              });
+            } else {
+              setMode('add');
+              setOriginal(null);
+              setForm({
+                bankaccountname: (active||'').toLowerCase(),
+                order: parsedOrder != null ? parsedOrder : nextOrder,
+                transaction_type: ttypePref || '',
+                match, description, credit,
+                tax_category: taxPref || '',
+                property: propPref || '',
+                group: groupPref || '',
+                company: companyPref || '',
+                otherentity: otherPref || ''
+              });
+            }
             setOpen(true);
             consumed = true;
           } catch (_) { /* ignore */ }
@@ -193,6 +233,12 @@
                 window.localStorage.removeItem('bankrules_prefill_pattern');
                 window.localStorage.removeItem('bankrules_prefill_order');
                 window.localStorage.removeItem('bankrules_prefill_credit');
+                window.localStorage.removeItem('bankrules_prefill_ttype');
+                window.localStorage.removeItem('bankrules_prefill_tax');
+                window.localStorage.removeItem('bankrules_prefill_property');
+                window.localStorage.removeItem('bankrules_prefill_group');
+                window.localStorage.removeItem('bankrules_prefill_company');
+                window.localStorage.removeItem('bankrules_prefill_otherentity');
                 // ensure we are on Bank subtab
                 window.localStorage.setItem('crSubTab','bank');
               } catch (_) {}
@@ -227,6 +273,7 @@
             tax_category: (r.tax_category||'').toLowerCase(),
             property: (r.property||'').toLowerCase(),
             group: (r.group||'').toLowerCase(),
+            company: (r.company||'').toLowerCase(),
             otherentity: r.otherentity||''
           });
           setOpen(true);
@@ -252,6 +299,7 @@
               tax_category: (form.tax_category||'').trim().toLowerCase(),
               property: (form.property||'').trim().toLowerCase(),
               group: (form.group||'').trim().toLowerCase(),
+              company: (form.company||'').trim().toLowerCase(),
               otherentity: (form.otherentity||'').trim(),
             };
             const res = await fetch('/api/bank-rules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -264,6 +312,7 @@
                 (original.pattern_match_logic||'') !== payload.pattern_match_logic ||
                 (original.property||'').toLowerCase() !== payload.property ||
                 (original.group||'').toLowerCase() !== payload.group ||
+                (original.company||'').toLowerCase() !== payload.company ||
                 (original.tax_category||'').toLowerCase() !== payload.tax_category ||
                 (original.otherentity||'') !== payload.otherentity
               ) {
@@ -273,6 +322,7 @@
                   pattern_match_logic: original.pattern_match_logic||'',
                   property: original.property||'',
                   group: original.group||'',
+                  company: original.company||'',
                   tax_category: original.tax_category||'',
                   otherentity: original.otherentity||''
                 };
@@ -331,7 +381,23 @@
                     <button type="button" onClick={()=> loadRules(active)} disabled={loading} className="ml-2 px-3 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-60">Refresh</button>
                   </div>
                 </div>
-                <Modal title={mode==='edit' ? 'Edit Bank Rule' : 'Add Bank Rule'} open={open} onClose={()=> { setOpen(false); setMode('add'); setOriginal(null); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'} submitDisabled={!((form.bankaccountname||'').trim()) || !((form.transaction_type||'').trim()) || !((form.match||'').trim()) || ((form.match!=='credit_equals') && !(form.description||'').trim()) || ((form.match==='credit_equals') && !(form.credit||'').toString().trim())}>
+                <Modal title={mode==='edit' ? 'Edit Bank Rule' : 'Add Bank Rule'} open={open} onClose={()=> { setOpen(false); setMode('add'); setOriginal(null); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'} submitDisabled={
+                  !((form.bankaccountname||'').trim())
+                  || !((form.transaction_type||'').trim())
+                  || !((form.tax_category||'').trim())
+                  || !((form.match||'').trim())
+                  || ((form.match!=='credit_equals') && !(form.description||'').trim())
+                  || ((form.match==='credit_equals') && !(form.credit||'').toString().trim())
+                  || (((form.tax_category||'').trim().toLowerCase()==='rental') && (
+                        (((form.property||'').trim() && (form.group||'').trim())) ||
+                        (!((form.property||'').trim()) && !((form.group||'').trim()))
+                     ))
+                  || (((form.tax_category||'').trim().toLowerCase()==='company') && (
+                        !((form.company||'').trim()) ||
+                        ((form.property||'').trim()) ||
+                        ((form.group||'').trim())
+                     ))
+                }>
                   <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">bankaccountname</label>
@@ -404,6 +470,15 @@
                         ))}
                       </select>
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">company</label>
+                      <select name="company" value={form.company} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Select company (optional)</option>
+                        {(companiesData || []).map(c => (
+                          <option key={c.companyname} value={(c.companyname || '').toLowerCase()}>{c.companyname}</option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700">otherentity</label>
                       <input name="otherentity" value={form.otherentity} onChange={onChange} placeholder="optional" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
@@ -421,6 +496,7 @@
                         <th>tax_category</th>
                         <th>property</th>
                         <th>group</th>
+                        <th>company</th>
                         <th>otherentity</th>
                         <th>actions</th>
                       </tr>
@@ -431,6 +507,7 @@
                         <th><input placeholder="filter" value={filter.tax_category} onChange={(e)=> setFilter(f => ({...f, tax_category: e.target.value}))} /></th>
                         <th><input placeholder="filter" value={filter.property} onChange={(e)=> setFilter(f => ({...f, property: e.target.value}))} /></th>
                         <th><input placeholder="filter" value={filter.group} onChange={(e)=> setFilter(f => ({...f, group: e.target.value}))} /></th>
+                        <th><input placeholder="filter" value={filter.company} onChange={(e)=> setFilter(f => ({...f, company: e.target.value}))} /></th>
                         <th><input placeholder="filter" value={filter.otherentity} onChange={(e)=> setFilter(f => ({...f, otherentity: e.target.value}))} /></th>
                       </tr>
                     </thead>
@@ -452,6 +529,7 @@
                           (filter.tax_category ? (r.tax_category||'').toLowerCase().includes(filter.tax_category.toLowerCase()) : true) &&
                           (filter.property ? (r.property||'').toLowerCase().includes(filter.property.toLowerCase()) : true) &&
                           (filter.group ? (r.group||'').toLowerCase().includes(filter.group.toLowerCase()) : true) &&
+                          (filter.company ? (r.company||'').toLowerCase().includes(filter.company.toLowerCase()) : true) &&
                           (filter.otherentity ? (r.otherentity||'').toLowerCase().includes(filter.otherentity.toLowerCase()) : true)
                         ))
                         .map((r, idx) => (
@@ -462,6 +540,7 @@
                             <td className="break-words whitespace-pre-wrap">{r.tax_category}</td>
                             <td className="break-words whitespace-pre-wrap">{r.property}</td>
                             <td className="break-words whitespace-pre-wrap">{r.group}</td>
+                            <td className="break-words whitespace-pre-wrap">{r.company}</td>
                             <td className="break-words whitespace-pre-wrap">{r.otherentity}</td>
                             <td>
                               <button onClick={()=> handleEdit(r)} className="px-2 py-1 mr-2 bg-gray-700 text-white rounded hover:bg-gray-800">Edit</button>
@@ -1887,9 +1966,9 @@
         const [transactionsByBA, setTransactionsByBA] = useState({});
         const [txnOpen, setTxnOpen] = useState(false);
         const [txnSaving, setTxnSaving] = useState(false);
-        const emptyTxn = { tr_id: '', date: '', description: '', credit: '', ruleid: '', comment: '', transaction_type: '', tax_category: '', property: '', company: '', otherentity: '', override: '' };
+        const emptyTxn = { tr_id: '', date: '', description: '', credit: '', ruleid: '', comment: '', transaction_type: '', tax_category: '', property: '', group: '', company: '', otherentity: '', override: '' };
         const [txnForm, setTxnForm] = useState(emptyTxn);
-        const [txnFilters, setTxnFilters] = useState({ tr_id: '', date: '', description: '', credit: '', ruleid: '', comment: '', transaction_type: '', tax_category: '', property: '', company: '', otherentity: '', override: '' });
+        const [txnFilters, setTxnFilters] = useState({ tr_id: '', date: '', description: '', credit: '', ruleid: '', comment: '', transaction_type: '', tax_category: '', property: '', group: '', company: '', otherentity: '', override: '' });
         const onTxnChange = (e) => {
           const { name, value } = e.target;
           setTxnForm(prev => ({ ...prev, [name]: value }));
@@ -2418,6 +2497,15 @@
                               </select>
                             </div>
                             <div>
+                              <label className="block text-sm font-medium text-gray-700">group</label>
+                              <select name="group" value={txnForm.group} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2">
+                                <option value="">Select</option>
+                                {(groups || []).map(g => (
+                                  <option key={g.groupname} value={(g.groupname || '').toLowerCase()}>{g.groupname}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
                               <label className="block text-sm font-medium text-gray-700">company</label>
                               <select name="company" value={txnForm.company} onChange={onTxnChange} className="mt-1 w-full border border-gray-300 rounded-md p-2">
                                 <option value="">Select</option>
@@ -2460,6 +2548,7 @@
                               <th>transaction_type</th>
                               <th>tax_category</th>
                               <th>property</th>
+                              <th>group</th>
                               <th>company</th>
                               <th>otherentity</th>
                               <th>override</th>
@@ -2475,6 +2564,7 @@
                               <th><input name="transaction_type" value={txnFilters.transaction_type} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
                               <th><input name="tax_category" value={txnFilters.tax_category} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
                               <th><input name="property" value={txnFilters.property} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
+                              <th><input name="group" value={txnFilters.group} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
                               <th><input name="company" value={txnFilters.company} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
                               <th><input name="otherentity" value={txnFilters.otherentity} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
                               <th><input name="override" value={txnFilters.override} onChange={onTxnFilterChange} className="w-full border border-gray-300 rounded-md p-1" placeholder="filter" /></th>
@@ -2507,12 +2597,12 @@
                                   <td>{r.transaction_type}</td>
                                   <td>{r.tax_category}</td>
                                   <td>{r.property}</td>
+                                  <td>{r.group}</td>
                                   <td>{r.company}</td>
                                   <td>{r.otherentity}</td>
                                   <td>{r.override}</td>
                                   <td>
-                                    <div className="actions">
-                                      <button type="button" className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60" disabled={!!r.tr_id} title={r.tr_id ? 'Cannot delete normalized rows' : 'Delete row'} onClick={async()=>{ try { const ba = txnBATab || ''; const base = transactionsByBA[ba] || []; const newRows = base.filter((_, j) => j !== idx); await saveTxnRows(ba, newRows); } catch(e) { console.error(e); alert((e && e.message) || 'Failed to delete'); } }}>DEL</button>
+                                    <div className="actions flex flex-col items-start gap-2">
                                       <button type="button" className="px-2 py-1 bg-gray-700 text-white rounded hover:bg-gray-800" onClick={()=>{ try {
                                         const patt = `desc_contains=${(r.description||'').toString()}`;
                                         const ord = (r.ruleid != null && String(r.ruleid).trim() !== '') ? String(r.ruleid).trim() : '';
@@ -2521,9 +2611,16 @@
                                         window.localStorage.setItem('bankrules_prefill_pattern', patt);
                                         window.localStorage.setItem('bankrules_prefill_order', ord);
                                         window.localStorage.setItem('bankrules_prefill_credit', String(r.credit||''));
+                                        window.localStorage.setItem('bankrules_prefill_ttype', String(r.transaction_type||''));
+                                        window.localStorage.setItem('bankrules_prefill_tax', String(r.tax_category||''));
+                                        window.localStorage.setItem('bankrules_prefill_property', String(r.property||''));
+                                        window.localStorage.setItem('bankrules_prefill_group', String(r.group||''));
+                                        window.localStorage.setItem('bankrules_prefill_company', String(r.company||''));
+                                        window.localStorage.setItem('bankrules_prefill_otherentity', String(r.otherentity||''));
                                         window.localStorage.setItem('bankrules_prefill_open', '1');
                                         setTopTab('classifyrules');
-                                      } catch(_) {} }}>CREATE_RULE</button>
+                                      } catch(_) {} }}>{(r.ruleid != null && String(r.ruleid).trim() !== '') ? 'UPDATE_RULE' : 'ADD_RULE'}</button>
+                                      <button type="button" className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60" disabled={!!r.tr_id} title={r.tr_id ? 'Cannot delete normalized rows' : 'Delete row'} onClick={async()=>{ try { const ba = txnBATab || ''; const base = transactionsByBA[ba] || []; const newRows = base.filter((_, j) => j !== idx); await saveTxnRows(ba, newRows); } catch(e) { console.error(e); alert((e && e.message) || 'Failed to delete'); } }}>DEL</button>
                                     </div>
                                   </td>
                                 </tr>

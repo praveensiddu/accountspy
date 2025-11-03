@@ -31,6 +31,7 @@ class ProcRow:
     transaction_type: str = ""
     tax_category: str = ""
     property: str = ""
+    group: str = ""
     company: str = ""
     otherentity: str = ""
     override: str = ""
@@ -47,6 +48,7 @@ class ProcRow:
             transaction_type=str(d.get("transaction_type", "")),
             tax_category=str(d.get("tax_category", "")),
             property=str(d.get("property", "")),
+            group=str(d.get("group", "")),
             company=str(d.get("company", "")),
             otherentity=str(d.get("otherentity", "")),
             override=str(d.get("override", "")),
@@ -63,6 +65,7 @@ class ProcRow:
             "transaction_type": self.transaction_type,
             "tax_category": self.tax_category,
             "property": self.property,
+            "group": self.group,
             "company": self.company,
             "otherentity": self.otherentity,
             "override": self.override,
@@ -177,7 +180,8 @@ def classify_bank(bankaccountname: str) -> None:
                 rec["transaction_type"] = str(rule.get("transaction_type", ""))
                 rec["tax_category"] = str(rule.get("tax_category", ""))
                 rec["property"] = str(rule.get("property", ""))
-                rec["company"] = str(rule.get("company", "")) if "company" in rule else str(rule.get("group", ""))
+                rec["group"] = str(rule.get("group", ""))
+                rec["company"] = str(rule.get("company", ""))
                 rec["otherentity"] = str(rule.get("otherentity", ""))
                 matched = True
                 break
@@ -198,7 +202,7 @@ def classify_bank(bankaccountname: str) -> None:
 
     proc_dir.mkdir(parents=True, exist_ok=True)
     out_csv = proc_dir / f"{bank}.csv"
-    header = ['tr_id','date','description','credit','ruleid','comment','transaction_type','tax_category','property','company','otherentity','override']
+    header = ['tr_id','date','description','credit','ruleid','comment','transaction_type','tax_category','property','group','company','otherentity','override']
     try:
         with out_csv.open("w", newline='', encoding="utf-8") as wf:
             writer = csv.DictWriter(wf, fieldnames=header, extrasaction='ignore')

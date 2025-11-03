@@ -53,5 +53,6 @@ class ClassifyRuleRecord(BaseModel):
     tax_category: str = Field(..., description="Tax category")
     property: str = Field(..., description="Property id")
     group: str = Field('', description="Optional group name")
+    company: str = Field('', description="Optional company name")
     otherentity: str = Field(..., description="Other entity (e.g., vendor/payee)")
     order: int = Field(0, description="Order/priority for rule evaluation")

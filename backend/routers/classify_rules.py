@@ -79,6 +79,7 @@ async def get_bank_rules(bankaccountname: str = Query("")):
                 'tax_category': (item.get('tax_category') or ''),
                 'property': (item.get('property') or ''),
                 'group': (item.get('group') or ''),
+                'company': (item.get('company') or ''),
                 'otherentity': (item.get('otherentity') or ''),
                 'order': int(item.get('order', 0) or 0),
             }
@@ -114,6 +115,7 @@ def _rule_key(rec: dict) -> str:
         norm(rec.get('transaction_type')),
         norm(rec.get('property')),
         norm(rec.get('group')),
+        norm(rec.get('company')),
         patt(rec.get('pattern_match_logic')),
         norm(rec.get('tax_category')),
         (rec.get('otherentity') or '').strip(),
@@ -131,6 +133,7 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
     tax = (payload.tax_category or '').strip().lower()
     prop = (payload.property or '').strip().lower()
     group = (payload.group or '').strip().lower()
+    company = (getattr(payload, 'company', '') or '').strip().lower()
     other = (payload.otherentity or '').strip()
     # order is mandatory integer
     try:
@@ -154,6 +157,7 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
         'tax_category': tax,
         'property': prop,
         'group': group,
+        'company': company,
         'otherentity': other,
         'order': order,
     }
@@ -189,6 +193,7 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
             'tax_category': tax,
             'property': prop,
             'group': group,
+            'company': company,
             'otherentity': other,
             'order': keep_order,
         }
@@ -262,6 +267,7 @@ async def delete_bank_rule(
     pattern_match_logic: str = Query(""),
     property: str = Query(""),
     group: str = Query(""),
+    company: str = Query(""),
     tax_category: str = Query(""),
     otherentity: str = Query("")
 ):
@@ -275,6 +281,7 @@ async def delete_bank_rule(
     grp = (group or '').strip().lower()
     tax = (tax_category or '').strip().lower()
     other = (otherentity or '').strip()
+    comp = (company or '').strip().lower()
     if not bank:
         raise HTTPException(status_code=400, detail="bankaccountname is required")
     items = _read_bank_rules_list(base_dir, bank)
@@ -284,6 +291,7 @@ async def delete_bank_rule(
         'pattern_match_logic': patt,
         'property': prop,
         'group': grp,
+        'company': comp,
         'tax_category': tax,
         'otherentity': other,
     })
