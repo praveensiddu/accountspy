@@ -367,6 +367,7 @@
             }
             setOpen(false);
             await loadRules(active);
+            try { if (typeof window.requestTransactionsReload === 'function') await window.requestTransactionsReload(); } catch (_) {}
           } catch (err) {
             console.error(err);
           } finally { setSaving(false); }
@@ -388,6 +389,7 @@
             const res = await fetch(`/api/bank-rules?${qs}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Failed to delete bank rule');
             await loadRules(active);
+            try { if (typeof window.requestTransactionsReload === 'function') await window.requestTransactionsReload(); } catch (_) {}
           } catch (e) { console.error(e); } finally { setLoading(false); }
         };
 
@@ -1799,6 +1801,12 @@
           const res = await fetch(`/api/transaction-types/${encodeURIComponent(tt)}`, { method: 'DELETE' });
           if (!res.ok && res.status !== 204) throw new Error('Failed to delete transaction type');
         },
+        // Rental summary
+        async listRentalSummary() {
+          const res = await fetch('/api/rental-summary');
+          if (!res.ok) throw new Error('Failed to fetch rental summary');
+          return res.json();
+        },
         // Transactions persistence
         async listTransactions() {
           const res = await fetch('/api/transactions');
@@ -2121,6 +2129,20 @@
           }
         };
 
+        // Expose a global hook for other panels (e.g., Bank Rules) to request a Transactions table refresh
+        const requestTransactionsReload = React.useCallback(async () => {
+          try {
+            const txnsMap = await api.listTransactions();
+            if (txnsMap && typeof txnsMap === 'object') setTransactionsByBA(txnsMap);
+          } catch (_) { /* ignore */ }
+        }, []);
+        React.useEffect(() => {
+          try { window.requestTransactionsReload = requestTransactionsReload; } catch (_) {}
+          return () => {
+            try { if (window.requestTransactionsReload === requestTransactionsReload) delete window.requestTransactionsReload; } catch (_) {}
+          };
+        }, [requestTransactionsReload]);
+
         const [taxCatForm, setTaxCatForm] = useState({ category: '' });
         const [txTypeForm, setTxTypeForm] = useState({ transactiontype: '' });
         const [bankForm, setBankForm] = useState({ name: '', date_format: '', delim: '', ignore_lines_contains: '', ignore_lines_startswith: '', columnsText: '' });
@@ -2131,7 +2153,7 @@
         // Tabs state (persisted)
         const [topTab, setTopTab] = useState(() => {
           try { return window.localStorage.getItem('topTab') || 'setup'; } catch (_) { return 'setup'; }
-        }); // 'setup' | 'classifyrules' | 'transactions' | 'report'
+        }); // 'setup' | 'classifyrules' | 'transactions' | 'rentalsummary' | 'report'
         const [setupTab, setSetupTab] = useState(() => {
           try { return window.localStorage.getItem('setupTab') || 'properties'; } catch (_) { return 'properties'; }
         }); // 'properties' | 'companies' | 'bankaccounts' | 'groups' | 'owners' | 'banks' | 'taxcats' | 'txtypes'
@@ -2177,6 +2199,22 @@
         };
 
         useEffect(() => { load(); }, []);
+
+        // RentalSummary state and loader
+        const rentalEmptyFilters = { property:'', rent:'', commissions:'', insurance:'', proffees:'', mortgageinterest:'', repairs:'', tax:'', utilities:'', depreciation:'', hoa:'', other:'', costbasis:'', renteddays:'', profit:'' };
+        const [rentalRows, setRentalRows] = useState([]);
+        const [rentalLoading, setRentalLoading] = useState(false);
+        const [rentalFilters, setRentalFilters] = useState(rentalEmptyFilters);
+        const loadRentalSummary = React.useCallback(async ()=>{
+          try {
+            setRentalLoading(true);
+            const rows = await api.listRentalSummary();
+            setRentalRows(Array.isArray(rows) ? rows : []);
+          } catch (e) {
+            setRentalRows([]);
+          } finally { setRentalLoading(false); }
+        }, []);
+        useEffect(() => { if (topTab === 'rentalsummary') loadRentalSummary(); }, [topTab, loadRentalSummary]);
 
         // Persist tab selections
         useEffect(() => {
@@ -2453,6 +2491,7 @@
               <TabButton active={topTab==='setup'} onClick={() => setTopTab('setup')}>Setup</TabButton>
               <TabButton active={topTab==='classifyrules'} onClick={() => setTopTab('classifyrules')}>ClassifyRules</TabButton>
               <TabButton active={topTab==='transactions'} onClick={() => setTopTab('transactions')}>Transactions</TabButton>
+              <TabButton active={topTab==='rentalsummary'} onClick={() => setTopTab('rentalsummary')}>RentalSummary</TabButton>
               <TabButton active={topTab==='report'} onClick={() => setTopTab('report')}>Report</TabButton>
             </div>
 
@@ -2686,6 +2725,91 @@
                       </div>
                     );
                   })()}
+                </div>
+              </div>
+            )}
+
+            {topTab === 'rentalsummary' && (
+              <div className="tabcontent">
+                <div className="card">
+                  {rentalLoading ? (<div>Loading...</div>) : (
+                    <div className="overflow-x-auto">
+                      {(() => { const rows = (rentalRows||[]).filter(r => {
+                        const f = rentalFilters;
+                        const keys = Object.keys(f);
+                        for (let k of keys) {
+                          const fv = (f[k] || '').toString().trim();
+                          if (!fv) continue;
+                          const rv = (r[k] == null ? '' : String(r[k])).toLowerCase();
+                          if (!rv.includes(fv.toLowerCase())) return false;
+                        }
+                        return true;
+                      });
+                      return (
+                        <table className="min-w-full" style={{ tableLayout: 'fixed' }}>
+                          <thead>
+                            <tr>
+                              <th>property</th>
+                              <th>rent</th>
+                              <th>commissions</th>
+                              <th>insurance</th>
+                              <th>proffees</th>
+                              <th>mortgageinterest</th>
+                              <th>repairs</th>
+                              <th>tax</th>
+                              <th>utilities</th>
+                              <th>depreciation</th>
+                              <th>hoa</th>
+                              <th>other</th>
+                              <th>costbasis</th>
+                              <th>renteddays</th>
+                              <th>profit</th>
+                            </tr>
+                            <tr>
+                              <th><input name="property" value={rentalFilters.property} onChange={(e)=> setRentalFilters(f=>({...f, property: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="rent" value={rentalFilters.rent} onChange={(e)=> setRentalFilters(f=>({...f, rent: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="commissions" value={rentalFilters.commissions} onChange={(e)=> setRentalFilters(f=>({...f, commissions: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="insurance" value={rentalFilters.insurance} onChange={(e)=> setRentalFilters(f=>({...f, insurance: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="proffees" value={rentalFilters.proffees} onChange={(e)=> setRentalFilters(f=>({...f, proffees: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="mortgageinterest" value={rentalFilters.mortgageinterest} onChange={(e)=> setRentalFilters(f=>({...f, mortgageinterest: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="repairs" value={rentalFilters.repairs} onChange={(e)=> setRentalFilters(f=>({...f, repairs: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="tax" value={rentalFilters.tax} onChange={(e)=> setRentalFilters(f=>({...f, tax: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="utilities" value={rentalFilters.utilities} onChange={(e)=> setRentalFilters(f=>({...f, utilities: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="depreciation" value={rentalFilters.depreciation} onChange={(e)=> setRentalFilters(f=>({...f, depreciation: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="hoa" value={rentalFilters.hoa} onChange={(e)=> setRentalFilters(f=>({...f, hoa: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="other" value={rentalFilters.other} onChange={(e)=> setRentalFilters(f=>({...f, other: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="costbasis" value={rentalFilters.costbasis} onChange={(e)=> setRentalFilters(f=>({...f, costbasis: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="renteddays" value={rentalFilters.renteddays} onChange={(e)=> setRentalFilters(f=>({...f, renteddays: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="profit" value={rentalFilters.profit} onChange={(e)=> setRentalFilters(f=>({...f, profit: e.target.value}))} placeholder="filter" /></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.length === 0 ? (
+                              <tr><td colSpan="15" className="muted">No rows</td></tr>
+                            ) : rows.map((r, idx) => (
+                              <tr key={`rs-${idx}`}>
+                                <td className="break-words whitespace-pre-wrap">{r.property}</td>
+                                <td className="break-words whitespace-pre-wrap">{r.rent}</td>
+                                <td className="break-words whitespace-pre-wrap">{r.commissions}</td>
+                                <td className="break-words whitespace-pre-wrap">{r.insurance}</td>
+                                <td className="break-words whitespace-pre-wrap">{r.proffees}</td>
+                                <td className="break-words whitespace-pre-wrap">{r.mortgageinterest}</td>
+                                <td className="break-words whitespace-pre-wrap">{r.repairs}</td>
+                                <td className="break-words whitespace-pre-wrap">{r.tax}</td>
+                                <td className="break-words whitespace-pre-wrap">{r.utilities}</td>
+                                <td className="break-words whitespace-pre-wrap">{r.depreciation}</td>
+                                <td className="break-words whitespace-pre-wrap">{r.hoa}</td>
+                                <td className="break-words whitespace-pre-wrap">{r.other}</td>
+                                <td className="break-words whitespace-pre-wrap">{r.costbasis}</td>
+                                <td className="break-words whitespace-pre-wrap">{r.renteddays}</td>
+                                <td className="break-words whitespace-pre-wrap">{r.profit}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ); })()}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

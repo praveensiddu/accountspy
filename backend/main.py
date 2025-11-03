@@ -28,6 +28,7 @@ if __name__ == "__main__":
 from backend.bank_statement_parser import process_bank_statements_from_sources as process_bank_stmts
 from backend import load_entities as loaders
 from backend.classify import classify_all
+from backend.property_sum import prepare_and_save_property_sum
 import uvicorn
 
 ALNUM_LOWER_RE = re.compile(r"^[a-z0-9]+$")
@@ -128,6 +129,7 @@ try:
     from backend.routers import owners as owners_router
     from backend.routers import classify_rules as classify_rules_router
     from backend.routers import transactions as transactions_router
+    from backend.routers import rentalsummary as rentalsummary_router
     from backend.routers import addendum as addendum_router
     app.include_router(banks_router.router)
     app.include_router(tax_categories_router.router)
@@ -140,6 +142,7 @@ try:
     app.include_router(classify_rules_router.router)
     app.include_router(transactions_router.router)
     app.include_router(addendum_router.router)
+    app.include_router(rentalsummary_router.router)
 except Exception:
     # In case of import issues during incremental refactor, continue with inline endpoints
     pass
@@ -424,6 +427,11 @@ async def startup_event():
         classify_all()
     except Exception as e:
         logger.error(f"Failed to classify on startup: {e}")
+    # Build initial rental summaries
+    try:
+        prepare_and_save_property_sum()
+    except Exception as e:
+        logger.error(f"Failed to build rental summary on startup: {e}")
 
 
 # Properties moved to routers/properties.py

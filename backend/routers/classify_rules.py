@@ -3,6 +3,7 @@ from typing import List
 
 from .. import main as state
 from .. import classify as classifier
+from ..property_sum import prepare_and_save_property_sum
 from ..core.models import ClassifyRuleRecord, InheritRuleRecord
 from pydantic import BaseModel
 from ..core.utils import dump_yaml_entities
@@ -238,6 +239,10 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
             classifier.classify_bank(bank)
         except Exception:
             pass
+        try:
+            prepare_and_save_property_sum()
+        except Exception:
+            pass
         return updated
 
     if new_key in key_to_item:
@@ -288,6 +293,10 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
     _write_bank_rules_list(base_dir, bank, merged_list)
     try:
         classifier.classify_bank(bank)
+    except Exception:
+        pass
+    try:
+        prepare_and_save_property_sum()
     except Exception:
         pass
     return rec
@@ -342,6 +351,10 @@ async def delete_bank_rule(
     _write_bank_rules_list(base_dir, bank, remaining)
     try:
         classifier.classify_bank(bank)
+    except Exception:
+        pass
+    try:
+        prepare_and_save_property_sum()
     except Exception:
         pass
     return
