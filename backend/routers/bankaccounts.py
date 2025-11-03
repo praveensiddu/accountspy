@@ -23,11 +23,27 @@ async def add_bankaccount(payload: BankAccountRecord):
     item = {
         "bankaccountname": key,
         "bankname": (payload.bankname or "").strip().lower(),
-        "statement_location": (payload.statement_location or "").strip(),
+        "statement_location": "",
         "abbreviation": (getattr(payload, 'abbreviation', '') or '').strip(),
     }
     if not item["bankname"]:
         raise HTTPException(status_code=400, detail="bankname is required")
+    # Validate statement_location: strip edges, reject if whitespace in middle, ensure trailing '/'
+    try:
+        raw_sl = payload.statement_location or ""
+        sl = raw_sl.strip()
+        if sl:
+            # Any whitespace remaining implies internal whitespace -> reject
+            if any(ch.isspace() for ch in sl):
+                raise HTTPException(status_code=400, detail="statement_location must not contain spaces or whitespace")
+            if not sl.endswith('/'):
+                sl = sl + '/'
+        item["statement_location"] = sl
+    except HTTPException:
+        raise
+    except Exception:
+        # Fallback to stripped value if unexpected error
+        item["statement_location"] = (payload.statement_location or "").strip()
     state.BA_DB[key] = item
     # persist YAML
     try:
@@ -37,6 +53,47 @@ async def add_bankaccount(payload: BankAccountRecord):
         pass
     return state.BA_DB[key]
 
+
+@router.put("/bankaccounts/{bankaccountname}", response_model=BankAccountRecord)
+async def update_bankaccount(bankaccountname: str, payload: BankAccountRecord):
+    key = (bankaccountname or "").strip().lower()
+    if not key:
+        raise HTTPException(status_code=400, detail="bankaccountname is required")
+    if key not in state.BA_DB:
+        raise HTTPException(status_code=404, detail="Bank account not found")
+    # Do not allow renaming (path param controls identity)
+    bankname = (payload.bankname or "").strip().lower()
+    if not bankname:
+        raise HTTPException(status_code=400, detail="bankname is required")
+    abbreviation = (getattr(payload, 'abbreviation', '') or '').strip()
+    # Validate statement_location: strip edges, reject if whitespace in middle, ensure trailing '/'
+    try:
+        raw_sl = payload.statement_location or ""
+        sl = raw_sl.strip()
+        if sl:
+            if any(ch.isspace() for ch in sl):
+                raise HTTPException(status_code=400, detail="statement_location must not contain spaces or whitespace")
+            if not sl.endswith('/'):
+                sl = sl + '/'
+    except HTTPException:
+        raise
+    except Exception:
+        sl = (payload.statement_location or "").strip()
+
+    # Update in-memory
+    state.BA_DB[key] = {
+        "bankaccountname": key,
+        "bankname": bankname,
+        "statement_location": sl,
+        "abbreviation": abbreviation,
+    }
+    # Persist YAML
+    try:
+        if state.BANK_CSV_PATH:
+            dump_yaml_entities(state.BANK_CSV_PATH.with_suffix('.yaml'), list(state.BA_DB.values()), key_field='bankaccountname')
+    except Exception:
+        pass
+    return state.BA_DB[key]
 
 @router.delete("/bankaccounts/{bankaccountname}", status_code=204)
 async def delete_bankaccount(bankaccountname: str):

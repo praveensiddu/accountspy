@@ -105,7 +105,7 @@ async def export_owner(payload: OwnerExportPayload):
 
     # Copy banks.yaml, classify_rules.yaml, common_rules.yaml to entities/
     try:
-        for fname in ['banks.yaml', 'inherit_common_to_bank.yaml', 'common_rules.yaml']:
+        for fname in ['banks.yaml', 'transaction_types.yaml','tax_category.yaml','inherit_common_to_bank.yaml', 'common_rules.yaml']:
             src = entities_dir / fname
             if src.exists() and src.is_file():
                 shutil.copy2(src, dest_root / fname)
@@ -181,5 +181,22 @@ async def export_owner(payload: OwnerExportPayload):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed filtering bankaccounts.yaml: {e}")
+
+    # owners.yaml (filtered to just this owner)
+    try:
+        owners_src = entities_dir / 'owners.yaml'
+        all_owners = _load_yaml_list(owners_src)
+        filtered = []
+        for rec in all_owners:
+            if not isinstance(rec, dict):
+                continue
+            key = (str(rec.get('name') or '')).strip().lower()
+            if key == name:
+                filtered.append(rec)
+        _save_yaml_list(dest_root / 'owners.yaml', filtered)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed filtering owners.yaml: {e}")
 
     return {"status": "ok", "owner": name, "export_path": str(dest_root)}
