@@ -1807,6 +1807,12 @@
           if (!res.ok) throw new Error('Failed to fetch rental summary');
           return res.json();
         },
+        // Company summary
+        async listCompanySummary() {
+          const res = await fetch('/api/company-summary');
+          if (!res.ok) throw new Error('Failed to fetch company summary');
+          return res.json();
+        },
         // Transactions persistence
         async listTransactions() {
           const res = await fetch('/api/transactions');
@@ -2153,7 +2159,7 @@
         // Tabs state (persisted)
         const [topTab, setTopTab] = useState(() => {
           try { return window.localStorage.getItem('topTab') || 'setup'; } catch (_) { return 'setup'; }
-        }); // 'setup' | 'classifyrules' | 'transactions' | 'rentalsummary' | 'report'
+        }); // 'setup' | 'classifyrules' | 'transactions' | 'rentalsummary' | 'companysummary' | 'report'
         const [setupTab, setSetupTab] = useState(() => {
           try { return window.localStorage.getItem('setupTab') || 'properties'; } catch (_) { return 'properties'; }
         }); // 'properties' | 'companies' | 'bankaccounts' | 'groups' | 'owners' | 'banks' | 'taxcats' | 'txtypes'
@@ -2215,6 +2221,22 @@
           } finally { setRentalLoading(false); }
         }, []);
         useEffect(() => { if (topTab === 'rentalsummary') loadRentalSummary(); }, [topTab, loadRentalSummary]);
+
+        // CompanySummary state and loader
+        const companyEmptyFilters = { Name:'', income:'', rentpassedtoowners:'', bankfees:'', c_auto:'', c_donate:'', c_entertainment:'', c_internet:'', c_license:'', c_mobile:'', c_off_exp:'', c_parktoll:'', c_phone:'', c_website:'', ignore:'', insurane:'', proffees:'', utilities:'', profit:'' };
+        const [companyRows, setCompanyRows] = useState([]);
+        const [companyLoading, setCompanyLoading] = useState(false);
+        const [companyFilters, setCompanyFilters] = useState(companyEmptyFilters);
+        const loadCompanySummary = React.useCallback(async ()=>{
+          try {
+            setCompanyLoading(true);
+            const rows = await api.listCompanySummary();
+            setCompanyRows(Array.isArray(rows) ? rows : []);
+          } catch (e) {
+            setCompanyRows([]);
+          } finally { setCompanyLoading(false); }
+        }, []);
+        useEffect(() => { if (topTab === 'companysummary') loadCompanySummary(); }, [topTab, loadCompanySummary]);
 
         // Persist tab selections
         useEffect(() => {
@@ -2492,6 +2514,7 @@
               <TabButton active={topTab==='classifyrules'} onClick={() => setTopTab('classifyrules')}>ClassifyRules</TabButton>
               <TabButton active={topTab==='transactions'} onClick={() => setTopTab('transactions')}>Transactions</TabButton>
               <TabButton active={topTab==='rentalsummary'} onClick={() => setTopTab('rentalsummary')}>RentalSummary</TabButton>
+              <TabButton active={topTab==='companysummary'} onClick={() => setTopTab('companysummary')}>CompanySummary</TabButton>
               <TabButton active={topTab==='report'} onClick={() => setTopTab('report')}>Report</TabButton>
             </div>
 
@@ -2629,7 +2652,7 @@
                           return true;
                         });
                         return (
-                        <table>
+                        <table style={{ tableLayout: 'auto', width: 'max-content' }}>
                           <thead>
                             <tr>
                               <th>tr_id</th>
@@ -2670,11 +2693,11 @@
                             ) : (
                               filteredRows.map((r, idx) => (
                                 <tr key={`txn-${idx}`}>
-                                  <td>{r.tr_id}</td>
-                                  <td>{r.date}</td>
-                                  <td>{r.description}</td>
-                                  <td>{r.credit}</td>
-                                  <td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{r.tr_id}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{r.date}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{r.description}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{r.credit}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>
                                     {r.ruleid ? (
                                       <a href="#" className="link" onClick={(e)=>{ e.preventDefault();
                                         try {
@@ -2686,14 +2709,14 @@
                                       }}>{r.ruleid}</a>
                                     ) : ''}
                                   </td>
-                                  <td>{r.comment}</td>
-                                  <td>{r.transaction_type}</td>
-                                  <td>{r.tax_category}</td>
-                                  <td>{r.property}</td>
-                                  <td>{r.group}</td>
-                                  <td>{r.company}</td>
-                                  <td>{r.otherentity}</td>
-                                  <td>{r.override}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{r.comment}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{r.transaction_type}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{r.tax_category}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{r.property}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{r.group}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{r.company}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{r.otherentity}</td>
+                                  <td style={{ whiteSpace: 'nowrap' }}>{r.override}</td>
                                   <td>
                                     <div className="actions flex flex-col items-start gap-2">
                                       <button type="button" className="px-2 py-1 bg-gray-700 text-white rounded hover:bg-gray-800" onClick={()=>{ try {
@@ -2729,11 +2752,108 @@
               </div>
             )}
 
+            {topTab === 'companysummary' && (
+              <div className="tabcontent">
+                <div className="card">
+                  {companyLoading ? (<div>Loading...</div>) : (
+                    <div className="overflow-x-auto" style={{ overflowX: 'auto', maxWidth: '100%' }}>
+                      {(() => { const rows = (companyRows||[]).filter(r => {
+                        const f = companyFilters;
+                        const keys = Object.keys(f);
+                        for (let k of keys) {
+                          const fv = (f[k] || '').toString().trim();
+                          if (!fv) continue;
+                          const rv = (r[k] == null ? '' : String(r[k])).toLowerCase();
+                          if (!rv.includes(fv.toLowerCase())) return false;
+                        }
+                        return true;
+                      });
+                      return (
+                        <table className="min-w-full" style={{ tableLayout: 'auto', width: 'max-content' }}>
+                          <thead>
+                            <tr>
+                              <th>Name</th>
+                              <th>income</th>
+                              <th>rentpassedtoowners</th>
+                              <th>bankfees</th>
+                              <th>c_auto</th>
+                              <th>c_donate</th>
+                              <th>c_entertainment</th>
+                              <th>c_internet</th>
+                              <th>c_license</th>
+                              <th>c_mobile</th>
+                              <th>c_off_exp</th>
+                              <th>c_parktoll</th>
+                              <th>c_phone</th>
+                              <th>c_website</th>
+                              <th>ignore</th>
+                              <th>insurane</th>
+                              <th>proffees</th>
+                              <th>utilities</th>
+                              <th>profit</th>
+                            </tr>
+                            <tr>
+                              <th><input name="Name" value={companyFilters.Name} onChange={(e)=> setCompanyFilters(f=>({...f, Name: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="income" value={companyFilters.income} onChange={(e)=> setCompanyFilters(f=>({...f, income: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="rentpassedtoowners" value={companyFilters.rentpassedtoowners} onChange={(e)=> setCompanyFilters(f=>({...f, rentpassedtoowners: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="bankfees" value={companyFilters.bankfees} onChange={(e)=> setCompanyFilters(f=>({...f, bankfees: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="c_auto" value={companyFilters.c_auto} onChange={(e)=> setCompanyFilters(f=>({...f, c_auto: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="c_donate" value={companyFilters.c_donate} onChange={(e)=> setCompanyFilters(f=>({...f, c_donate: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="c_entertainment" value={companyFilters.c_entertainment} onChange={(e)=> setCompanyFilters(f=>({...f, c_entertainment: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="c_internet" value={companyFilters.c_internet} onChange={(e)=> setCompanyFilters(f=>({...f, c_internet: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="c_license" value={companyFilters.c_license} onChange={(e)=> setCompanyFilters(f=>({...f, c_license: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="c_mobile" value={companyFilters.c_mobile} onChange={(e)=> setCompanyFilters(f=>({...f, c_mobile: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="c_off_exp" value={companyFilters.c_off_exp} onChange={(e)=> setCompanyFilters(f=>({...f, c_off_exp: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="c_parktoll" value={companyFilters.c_parktoll} onChange={(e)=> setCompanyFilters(f=>({...f, c_parktoll: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="c_phone" value={companyFilters.c_phone} onChange={(e)=> setCompanyFilters(f=>({...f, c_phone: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="c_website" value={companyFilters.c_website} onChange={(e)=> setCompanyFilters(f=>({...f, c_website: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="ignore" value={companyFilters.ignore} onChange={(e)=> setCompanyFilters(f=>({...f, ignore: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="insurane" value={companyFilters.insurane} onChange={(e)=> setCompanyFilters(f=>({...f, insurane: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="proffees" value={companyFilters.proffees} onChange={(e)=> setCompanyFilters(f=>({...f, proffees: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="utilities" value={companyFilters.utilities} onChange={(e)=> setCompanyFilters(f=>({...f, utilities: e.target.value}))} placeholder="filter" /></th>
+                              <th><input name="profit" value={companyFilters.profit} onChange={(e)=> setCompanyFilters(f=>({...f, profit: e.target.value}))} placeholder="filter" /></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.length === 0 ? (
+                              <tr><td colSpan="19" className="muted">No rows</td></tr>
+                            ) : rows.map((r, idx) => (
+                              <tr key={`cs-${idx}`}>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.Name}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.income}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.rentpassedtoowners}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.bankfees}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_auto}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_donate}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_entertainment}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_internet}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_license}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_mobile}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_off_exp}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_parktoll}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_phone}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.c_website}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.ignore}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.insurane}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.proffees}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.utilities}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{r.profit}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ); })()}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {topTab === 'rentalsummary' && (
               <div className="tabcontent">
                 <div className="card">
                   {rentalLoading ? (<div>Loading...</div>) : (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto" style={{ overflowX: 'auto', maxWidth: '100%' }}>
                       {(() => { const rows = (rentalRows||[]).filter(r => {
                         const f = rentalFilters;
                         const keys = Object.keys(f);

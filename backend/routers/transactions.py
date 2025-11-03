@@ -5,6 +5,7 @@ from typing import List, Dict, Any
 from .. import main as state
 from .. import classify as classifier
 from ..property_sum import prepare_and_save_property_sum
+from ..company_sum import prepare_and_save_company_sum
 import csv
 from pathlib import Path
 import yaml
@@ -184,6 +185,10 @@ async def save_transactions(bankaccountname: str, payload: TransactionsPayload) 
     # Update rental summaries
     try:
         prepare_and_save_property_sum()
+    except Exception:
+        pass
+    try:
+        prepare_and_save_company_sum()
     except Exception:
         pass
     return {"ok": True, "path": str(out_path)}

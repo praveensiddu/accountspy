@@ -8,6 +8,7 @@ import hashlib
 from .. import main as state
 from .. import classify as classifier
 from ..property_sum import prepare_and_save_property_sum
+from ..company_sum import prepare_and_save_company_sum
 
 router = APIRouter(prefix="/api", tags=["addendum"]) 
 
@@ -69,6 +70,10 @@ async def add_addendum_row(bankaccountname: str, payload: AddendumRow) -> Dict[s
         pass
     try:
         prepare_and_save_property_sum()
+    except Exception:
+        pass
+    try:
+        prepare_and_save_company_sum()
     except Exception:
         pass
     return {"ok": "true", "path": str(out_path)}
