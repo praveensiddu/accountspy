@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Any
 
 from .. import main as state
+from .. import classify as classifier
 import csv
 from pathlib import Path
 import yaml
@@ -173,6 +174,12 @@ async def save_transactions(bankaccountname: str, payload: TransactionsPayload) 
                 writer.writerow(row.dict())
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to write CSV: {e}")
+    # Regenerate processed CSV using classifier to ensure consistency
+    try:
+        classifier.classify_bank(key)
+    except Exception:
+        # Do not fail the request if regeneration fails
+        pass
     return {"ok": True, "path": str(out_path)}
 
 

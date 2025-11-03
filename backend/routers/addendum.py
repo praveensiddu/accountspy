@@ -39,6 +39,14 @@ async def add_addendum_row(bankaccountname: str, payload: AddendumRow) -> Dict[s
         s = (bank + (payload.date or '') + (payload.description or '') + tr_credit).lower()
         s = ''.join(s.split())
         tr_id = hashlib.sha256(s.encode()).hexdigest()[:10]
+        # Enforce uniqueness by tr_id only
+        if file_exists:
+            with out_path.open('r', encoding='utf-8') as rf:
+                reader = csv.DictReader(rf)
+                for row in reader:
+                    existing_tr_id = (row.get('tr_id') or '').strip()
+                    if existing_tr_id and existing_tr_id == tr_id:
+                        raise HTTPException(status_code=409, detail="Duplicate addendum row (tr_id already exists)")
         with out_path.open('a', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=['tr_id','date','description','credit'])
             if not file_exists:
