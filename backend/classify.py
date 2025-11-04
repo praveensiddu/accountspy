@@ -136,11 +136,6 @@ def classify_bank(bankaccountname: str) -> None:
                     add_csv = per_bank_add
         except Exception:
             add_csv = None
-        # Fallback to global ADDENDUM_DIR_PATH
-        if add_csv is None and state.ADDENDUM_DIR_PATH:
-            candidate = state.ADDENDUM_DIR_PATH / f"{bank}.csv"
-            if candidate.exists():
-                add_csv = candidate
         if add_csv and add_csv.exists():
             with add_csv.open("r", encoding="utf-8") as af:
                 areader = csv.DictReader(af)

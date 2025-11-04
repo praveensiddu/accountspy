@@ -327,9 +327,8 @@ def _ensure_year_dirs() -> None:
         NORMALIZED_DIR_PATH = ACCOUNTS_DIR_PATH / CURRENT_YEAR / 'normalized'
         NORMALIZED_DIR_PATH.mkdir(parents=True, exist_ok=True)
         logger.info(f"Ensured normalized dir: {NORMALIZED_DIR_PATH}")
-        ADDENDUM_DIR_PATH = ACCOUNTS_DIR_PATH / CURRENT_YEAR / 'addendum'
-        ADDENDUM_DIR_PATH.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Ensured addendum dir: {ADDENDUM_DIR_PATH}")
+        # Do not create or use a global addendum directory; per-bank statement_location paths are used instead
+        ADDENDUM_DIR_PATH = None
     except Exception as e:
         logger.error(f"Failed to create processed directory: {e}")
         raise
