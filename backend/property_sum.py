@@ -120,6 +120,12 @@ def prepare_and_save_property_sum() -> None:
     except Exception:
         return
 
+    # Adjust rent using property management company rentPercentage
+    try:
+        rent_from_company(summary)
+    except Exception:
+        pass
+
     # Augment summary with depreciation numbers before dumping
     try:
         calculate_depreciation(summary)
@@ -198,6 +204,30 @@ def calculate_depreciation(summary: Dict[str, Dict[str, float]]):
             if prop_id not in summary:
                 summary[prop_id] = {}
             summary[prop_id]['depreciation'] = -(float(depreciation))
+        except Exception:
+            continue
+
+
+def rent_from_company(summary: Dict[str, Dict[str, float]]):
+    """
+    For each property in summary, adjust 'rent' based on the property's
+    management company's rentPercentage from state.COMP_DB.
+    rentfromcompany = current_rent * (100 - rentPercentage) / 100
+    """
+    try:
+        props = dict(getattr(state, 'DB', {}) or {})
+        comps = dict(getattr(state, 'COMP_DB', {}) or {})
+    except Exception:
+        return
+    for prop_id, totals in (summary or {}).items():
+        try:
+            prec = props.get(prop_id) or {}
+            comp_key = (prec.get('propMgmgtComp') or '').strip().lower()
+            comp = comps.get(comp_key) or {}
+            pct = float(comp.get('rentPercentage', 0) or 0)
+            current_rent = float(totals.get('rent', 0.0) or 0.0)
+            adjusted = round(current_rent * ((100.0 - pct) / 100.0), 2)
+            totals['rent'] = adjusted
         except Exception:
             continue
 
