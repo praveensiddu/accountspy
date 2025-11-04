@@ -22,10 +22,14 @@ async def add_addendum_row(bankaccountname: str, payload: AddendumRow) -> Dict[s
     bank = (bankaccountname or '').strip().lower()
     if not bank:
         raise HTTPException(status_code=400, detail="bankaccountname is required")
-    if not state.ADDENDUM_DIR_PATH:
-        raise HTTPException(status_code=500, detail="Addendum directory not configured")
-    out_path: Path = state.ADDENDUM_DIR_PATH / f"{bank}.csv"
-    # Ensure directory exists (should be ensured on startup)
+    # Resolve per-bank addendum CSV under statement_location/CURRENT_YEAR/addendum
+    ba = state.BA_DB.get(bank) or {}
+    sl = (ba.get('statement_location') or '').strip()
+    if not sl:
+        raise HTTPException(status_code=400, detail="statement_location not set for this bank account")
+    addendum_dir = Path(sl) / (state.CURRENT_YEAR or '') / 'addendum'
+    out_path: Path = addendum_dir / f"{bank}.csv"
+    # Ensure directory exists
     try:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         file_exists = out_path.exists()
@@ -56,7 +60,7 @@ async def add_addendum_row(bankaccountname: str, payload: AddendumRow) -> Dict[s
             writer.writerow({
                 'tr_id': tr_id,
                 'date': payload.date or '',
-                'description': payload.description or '',
+                'description': (payload.description or ''),
                 'credit': tr_credit,
             })
     except Exception as e:
