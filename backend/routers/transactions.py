@@ -195,18 +195,21 @@ async def save_transactions(bankaccountname: str, payload: TransactionsPayload) 
         addendum_dir = base / (state.CURRENT_YEAR or '') / 'addendum'
         addendum_dir.mkdir(parents=True, exist_ok=True)
         addendum_path = addendum_dir / f"{key}.csv"
-        # Write all submitted rows to addendum (unfiltered)
+        # Write all submitted rows to addendum with only required fields
         addendum_rows = list(payload.rows)
+        addendum_header = ['tr_id','date','description','credit']
         with addendum_path.open('w', newline='', encoding='utf-8') as af:
-            awriter = csv.DictWriter(af, fieldnames=header, extrasaction='ignore')
+            awriter = csv.DictWriter(af, fieldnames=addendum_header, extrasaction='ignore')
             awriter.writeheader()
             for row in addendum_rows:
                 d = row.dict()
-                try:
-                    d['description'] = (d.get('description') or '').lower()
-                except Exception:
-                    pass
-                awriter.writerow(d)
+                out = {
+                    'tr_id': d.get('tr_id',''),
+                    'date': d.get('date',''),
+                    'description': (d.get('description') or '').lower(),
+                    'credit': d.get('credit',''),
+                }
+                awriter.writerow(out)
     except HTTPException:
         raise
     except Exception as e:
