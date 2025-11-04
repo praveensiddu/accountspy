@@ -38,31 +38,34 @@ async def list_inherit_common_to_bank():
     return list(state.INHERIT_RULES_DB.values())
 
 
-# Bank rules served from per-bank YAML files under ENTITIES_DIR/bank_rules/
+def _bank_rules_path_for(bank: str) -> Path:
+    bank = (bank or '').strip().lower()
+    ba = state.BA_DB.get(bank) or {}
+    sl = (ba.get('statement_location') or '').strip()
+    year = state.CURRENT_YEAR or ''
+    return Path(sl) / year / 'bank_rules' / f"{bank}.yaml"
+
+
+# Bank rules served from per-bank YAML files under each bank's statement_location/CURRENT_YEAR/bank_rules/
 @router.get("/bank-rules/banks", response_model=List[str])
 async def list_bank_rules_banks():
-    base_dir = state.CLASSIFY_CSV_PATH.parent if state.CLASSIFY_CSV_PATH else None
-    if not base_dir:
-        return []
-    rules_dir = base_dir / 'bank_rules'
-    if not rules_dir.exists() or not rules_dir.is_dir():
-        return []
-    banks = []
-    for p in rules_dir.glob('*.yaml'):
+    out = []
+    for bank in (state.BA_DB or {}).keys():
+        p = _bank_rules_path_for(bank)
         try:
-            banks.append(p.stem)
+            if p.exists():
+                out.append(bank)
         except Exception:
             continue
-    return sorted(banks)
+    return sorted(out)
 
 
 @router.get("/bank-rules", response_model=List[ClassifyRuleRecord])
 async def get_bank_rules(bankaccountname: str = Query("")):
     bank = (bankaccountname or "").strip().lower()
-    base_dir = state.CLASSIFY_CSV_PATH.parent if state.CLASSIFY_CSV_PATH else None
-    if not base_dir or not bank:
+    if not bank:
         return []
-    rules_path: Path = (base_dir / 'bank_rules' / f"{bank}.yaml")
+    rules_path: Path = _bank_rules_path_for(bank)
     if not rules_path.exists():
         return []
     try:
@@ -98,11 +101,10 @@ async def get_bank_rules_max_order(bankaccountname: str = Query("")):
     If no rules or invalid orders, returns 0.
     """
     bank = (bankaccountname or "").strip().lower()
-    base_dir = state.CLASSIFY_CSV_PATH.parent if state.CLASSIFY_CSV_PATH else None
-    if not base_dir or not bank:
+    if not bank:
         return {"max_order": 0}
     try:
-        items = _read_bank_rules_list(base_dir, bank)
+        items = _read_bank_rules_list(bank)
         max_order = 0
         for it in items:
             try:
@@ -116,8 +118,8 @@ async def get_bank_rules_max_order(bankaccountname: str = Query("")):
         return {"max_order": 0}
 
 
-def _read_bank_rules_list(base_dir: Path, bank: str):
-    path = base_dir / 'bank_rules' / f"{bank}.yaml"
+def _read_bank_rules_list(bank: str):
+    path = _bank_rules_path_for(bank)
     if not path.exists():
         return []
     with path.open('r', encoding='utf-8') as f:
@@ -125,8 +127,8 @@ def _read_bank_rules_list(base_dir: Path, bank: str):
     return data if isinstance(data, list) else []
 
 
-def _write_bank_rules_list(base_dir: Path, bank: str, items: list):
-    path = base_dir / 'bank_rules' / f"{bank}.yaml"
+def _write_bank_rules_list(bank: str, items: list):
+    path = _bank_rules_path_for(bank)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open('w', encoding='utf-8') as f:
         yaml.safe_dump(items, f, sort_keys=True, allow_unicode=True)
@@ -151,9 +153,6 @@ def _rule_key(rec: dict) -> str:
 
 @router.post("/bank-rules", response_model=ClassifyRuleRecord, status_code=201)
 async def add_bank_rule(payload: ClassifyRuleRecord):
-    base_dir = state.CLASSIFY_CSV_PATH.parent if state.CLASSIFY_CSV_PATH else None
-    if not base_dir:
-        raise HTTPException(status_code=500, detail="Entities base directory not configured")
     bank = (payload.bankaccountname or '').strip().lower()
     ttype = (payload.transaction_type or '').strip().lower()
     patt = (payload.pattern_match_logic or '').strip()
@@ -188,7 +187,7 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
         'otherentity': other,
         'order': order,
     }
-    items = [dict(x) for x in _read_bank_rules_list(base_dir, bank) if isinstance(x, dict)]
+    items = [dict(x) for x in _read_bank_rules_list(bank) if isinstance(x, dict)]
     new_key = _rule_key(rec)
     # Map existing items by key for quick lookup
     key_to_item = { _rule_key(x): x for x in items }
@@ -235,7 +234,7 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
         merged_list.sort(key=lambda x: int(x.get('order') or 0))
         for idx, it in enumerate(merged_list, start=1):
             it['order'] = idx
-        _write_bank_rules_list(base_dir, bank, merged_list)
+        _write_bank_rules_list(bank, merged_list)
         try:
             classifier.classify_bank(bank)
         except Exception:
@@ -322,9 +321,6 @@ async def delete_bank_rule(
     tax_category: str = Query(""),
     otherentity: str = Query("")
 ):
-    base_dir = state.CLASSIFY_CSV_PATH.parent if state.CLASSIFY_CSV_PATH else None
-    if not base_dir:
-        raise HTTPException(status_code=500, detail="Entities base directory not configured")
     bank = (bankaccountname or '').strip().lower()
     ttype = (transaction_type or '').strip().lower()
     patt = (pattern_match_logic or '').strip()
@@ -357,7 +353,7 @@ async def delete_bank_rule(
         pass
     for idx, it in enumerate(remaining, start=1):
         it['order'] = idx
-    _write_bank_rules_list(base_dir, bank, remaining)
+    _write_bank_rules_list(bank, remaining)
     try:
         classifier.classify_bank(bank)
     except Exception:

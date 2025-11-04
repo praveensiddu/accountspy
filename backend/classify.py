@@ -148,14 +148,23 @@ def classify_bank(bankaccountname: str) -> None:
         pass
 
     # 2) Apply bank rules if present
-    rules_dir_base: Optional[Path] = state.CLASSIFY_CSV_PATH.parent if state.CLASSIFY_CSV_PATH else None
-    if rules_dir_base:
-        bank_rules_path = rules_dir_base / "bank_rules" / f"{bank}.yaml"
-    else:
+    # Only check per-bank bank_rules under statement_location/CURRENT_YEAR/bank_rules
+    per_bank_candidate: Optional[Path] = None
+    bank_rules_path: Optional[Path] = None
+    try:
+        ba = state.BA_DB.get(bank) or {}
+        sl = (ba.get('statement_location') or '').strip()
+        if sl and state.CURRENT_YEAR:
+            per_bank_candidate = Path(sl) / state.CURRENT_YEAR / 'bank_rules' / f"{bank}.yaml"
+            if per_bank_candidate.exists():
+                bank_rules_path = per_bank_candidate
+    except Exception:
         bank_rules_path = None
 
     if not bank_rules_path or not bank_rules_path.exists():
-        logger.info(f"No bank rules found for {bank_rules_path}")
+        logger.info(
+            f"No bank rules found at per-bank path: {per_bank_candidate}"
+        )
         return
 
     try:
