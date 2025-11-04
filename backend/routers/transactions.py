@@ -233,4 +233,71 @@ async def save_transactions(bankaccountname: str, payload: TransactionsPayload) 
     return {"ok": True, "path": str(out_path)}
 
 
- 
+@router.delete("/transactions/{bankaccountname}")
+async def delete_transaction(bankaccountname: str, payload: TransactionRow) -> Dict[str, Any]:
+    key = (bankaccountname or '').strip().lower()
+    if not key:
+        raise HTTPException(status_code=400, detail="bankaccountname is required")
+    # Must be an addendum row; normalized rows cannot be deleted
+    if not (payload.fromaddendum and str(payload.fromaddendum).strip()):
+        raise HTTPException(status_code=400, detail="Only addendum rows can be deleted")
+    # Locate per-bank addendum CSV
+    ba = state.BA_DB.get(key) or {}
+    sl = (ba.get('statement_location') or '').strip()
+    if not sl:
+        raise HTTPException(status_code=400, detail="statement_location not set for this bank account")
+    addendum_dir = Path(sl) / (state.CURRENT_YEAR or '') / 'addendum'
+    addendum_path = addendum_dir / f"{key}.csv"
+    if not addendum_path.exists():
+        raise HTTPException(status_code=404, detail="Addendum file not found for this bank account")
+    # Read, filter out matching row by tr_id if present, else by fields
+    try:
+        rows: List[Dict[str, str]] = []
+        with addendum_path.open('r', encoding='utf-8') as rf:
+            reader = csv.DictReader(rf)
+            for row in reader:
+                rows.append(row)
+        target_tid = (payload.tr_id or '').strip()
+        def _matches(r: Dict[str,str]) -> bool:
+            if target_tid:
+                return (r.get('tr_id','').strip() == target_tid)
+            # fallback match by fields
+            return (
+                (r.get('date','') or '') == (payload.date or '') and
+                (r.get('description','') or '').lower() == (payload.description or '').lower() and
+                str(r.get('credit','') or '') == str(payload.credit or '')
+            )
+        new_rows = [r for r in rows if not _matches(r)]
+        if len(new_rows) == len(rows):
+            raise HTTPException(status_code=404, detail="Addendum row not found")
+        # Write back filtered CSV
+        addendum_dir.mkdir(parents=True, exist_ok=True)
+        with addendum_path.open('w', newline='', encoding='utf-8') as wf:
+            header = ['tr_id','date','description','credit']
+            writer = csv.DictWriter(wf, fieldnames=header, extrasaction='ignore')
+            writer.writeheader()
+            for r in new_rows:
+                writer.writerow({
+                    'tr_id': r.get('tr_id',''),
+                    'date': r.get('date',''),
+                    'description': (r.get('description') or ''),
+                    'credit': r.get('credit',''),
+                })
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete addendum row: {e}")
+    # Reclassify and update summaries
+    try:
+        classifier.classify_bank(key)
+    except Exception:
+        pass
+    try:
+        prepare_and_save_property_sum()
+    except Exception:
+        pass
+    try:
+        prepare_and_save_company_sum()
+    except Exception:
+        pass
+    return {"ok": True}
