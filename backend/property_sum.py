@@ -126,6 +126,12 @@ def prepare_and_save_property_sum() -> None:
     except Exception:
         pass
 
+    # Compute profit per property
+    try:
+        calculate_profit(summary)
+    except Exception:
+        pass
+
     # Dump one YAML per property
     for p, totals in summary.items():
         try:
@@ -192,5 +198,27 @@ def calculate_depreciation(summary: Dict[str, Dict[str, float]]):
             if prop_id not in summary:
                 summary[prop_id] = {}
             summary[prop_id]['depreciation'] = -(float(depreciation))
+        except Exception:
+            continue
+
+
+def calculate_profit(summary: Dict[str, Dict[str, float]]):
+    """
+    Compute per-property profit and store under key 'profit'.
+    profit = rent + commissions + insurance + proffees + mortgageinterest + repairs + tax + utilities + depreciation + hoa
+    Where 'rent' contributes as-is (income, positive), and all others contribute as expenses (negative).
+    """
+    expense_keys = [
+        'commissions','insurance','proffees','mortgageinterest','repairs','tax','utilities','depreciation','hoa'
+    ]
+    for prop_id, totals in (summary or {}).items():
+        try:
+            rent_val = float(totals.get('rent', 0.0) or 0.0)
+            expense_sum = 0.0
+            for k in expense_keys:
+                v = float(totals.get(k, 0.0) or 0.0)
+                # Ensure expenses contribute negatively
+                expense_sum += -abs(v)
+            totals['profit'] = round(rent_val + expense_sum, 2)
         except Exception:
             continue
