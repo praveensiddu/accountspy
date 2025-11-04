@@ -65,6 +65,14 @@ async def get_bank_rules(bankaccountname: str = Query("")):
     bank = (bankaccountname or "").strip().lower()
     if not bank:
         return []
+    if bank not in state.BA_DB:
+        raise HTTPException(status_code=404, detail="Bank account not found")
+    ba = state.BA_DB.get(bank) or {}
+    sl = (ba.get('statement_location') or '').strip()
+    if not sl:
+        raise HTTPException(status_code=400, detail="statement_location not set for this bank account")
+    if not state.CURRENT_YEAR:
+        raise HTTPException(status_code=400, detail="CURRENT_YEAR is not configured")
     rules_path: Path = _bank_rules_path_for(bank)
     if not rules_path.exists():
         return []
@@ -103,6 +111,14 @@ async def get_bank_rules_max_order(bankaccountname: str = Query("")):
     bank = (bankaccountname or "").strip().lower()
     if not bank:
         return {"max_order": 0}
+    if bank not in state.BA_DB:
+        raise HTTPException(status_code=404, detail="Bank account not found")
+    ba = state.BA_DB.get(bank) or {}
+    sl = (ba.get('statement_location') or '').strip()
+    if not sl:
+        raise HTTPException(status_code=400, detail="statement_location not set for this bank account")
+    if not state.CURRENT_YEAR:
+        raise HTTPException(status_code=400, detail="CURRENT_YEAR is not configured")
     try:
         items = _read_bank_rules_list(bank)
         max_order = 0
@@ -170,6 +186,14 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
         raise HTTPException(status_code=400, detail="order must be >= 1")
     if not (bank and ttype and patt):
         raise HTTPException(status_code=400, detail="bankaccountname, transaction_type, pattern_match_logic are required")
+    if bank not in state.BA_DB:
+        raise HTTPException(status_code=404, detail="Bank account not found")
+    ba = state.BA_DB.get(bank) or {}
+    sl = (ba.get('statement_location') or '').strip()
+    if not sl:
+        raise HTTPException(status_code=400, detail="statement_location not set for this bank account")
+    if not state.CURRENT_YEAR:
+        raise HTTPException(status_code=400, detail="CURRENT_YEAR is not configured")
     # Require tax_category as well
     if not tax:
         raise HTTPException(status_code=400, detail="tax_category is required")
@@ -294,7 +318,7 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
     for idx, it in enumerate(merged_list, start=1):
         it['order'] = idx
 
-    _write_bank_rules_list(base_dir, bank, merged_list)
+    _write_bank_rules_list(bank, merged_list)
     try:
         classifier.classify_bank(bank)
     except Exception:
@@ -331,7 +355,15 @@ async def delete_bank_rule(
     comp = (company or '').strip().lower()
     if not bank:
         raise HTTPException(status_code=400, detail="bankaccountname is required")
-    items = _read_bank_rules_list(base_dir, bank)
+    if bank not in state.BA_DB:
+        raise HTTPException(status_code=404, detail="Bank account not found")
+    ba = state.BA_DB.get(bank) or {}
+    sl = (ba.get('statement_location') or '').strip()
+    if not sl:
+        raise HTTPException(status_code=400, detail="statement_location not set for this bank account")
+    if not state.CURRENT_YEAR:
+        raise HTTPException(status_code=400, detail="CURRENT_YEAR is not configured")
+    items = _read_bank_rules_list(bank)
     target_key = _rule_key({
         'bankaccountname': bank,
         'transaction_type': ttype,
