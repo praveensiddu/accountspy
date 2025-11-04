@@ -561,7 +561,7 @@
                         })
                         .filter(r => (
                           (filter.order ? String(r.order||'').toLowerCase().includes(String(filter.order).toLowerCase()) : true) &&
-                          (filter.transaction_type ? (r.transaction_type||'').toLowerCase().includes(filter.transaction_type.toLowerCase()) : true) &&
+                          (filter.transaction_type ? (((r.transaction_type||'').trim() ? (r.transaction_type||'') : 'empty').toLowerCase().includes(filter.transaction_type.toLowerCase())) : true) &&
                           (filter.pattern_match_logic ? (r.pattern_match_logic||'').toLowerCase().includes(filter.pattern_match_logic.toLowerCase()) : true) &&
                           (filter.tax_category ? (r.tax_category||'').toLowerCase().includes(filter.tax_category.toLowerCase()) : true) &&
                           (filter.property ? (r.property||'').toLowerCase().includes(filter.property.toLowerCase()) : true) &&
@@ -2659,6 +2659,9 @@
                             let rv = '';
                             if (k === 'pgc') {
                               rv = [r.property, r.group, r.company].map(x => (x == null ? '' : String(x))).join(' ').toLowerCase();
+                            } else if (k === 'transaction_type') {
+                              const t = (r.transaction_type == null ? '' : String(r.transaction_type));
+                              rv = ((t.trim() ? t : 'empty')).toLowerCase();
                             } else {
                               rv = (r[k] == null ? '' : String(r[k])).toLowerCase();
                             }
@@ -2716,7 +2719,7 @@
                                     ) : ''}
                                   </td>
                                   <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.comment}</td>
-                                  <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.transaction_type}</td>
+                                  <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{((r.transaction_type||'').trim() ? r.transaction_type : 'empty')}</td>
                                   <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.tax_category}</td>
                                   <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{(r.property||'') || (r.group||'') || (r.company||'')}</td>
                                   <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.otherentity}</td>
