@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Dict, List, Any
+from datetime import datetime, date
 import csv
 import yaml
 
@@ -119,6 +120,12 @@ def prepare_and_save_property_sum() -> None:
     except Exception:
         return
 
+    # Augment summary with depreciation numbers before dumping
+    try:
+        calculate_depreciation(summary)
+    except Exception:
+        pass
+
     # Dump one YAML per property
     for p, totals in summary.items():
         try:
@@ -129,4 +136,61 @@ def prepare_and_save_property_sum() -> None:
                 yaml.safe_dump(ordered, yf, sort_keys=True, allow_unicode=True)
         except Exception:
             # continue with others
+            continue
+
+
+def calculate_depreciation(summary: Dict[str, Dict[str, float]]):
+    """
+    For each property in state.DB, compute depreciation and insert into summary under key 'depreciation'.
+    - depreciation = (cost + renovation) * 3.64 / 100
+    - If purchaseDate year equals CURRENT_YEAR, prorate by noOfDaysOwnedThisYear / 365
+    """
+    try:
+        props = dict(getattr(state, 'DB', {}) or {})
+    except Exception:
+        props = {}
+    if not props:
+        return
+
+    # Helper to parse a purchase date string into a date
+    def _parse_date(ds: str) -> date:
+        s = (ds or '').strip()
+        if not s:
+            return None
+        fmts = ['%Y-%m-%d', '%Y/%m/%d', '%Y.%m.%d', '%m/%d/%Y', '%d-%m-%Y']
+        for fmt in fmts:
+            try:
+                return datetime.strptime(s, fmt).date()
+            except Exception:
+                continue
+        # Fallback: just try to take the first 10 chars as YYYY-MM-DD
+        try:
+            return datetime.strptime(s[:10], '%Y-%m-%d').date()
+        except Exception:
+            return None
+
+    cy_str = state.CURRENT_YEAR or ''
+    try:
+        cy = int(cy_str)
+    except Exception:
+        cy = None
+
+    for prop_id, prec in props.items():
+        try:
+            cost = float(prec.get('cost', 0) or 0)
+            renovation = float(prec.get('renovation', 0) or 0)
+            base = cost + renovation
+            depreciation = round(base * 3.64 / 100.0, 2)
+
+            pdate = _parse_date(prec.get('purchaseDate', ''))
+            if pdate and cy is not None and pdate.year == cy:
+                start = pdate
+                end = date(cy, 12, 31)
+                days_owned = max(0, (end - start).days + 1)
+                depreciation = round(depreciation * (days_owned / 365.0), 2)
+
+            if prop_id not in summary:
+                summary[prop_id] = {}
+            summary[prop_id]['depreciation'] = -(float(depreciation))
+        except Exception:
             continue
