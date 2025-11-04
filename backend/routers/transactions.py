@@ -27,6 +27,7 @@ class TransactionRow(BaseModel):
     company: str = ''
     otherentity: str = ''
     override: str = ''
+    fromaddendum: str = ''
 
 
 class TransactionsPayload(BaseModel):
@@ -54,6 +55,7 @@ def _read_processed_csv(path: Path) -> List[Dict[str, Any]]:
                     'company': row.get('company',''),
                     'otherentity': row.get('otherentity',''),
                     'override': row.get('override',''),
+                    'fromaddendum': row.get('fromaddendum',''),
                 })
     except Exception:
         pass
@@ -83,6 +85,7 @@ def _read_processed_yaml(path: Path) -> List[Dict[str, Any]]:
                             'company': item.get('company',''),
                             'otherentity': item.get('otherentity',''),
                             'override': item.get('override',''),
+                            'fromaddendum': item.get('fromaddendum',''),
                         })
     except Exception:
         pass
@@ -165,7 +168,7 @@ async def save_transactions(bankaccountname: str, payload: TransactionsPayload) 
         raise HTTPException(status_code=500, detail=f"Validation failed: {e}")
     # Write CSV with fixed header
     header = [
-        'tr_id','date','description','credit','ruleid','comment','transaction_type','tax_category','property','group','company','otherentity','override'
+        'tr_id','date','description','credit','ruleid','comment','transaction_type','tax_category','property','group','company','otherentity','override','fromaddendum'
     ]
     out_path = state.PROCESSED_DIR_PATH / f"{key}.csv"
     try:

@@ -35,6 +35,7 @@ class ProcRow:
     company: str = ""
     otherentity: str = ""
     override: str = ""
+    fromaddendum: str = ""
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "ProcRow":
@@ -52,6 +53,7 @@ class ProcRow:
             company=str(d.get("company", "")),
             otherentity=str(d.get("otherentity", "")),
             override=str(d.get("override", "")),
+            fromaddendum=str(d.get("fromaddendum", "")),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -69,6 +71,7 @@ class ProcRow:
             "company": self.company,
             "otherentity": self.otherentity,
             "override": self.override,
+            "fromaddendum": self.fromaddendum,
         }
 
 
@@ -142,7 +145,9 @@ def classify_bank(bankaccountname: str) -> None:
             with add_csv.open("r", encoding="utf-8") as af:
                 areader = csv.DictReader(af)
                 for row in areader:
-                    processed[bank].append(ProcRow.from_dict(row).to_dict())
+                    pr = ProcRow.from_dict(row)
+                    pr.fromaddendum = "true"
+                    processed[bank].append(pr.to_dict())
     except Exception:
         # ignore addendum errors to avoid blocking classification
         pass
@@ -238,7 +243,7 @@ def classify_bank(bankaccountname: str) -> None:
 
     proc_dir.mkdir(parents=True, exist_ok=True)
     out_csv = proc_dir / f"{bank}.csv"
-    header = ['tr_id','date','description','credit','ruleid','comment','transaction_type','tax_category','property','group','company','otherentity','override']
+    header = ['tr_id','date','description','credit','ruleid','comment','transaction_type','tax_category','property','group','company','otherentity','override','fromaddendum']
     try:
         with out_csv.open("w", newline='', encoding="utf-8") as wf:
             writer = csv.DictWriter(wf, fieldnames=header, extrasaction='ignore')
