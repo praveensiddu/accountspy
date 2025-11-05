@@ -150,8 +150,12 @@ def _process_bank_statement_for_account(bankaccountname: str, cfg: Dict[str, Any
                     desc_out = f"{desc_out} (check {check_val})"
                 if memo_val:
                     desc_out = f"{desc_out} (memo {memo_val})"
-                # Ensure normalized description is lowercase
-                desc_out = desc_out.lower()
+                # Collapse multiple spaces/tabs to a single space and lowercase
+                try:
+                    desc_out = ' '.join(str(desc_out).split())
+                except Exception:
+                    pass
+                desc_out = str(desc_out).lower()
                 s = (bankaccountname + date_out + desc_out + amt_out).lower()
                 s = ''.join(s.split())
                 tr_id = hashlib.sha256(s.encode()).hexdigest()[:10]

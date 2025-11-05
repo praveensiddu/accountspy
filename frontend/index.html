@@ -368,6 +368,7 @@
             setOpen(false);
             await loadRules(active);
             try { if (typeof window.requestTransactionsReload === 'function') await window.requestTransactionsReload(); } catch (_) {}
+            try { setTopTab('transactions'); } catch(_) {}
           } catch (err) {
             console.error(err);
           } finally { setSaving(false); }
@@ -473,12 +474,20 @@
                     )}
                     <div>
                       <label className="block text-sm font-medium text-gray-700">transaction_type</label>
-                      <select name="transaction_type" value={form.transaction_type} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
-                        <option value="">Select transaction type</option>
+                      <input
+                        name="transaction_type"
+                        value={form.transaction_type}
+                        onChange={onChange}
+                        list="transaction-types-list"
+                        placeholder="type to filter..."
+                        className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      />
+                      <datalist id="transaction-types-list">
                         {(transactionTypes || []).map(t => (
                           <option key={t.transactiontype} value={(t.transactiontype || '').toLowerCase()}>{t.transactiontype}</option>
                         ))}
-                      </select>
+                      </datalist>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">tax_category</label>
@@ -491,12 +500,19 @@
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">property</label>
-                      <select name="property" value={form.property} onChange={onChange} className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">Select property</option>
+                      <input
+                        name="property"
+                        value={form.property}
+                        onChange={onChange}
+                        list="properties-list"
+                        placeholder="type to filter..."
+                        className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <datalist id="properties-list">
                         {(items || []).map(p => (
                           <option key={p.property} value={(p.property || '').toLowerCase()}>{p.property}</option>
                         ))}
-                      </select>
+                      </datalist>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">group</label>
@@ -2753,20 +2769,45 @@
                                   <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.otherentity}</td>
                                   <td>
                                     <div className="actions flex flex-col items-start gap-2">
-                                      <button type="button" className="px-2 py-1 bg-gray-700 text-white rounded hover:bg-gray-800" onClick={()=>{ try {
-                                        const patt = `desc_contains=${(r.description||'').toString()}`;
-                                        const ord = (r.ruleid != null && String(r.ruleid).trim() !== '') ? String(r.ruleid).trim() : '';
+                                      <button type="button" className="px-2 py-1 bg-gray-700 text-white rounded hover:bg-gray-800" onClick={async()=>{ try {
+                                        const bank = (currentBA.bankaccountname||'').toLowerCase();
+                                        const hasRuleId = (r.ruleid != null && String(r.ruleid).trim() !== '');
+                                        let pref = null;
+                                        if (hasRuleId) {
+                                          try {
+                                            const qs = new URLSearchParams({ bankaccountname: bank });
+                                            const res = await fetch(`/api/bank-rules?${qs}`);
+                                            if (res.ok) {
+                                              const rules = await res.json();
+                                              const rid = Number(String(r.ruleid).trim());
+                                              if (Array.isArray(rules)) {
+                                                pref = rules.find(x => Number(x && x.order) === rid) || null;
+                                              }
+                                            }
+                                          } catch(_) { /* ignore; will fallback */ }
+                                        }
+                                        // Set prefill from rule if found, else fallback to transaction row
+                                        const isRule = !!pref;
+                                        const pattern = isRule ? String(pref.pattern_match_logic||'') : `desc_contains=${(r.description||'').toString()}`;
+                                        const orderStr = isRule ? String(pref.order||'') : ((r.ruleid != null && String(r.ruleid).trim() !== '') ? String(r.ruleid).trim() : '');
+                                        const creditStr = isRule ? '' : String(r.credit||'');
+                                        const ttype = isRule ? String(pref.transaction_type||'') : String(r.transaction_type||'');
+                                        const tax = isRule ? String(pref.tax_category||'') : String(r.tax_category||'');
+                                        const prop = isRule ? String(pref.property||'') : String(r.property||'');
+                                        const grp = isRule ? String(pref.group||'') : String(r.group||'');
+                                        const comp = isRule ? String(pref.company||'') : String(r.company||'');
+                                        const other = isRule ? String(pref.otherentity||'') : String(r.otherentity||'');
                                         window.localStorage.setItem('crSubTab','bank');
-                                        window.localStorage.setItem('bankrules_active', (currentBA.bankaccountname||'').toLowerCase());
-                                        window.localStorage.setItem('bankrules_prefill_pattern', patt);
-                                        window.localStorage.setItem('bankrules_prefill_order', ord);
-                                        window.localStorage.setItem('bankrules_prefill_credit', String(r.credit||''));
-                                        window.localStorage.setItem('bankrules_prefill_ttype', String(r.transaction_type||''));
-                                        window.localStorage.setItem('bankrules_prefill_tax', String(r.tax_category||''));
-                                        window.localStorage.setItem('bankrules_prefill_property', String(r.property||''));
-                                        window.localStorage.setItem('bankrules_prefill_group', String(r.group||''));
-                                        window.localStorage.setItem('bankrules_prefill_company', String(r.company||''));
-                                        window.localStorage.setItem('bankrules_prefill_otherentity', String(r.otherentity||''));
+                                        window.localStorage.setItem('bankrules_active', bank);
+                                        window.localStorage.setItem('bankrules_prefill_pattern', pattern);
+                                        window.localStorage.setItem('bankrules_prefill_order', orderStr);
+                                        window.localStorage.setItem('bankrules_prefill_credit', creditStr);
+                                        window.localStorage.setItem('bankrules_prefill_ttype', ttype);
+                                        window.localStorage.setItem('bankrules_prefill_tax', tax);
+                                        window.localStorage.setItem('bankrules_prefill_property', prop);
+                                        window.localStorage.setItem('bankrules_prefill_group', grp);
+                                        window.localStorage.setItem('bankrules_prefill_company', comp);
+                                        window.localStorage.setItem('bankrules_prefill_otherentity', other);
                                         window.localStorage.setItem('bankrules_prefill_open', '1');
                                         setTopTab('classifyrules');
                                       } catch(_) {} }}>{(r.ruleid != null && String(r.ruleid).trim() !== '') ? 'UPDATE_RULE' : 'ADD_RULE'}</button>
