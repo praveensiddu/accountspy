@@ -280,6 +280,9 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
     # Require tax_category as well
     if not tax:
         raise HTTPException(status_code=400, detail="tax_category is required")
+    # If tax_category is personal, property/group/company must not be set
+    if tax == 'personal' and (prop or group or company):
+        raise HTTPException(status_code=400, detail="When tax_category is 'personal', do not set property, group, or company")
     # Only one of property or group may be set (or neither)
     if prop and group:
         raise HTTPException(status_code=400, detail="Only one of property or group may be set, not both")

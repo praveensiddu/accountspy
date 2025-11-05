@@ -428,6 +428,9 @@
                   || !((form.match||'').trim())
                   || ((form.match!=='credit_equals') && !(form.description||'').trim())
                   || ((form.match==='credit_equals') && !(form.credit||'').toString().trim())
+                  || (((form.tax_category||'').toLowerCase().trim() === 'personal') && (
+                        ((form.property||'').trim()) || ((form.group||'').trim()) || ((form.company||'').trim())
+                     ))
                   || (((form.tax_category||'').trim().toLowerCase()==='rental') && (
                         (((form.property||'').trim() && (form.group||'').trim())) ||
                         (!((form.property||'').trim()) && !((form.group||'').trim()))
@@ -2787,7 +2790,7 @@
                                           } catch(_) {}
                                           const patt = `desc_contains=${(r.description||'').toString()}`;
                                           const ordFromRow = (r.ruleid != null && String(r.ruleid).trim() !== '') ? Number(String(r.ruleid).trim()) : null;
-                                          const insertOrder = (Number.isFinite(ordFromRow) && ordFromRow > 0) ? ordFromRow : maxOrder;
+                                          const insertOrder = (Number.isFinite(ordFromRow) && ordFromRow > 0) ? ordFromRow : (maxOrder + 1);
                                           window.localStorage.setItem('crSubTab','bank');
                                           window.localStorage.setItem('bankrules_active', bank);
                                           window.localStorage.setItem('bankrules_prefill_pattern', patt);
