@@ -177,6 +177,7 @@
               const groupPref = (window.localStorage.getItem('bankrules_prefill_group') || '').toLowerCase();
               const companyPref = (window.localStorage.getItem('bankrules_prefill_company') || '').toLowerCase();
               const otherPref = (window.localStorage.getItem('bankrules_prefill_otherentity') || '');
+              const forceAdd = window.localStorage.getItem('bankrules_prefill_force_add') === '1';
               if (!shouldOpen) return;
               if (!active) return;
               if (!rulesReady) return; // wait until rules loaded to compute nextOrder accurately
@@ -198,7 +199,7 @@
               } catch(_) { /* ignore and use fallback */ }
               const parsedOrder = (() => { const n = Number((orderPref||'').trim()); return isNaN(n) ? null : n; })();
               let existing = null;
-              if (parsedOrder != null) {
+              if (!forceAdd && parsedOrder != null) {
                 existing = (rules || []).find(r => Number(r.order||0) === parsedOrder);
               }
               // Parse patt into match + description/credit
@@ -260,6 +261,7 @@
                   window.localStorage.removeItem('bankrules_prefill_group');
                   window.localStorage.removeItem('bankrules_prefill_company');
                   window.localStorage.removeItem('bankrules_prefill_otherentity');
+                  window.localStorage.removeItem('bankrules_prefill_force_add');
                   // ensure we are on Bank subtab
                   window.localStorage.setItem('crSubTab','bank');
                 } catch (_) {}
@@ -269,7 +271,7 @@
           run();
         }, [active, rules, rulesReady]);
 
-        const handleAdd = async () => {
+        const handleAdd = async (row) => {
           setMode('add'); setOriginal(null);
           // Fallback: compute from currently loaded rules
           const fallbackMax = (rules || []).reduce((m, r) => {
@@ -2784,10 +2786,12 @@
                                             }
                                           } catch(_) {}
                                           const patt = `desc_contains=${(r.description||'').toString()}`;
+                                          const ordFromRow = (r.ruleid != null && String(r.ruleid).trim() !== '') ? Number(String(r.ruleid).trim()) : null;
+                                          const insertOrder = (Number.isFinite(ordFromRow) && ordFromRow > 0) ? ordFromRow : maxOrder;
                                           window.localStorage.setItem('crSubTab','bank');
                                           window.localStorage.setItem('bankrules_active', bank);
                                           window.localStorage.setItem('bankrules_prefill_pattern', patt);
-                                          window.localStorage.setItem('bankrules_prefill_order', String(maxOrder||''));
+                                          window.localStorage.setItem('bankrules_prefill_order', String(insertOrder||''));
                                           window.localStorage.setItem('bankrules_prefill_credit', String(r.credit||''));
                                           window.localStorage.setItem('bankrules_prefill_ttype', String(r.transaction_type||''));
                                           window.localStorage.setItem('bankrules_prefill_tax', String(r.tax_category||''));
@@ -2795,6 +2799,7 @@
                                           window.localStorage.setItem('bankrules_prefill_group', String(r.group||''));
                                           window.localStorage.setItem('bankrules_prefill_company', String(r.company||''));
                                           window.localStorage.setItem('bankrules_prefill_otherentity', String(r.otherentity||''));
+                                          window.localStorage.setItem('bankrules_prefill_force_add', '1');
                                           window.localStorage.setItem('bankrules_prefill_open', '1');
                                           setTopTab('classifyrules');
                                         } catch(_) {} }}>ADD_RULE</button>
