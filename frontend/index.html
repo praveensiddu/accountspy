@@ -415,7 +415,7 @@
                   <div className="muted">BankRules: {active}</div>
                   <div>
                     <span className="mr-3 text-gray-600">Total: {(rules||[]).length}</span>
-                    <button type="button" onClick={handleAdd} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add</button>
+                    <button type="button" onClick={handleAdd} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add Rule</button>
                     <button type="button" onClick={()=> loadRules(active)} disabled={loading} className="ml-2 px-3 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-60">Refresh</button>
                   </div>
                 </div>
@@ -2654,7 +2654,7 @@
                           <div className="muted">Transactions for: <strong>{currentBA.bankaccountname}</strong></div>
                           <div>
                             <span className="mr-3 text-gray-600">Total: {rows.length}</span>
-                            <button type="button" onClick={onTxnAdd} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add</button>
+                            <button type="button" onClick={onTxnAdd} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add Transaction</button>
                           </div>
                         </div>
                         <Modal title={'Add Transaction'} open={txnOpen} onClose={() => setTxnOpen(false)} onSubmit={onTxnSubmit} submitLabel={txnSaving ? 'Saving...' : 'Save'} submitDisabled={!isTxnSaveEnabled}>
@@ -2769,48 +2769,78 @@
                                   <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.otherentity}</td>
                                   <td>
                                     <div className="actions flex flex-col items-start gap-2">
-                                      <button type="button" className="px-2 py-1 bg-gray-700 text-white rounded hover:bg-gray-800" onClick={async()=>{ try {
-                                        const bank = (currentBA.bankaccountname||'').toLowerCase();
-                                        const hasRuleId = (r.ruleid != null && String(r.ruleid).trim() !== '');
-                                        let pref = null;
-                                        if (hasRuleId) {
+                                      <div className="flex gap-2">
+                                        <button type="button" className="px-2 py-1 bg-blue-700 text-white rounded hover:bg-blue-800" onClick={async()=>{ try {
+                                          // ADD RULE: prefill from transaction row; insert order = server max_order
+                                          const bank = (currentBA.bankaccountname||'').toLowerCase();
+                                          let maxOrder = 0;
                                           try {
-                                            const qs = new URLSearchParams({ bankaccountname: bank });
-                                            const res = await fetch(`/api/bank-rules?${qs}`);
-                                            if (res.ok) {
-                                              const rules = await res.json();
-                                              const rid = Number(String(r.ruleid).trim());
-                                              if (Array.isArray(rules)) {
-                                                pref = rules.find(x => Number(x && x.order) === rid) || null;
-                                              }
+                                            const qsMO = new URLSearchParams({ bankaccountname: bank });
+                                            const resMO = await fetch(`/api/bank-rules/max-order?${qsMO}`);
+                                            if (resMO.ok) {
+                                              const dataMO = await resMO.json();
+                                              const mo = Number(dataMO && dataMO.max_order);
+                                              if (Number.isFinite(mo) && mo >= 0) maxOrder = mo;
                                             }
-                                          } catch(_) { /* ignore; will fallback */ }
-                                        }
-                                        // Set prefill from rule if found, else fallback to transaction row
-                                        const isRule = !!pref;
-                                        const pattern = isRule ? String(pref.pattern_match_logic||'') : `desc_contains=${(r.description||'').toString()}`;
-                                        const orderStr = isRule ? String(pref.order||'') : ((r.ruleid != null && String(r.ruleid).trim() !== '') ? String(r.ruleid).trim() : '');
-                                        const creditStr = isRule ? '' : String(r.credit||'');
-                                        const ttype = isRule ? String(pref.transaction_type||'') : String(r.transaction_type||'');
-                                        const tax = isRule ? String(pref.tax_category||'') : String(r.tax_category||'');
-                                        const prop = isRule ? String(pref.property||'') : String(r.property||'');
-                                        const grp = isRule ? String(pref.group||'') : String(r.group||'');
-                                        const comp = isRule ? String(pref.company||'') : String(r.company||'');
-                                        const other = isRule ? String(pref.otherentity||'') : String(r.otherentity||'');
-                                        window.localStorage.setItem('crSubTab','bank');
-                                        window.localStorage.setItem('bankrules_active', bank);
-                                        window.localStorage.setItem('bankrules_prefill_pattern', pattern);
-                                        window.localStorage.setItem('bankrules_prefill_order', orderStr);
-                                        window.localStorage.setItem('bankrules_prefill_credit', creditStr);
-                                        window.localStorage.setItem('bankrules_prefill_ttype', ttype);
-                                        window.localStorage.setItem('bankrules_prefill_tax', tax);
-                                        window.localStorage.setItem('bankrules_prefill_property', prop);
-                                        window.localStorage.setItem('bankrules_prefill_group', grp);
-                                        window.localStorage.setItem('bankrules_prefill_company', comp);
-                                        window.localStorage.setItem('bankrules_prefill_otherentity', other);
-                                        window.localStorage.setItem('bankrules_prefill_open', '1');
-                                        setTopTab('classifyrules');
-                                      } catch(_) {} }}>{(r.ruleid != null && String(r.ruleid).trim() !== '') ? 'UPDATE_RULE' : 'ADD_RULE'}</button>
+                                          } catch(_) {}
+                                          const patt = `desc_contains=${(r.description||'').toString()}`;
+                                          window.localStorage.setItem('crSubTab','bank');
+                                          window.localStorage.setItem('bankrules_active', bank);
+                                          window.localStorage.setItem('bankrules_prefill_pattern', patt);
+                                          window.localStorage.setItem('bankrules_prefill_order', String(maxOrder||''));
+                                          window.localStorage.setItem('bankrules_prefill_credit', String(r.credit||''));
+                                          window.localStorage.setItem('bankrules_prefill_ttype', String(r.transaction_type||''));
+                                          window.localStorage.setItem('bankrules_prefill_tax', String(r.tax_category||''));
+                                          window.localStorage.setItem('bankrules_prefill_property', String(r.property||''));
+                                          window.localStorage.setItem('bankrules_prefill_group', String(r.group||''));
+                                          window.localStorage.setItem('bankrules_prefill_company', String(r.company||''));
+                                          window.localStorage.setItem('bankrules_prefill_otherentity', String(r.otherentity||''));
+                                          window.localStorage.setItem('bankrules_prefill_open', '1');
+                                          setTopTab('classifyrules');
+                                        } catch(_) {} }}>ADD_RULE</button>
+                                        <button type="button" className="px-2 py-1 bg-gray-700 text-white rounded hover:bg-gray-800 disabled:opacity-60" disabled={!(r.ruleid != null && String(r.ruleid).trim() !== '')} onClick={async()=>{ try {
+                                          const bank = (currentBA.bankaccountname||'').toLowerCase();
+                                          const hasRuleId = (r.ruleid != null && String(r.ruleid).trim() !== '');
+                                          let pref = null;
+                                          if (hasRuleId) {
+                                            try {
+                                              const qs = new URLSearchParams({ bankaccountname: bank });
+                                              const res = await fetch(`/api/bank-rules?${qs}`);
+                                              if (res.ok) {
+                                                const rules = await res.json();
+                                                const rid = Number(String(r.ruleid).trim());
+                                                if (Array.isArray(rules)) {
+                                                  pref = rules.find(x => Number(x && x.order) === rid) || null;
+                                                }
+                                              }
+                                            } catch(_) { /* ignore; will fallback */ }
+                                          }
+                                          // Set prefill from rule if found, else fallback to transaction row
+                                          const isRule = !!pref;
+                                          const pattern = isRule ? String(pref.pattern_match_logic||'') : `desc_contains=${(r.description||'').toString()}`;
+                                          const orderStr = isRule ? String(pref.order||'') : ((r.ruleid != null && String(r.ruleid).trim() !== '') ? String(r.ruleid).trim() : '');
+                                          const creditStr = isRule ? '' : String(r.credit||'');
+                                          const ttype = isRule ? String(pref.transaction_type||'') : String(r.transaction_type||'');
+                                          const tax = isRule ? String(pref.tax_category||'') : String(r.tax_category||'');
+                                          const prop = isRule ? String(pref.property||'') : String(r.property||'');
+                                          const grp = isRule ? String(pref.group||'') : String(r.group||'');
+                                          const comp = isRule ? String(pref.company||'') : String(r.company||'');
+                                          const other = isRule ? String(pref.otherentity||'') : String(r.otherentity||'');
+                                          window.localStorage.setItem('crSubTab','bank');
+                                          window.localStorage.setItem('bankrules_active', bank);
+                                          window.localStorage.setItem('bankrules_prefill_pattern', pattern);
+                                          window.localStorage.setItem('bankrules_prefill_order', orderStr);
+                                          window.localStorage.setItem('bankrules_prefill_credit', creditStr);
+                                          window.localStorage.setItem('bankrules_prefill_ttype', ttype);
+                                          window.localStorage.setItem('bankrules_prefill_tax', tax);
+                                          window.localStorage.setItem('bankrules_prefill_property', prop);
+                                          window.localStorage.setItem('bankrules_prefill_group', grp);
+                                          window.localStorage.setItem('bankrules_prefill_company', comp);
+                                          window.localStorage.setItem('bankrules_prefill_otherentity', other);
+                                          window.localStorage.setItem('bankrules_prefill_open', '1');
+                                          setTopTab('classifyrules');
+                                        } catch(_) {} }}>UPDATE_RULE</button>
+                                      </div>
                                       <button type="button" className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60" disabled={!r.fromaddendum} title={!r.fromaddendum ? 'Only addendum rows can be deleted' : 'Delete row'} onClick={async()=>{ try { const ba = txnBATab || ''; const res = await fetch(`/api/transactions/${encodeURIComponent(ba)}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(r) }); if (!res.ok) { const msg = await res.text().catch(()=> ''); throw new Error(msg || 'Failed to delete'); } await requestTransactionsReload(); } catch(e) { console.error(e); alert((e && e.message) || 'Failed to delete'); } }}>DEL</button>
                                     </div>
                                   </td>

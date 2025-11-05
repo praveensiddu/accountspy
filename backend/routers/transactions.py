@@ -178,7 +178,10 @@ async def save_transactions(bankaccountname: str, payload: TransactionsPayload) 
             for row in payload.rows:
                 d = row.dict()
                 try:
-                    d['description'] = (d.get('description') or '').lower()
+                    desc = d.get('description') or ''
+                    # Collapse multiple spaces/tabs to a single space, trim, and lowercase
+                    desc = ' '.join(str(desc).split()).strip().lower()
+                    d['description'] = desc
                 except Exception:
                     pass
                 writer.writerow(d)
@@ -203,10 +206,15 @@ async def save_transactions(bankaccountname: str, payload: TransactionsPayload) 
             awriter.writeheader()
             for row in addendum_rows:
                 d = row.dict()
+                try:
+                    desc = d.get('description') or ''
+                    desc = ' '.join(str(desc).split()).strip().lower()
+                except Exception:
+                    desc = (d.get('description') or '').lower()
                 out = {
                     'tr_id': d.get('tr_id',''),
                     'date': d.get('date',''),
-                    'description': (d.get('description') or '').lower(),
+                    'description': desc,
                     'credit': d.get('credit',''),
                 }
                 awriter.writerow(out)
