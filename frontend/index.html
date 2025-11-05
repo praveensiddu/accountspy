@@ -2281,6 +2281,34 @@
         }, []);
         useEffect(() => { if (topTab === 'rentalsummary') loadRentalSummary(); }, [topTab, loadRentalSummary]);
 
+        const isRSVerified = (row, field) => {
+          try {
+            const v = row && row._verified && row._verified[field];
+            const cur = row && row[field];
+            if (v == null || v === '') return false;
+            return String(cur) === String(v);
+          } catch(_) { return false; }
+        };
+        const verifyRSCell = async (row, field) => {
+          try {
+            if (!row || !row.property || field === 'property') return;
+            const prop = String(row.property||'').toLowerCase();
+            const curVal = row[field];
+            if (curVal == null || String(curVal).toString().trim() === '') return; // do nothing when no value
+            const verified = isRSVerified(row, field);
+            let res;
+            if (verified) {
+              // Toggle off: remove from verified file
+              res = await fetch('/api/rental-summary/verify', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ property: prop, field }) });
+            } else {
+              const payload = { property: prop, field, value: curVal };
+              res = await fetch('/api/rental-summary/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            }
+            if (!res.ok) { const t = await res.text().catch(()=> ''); throw new Error(t || 'Failed to verify'); }
+            await loadRentalSummary();
+          } catch(e) { console.error(e); alert(e.message || 'Failed to verify'); }
+        };
+
         // CompanySummary state and loader
         const companyEmptyFilters = { Name:'', income:'', rentpassedtoowners:'', bankfees:'', c_auto:'', c_donate:'', c_entertainment:'', c_internet:'', c_license:'', c_mobile:'', c_off_exp:'', c_parktoll:'', c_phone:'', c_website:'', ignore:'', insurane:'', proffees:'', utilities:'', profit:'' };
         const [companyRows, setCompanyRows] = useState([]);
@@ -3022,20 +3050,24 @@
                             ) : rows.map((r, idx) => (
                               <tr key={`rs-${idx}`}>
                                 <td className="break-words whitespace-pre-wrap">{r.property}</td>
-                                <td className="break-words whitespace-pre-wrap">{r.rent}</td>
-                                <td className="break-words whitespace-pre-wrap">{r.commissions}</td>
-                                <td className="break-words whitespace-pre-wrap">{r.insurance}</td>
-                                <td className="break-words whitespace-pre-wrap">{r.proffees}</td>
-                                <td className="break-words whitespace-pre-wrap">{r.mortgageinterest}</td>
-                                <td className="break-words whitespace-pre-wrap">{r.repairs}</td>
-                                <td className="break-words whitespace-pre-wrap">{r.tax}</td>
-                                <td className="break-words whitespace-pre-wrap">{r.utilities}</td>
-                                <td className="break-words whitespace-pre-wrap">{r.depreciation}</td>
-                                <td className="break-words whitespace-pre-wrap">{r.hoa}</td>
-                                <td className="break-words whitespace-pre-wrap">{r.other}</td>
-                                <td className="break-words whitespace-pre-wrap">{r.costbasis}</td>
-                                <td className="break-words whitespace-pre-wrap">{r.renteddays}</td>
-                                <td className="break-words whitespace-pre-wrap">{r.profit}</td>
+                                {['rent','commissions','insurance','proffees','mortgageinterest','repairs','tax','utilities','depreciation','hoa','other','costbasis','renteddays','profit'].map((f,i)=> {
+                                  const hasVal = (()=>{ const v = r[f]; return !(v == null || String(v).toString().trim() === ''); })();
+                                  return (
+                                    <td key={`c-${i}`} className={`break-words whitespace-pre-wrap ${isRSVerified(r,f) ? 'bg-green-100' : ''}`}> 
+                                      <div className="flex flex-col items-end gap-1">
+                                        <span style={{ wordBreak:'break-word', whiteSpace:'pre-wrap' }} className="self-start">{r[f]}</span>
+                                        <button
+                                          type="button"
+                                          disabled={!hasVal}
+                                          title={hasVal ? (isRSVerified(r,f) ? 'Unverify' : 'Mark verified') : 'No value to verify'}
+                                          className={`text-white rounded disabled:opacity-50 ${isRSVerified(r,f) ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-500 hover:bg-gray-600'}`}
+                                          style={{ width: '12px', height: '12px', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', lineHeight: '12px' }}
+                                          onClick={()=> verifyRSCell(r, f)}
+                                        >✓</button>
+                                      </div>
+                                    </td>
+                                  );
+                                })}
                               </tr>
                             ))}
                           </tbody>
