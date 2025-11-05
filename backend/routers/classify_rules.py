@@ -150,6 +150,89 @@ def _write_bank_rules_list(bank: str, items: list):
         yaml.safe_dump(items, f, sort_keys=True, allow_unicode=True)
 
 
+def _write_and_recompute(bank: str, items: list):
+    _write_bank_rules_list(bank, items)
+    try:
+        classifier.classify_bank(bank)
+    except Exception:
+        pass
+    try:
+        prepare_and_save_property_sum()
+    except Exception:
+        pass
+    try:
+        prepare_and_save_company_sum()
+    except Exception:
+        pass
+
+
+class UpdateOrderPayload(BaseModel):
+    currentorder: int
+    updatedorder: int
+
+
+@router.post("/bank-rules/update-order")
+async def update_bank_rule_order(bankaccountname: str = Query(""), payload: UpdateOrderPayload = None):
+    bank = (bankaccountname or '').strip().lower()
+    if not bank:
+        raise HTTPException(status_code=400, detail="bankaccountname is required")
+    if bank not in state.BA_DB:
+        raise HTTPException(status_code=404, detail="Bank account not found")
+    ba = state.BA_DB.get(bank) or {}
+    sl = (ba.get('statement_location') or '').strip()
+    if not sl:
+        raise HTTPException(status_code=400, detail="statement_location not set for this bank account")
+    if not state.CURRENT_YEAR:
+        raise HTTPException(status_code=400, detail="CURRENT_YEAR is not configured")
+    if payload is None:
+        raise HTTPException(status_code=400, detail="payload is required")
+    try:
+        cur = int(payload.currentorder)
+        new = int(payload.updatedorder)
+    except Exception:
+        raise HTTPException(status_code=400, detail="currentorder and updatedorder must be integers")
+    if cur < 1 or new < 1:
+        raise HTTPException(status_code=400, detail="orders must be >= 1")
+    items = [dict(x) for x in _read_bank_rules_list(bank)]
+    if not items:
+        raise HTTPException(status_code=404, detail="No rules found for this bank")
+    # Determine max order (>0)
+    max_order = 0
+    for it in items:
+        try:
+            o = int(it.get('order') or 0)
+        except Exception:
+            o = 0
+        if o > max_order:
+            max_order = o
+    if new > max_order:
+        raise HTTPException(status_code=400, detail=f"updatedorder must be between 1 and {max_order}")
+    # Sort by current order and locate the target
+    try:
+        items.sort(key=lambda x: int(x.get('order') or 0))
+    except Exception:
+        pass
+    target_idx = None
+    for idx, it in enumerate(items):
+        try:
+            if int(it.get('order') or 0) == cur:
+                target_idx = idx
+                break
+        except Exception:
+            continue
+    if target_idx is None:
+        raise HTTPException(status_code=404, detail="Rule with currentorder not found")
+    # Remove target and insert at updated position (1-based)
+    target = items.pop(target_idx)
+    insert_at = max(0, min(len(items), new - 1))
+    items.insert(insert_at, target)
+    # Renumber continuous 1..n
+    for i, it in enumerate(items, start=1):
+        it['order'] = i
+    _write_and_recompute(bank, items)
+    return {"ok": True, "max_order": max_order}
+
+
 def _rule_key(rec: dict) -> str:
     def norm(s: str) -> str: return (s or '').strip().lower()
     def patt(s: str) -> str:
@@ -258,19 +341,7 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
         merged_list.sort(key=lambda x: int(x.get('order') or 0))
         for idx, it in enumerate(merged_list, start=1):
             it['order'] = idx
-        _write_bank_rules_list(bank, merged_list)
-        try:
-            classifier.classify_bank(bank)
-        except Exception:
-            pass
-        try:
-            prepare_and_save_property_sum()
-        except Exception:
-            pass
-        try:
-            prepare_and_save_company_sum()
-        except Exception:
-            pass
+        _write_and_recompute(bank, merged_list)
         return updated
 
     if new_key in key_to_item:
@@ -318,19 +389,7 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
     for idx, it in enumerate(merged_list, start=1):
         it['order'] = idx
 
-    _write_bank_rules_list(bank, merged_list)
-    try:
-        classifier.classify_bank(bank)
-    except Exception:
-        pass
-    try:
-        prepare_and_save_property_sum()
-    except Exception:
-        pass
-    try:
-        prepare_and_save_company_sum()
-    except Exception:
-        pass
+    _write_and_recompute(bank, merged_list)
     return rec
 
 
@@ -385,19 +444,7 @@ async def delete_bank_rule(
         pass
     for idx, it in enumerate(remaining, start=1):
         it['order'] = idx
-    _write_bank_rules_list(bank, remaining)
-    try:
-        classifier.classify_bank(bank)
-    except Exception:
-        pass
-    try:
-        prepare_and_save_property_sum()
-    except Exception:
-        pass
-    try:
-        prepare_and_save_company_sum()
-    except Exception:
-        pass
+    _write_and_recompute(bank, remaining)
     return
 
 

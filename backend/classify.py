@@ -173,6 +173,13 @@ def classify_bank(bankaccountname: str) -> None:
             rules: List[Dict[str, Any]] = [r for r in rules_raw if isinstance(r, dict)]
     except Exception:
         rules = []
+    # Apply rules in ascending numeric 'order'
+    def _order_key(r: Dict[str, Any]) -> int:
+        try:
+            return int(r.get('order') or 0)
+        except Exception:
+            return 0
+    rules = sorted(rules, key=_order_key)
 
     def _float_or_none(s: str) -> Optional[float]:
         try:
