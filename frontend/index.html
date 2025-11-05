@@ -2618,8 +2618,31 @@
           <button type="button" onClick={onClick} className={`tab ${active ? 'active' : ''}`}>{children}</button>
         );
 
+        const [exporting, setExporting] = useState(false);
+        const handleExport = async () => {
+          if (exporting) return;
+          try {
+            setExporting(true);
+            const res = await fetch('/api/export-accounts', { method: 'POST' });
+            if (!res.ok) { const t = await res.text().catch(()=> ''); throw new Error(t || 'Export failed'); }
+            const data = await res.json().catch(()=> ({}));
+            alert(`Exported to: ${data && data.path ? data.path : 'file created'}`);
+          } catch (e) {
+            alert(e.message || 'Export failed');
+          } finally {
+            setExporting(false);
+          }
+        };
+
         return (
-          <div className="container">
+          <div className="container" style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={exporting}
+              style={{ position: 'fixed', top: 12, right: 12, zIndex: 1000 }}
+              className={`px-3 py-1 text-sm text-white rounded ${exporting ? 'bg-gray-500' : 'bg-blue-600 hover:bg-blue-700'}`}
+            >{exporting ? 'Exporting…' : 'Export'}</button>
             <h1>AccountSpy</h1>
 
             <div className="tabs">

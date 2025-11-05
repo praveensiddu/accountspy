@@ -152,3 +152,90 @@ async def unverify_rental_summary_cell(payload: UnverifyCellPayload) -> Dict[str
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update verified file: {e}")
     return {"ok": True}
+
+
+@router.post("/export-accounts")
+async def export_accounts_excel() -> Dict[str, Any]:
+    if not state.ACCOUNTS_DIR_PATH or not state.CURRENT_YEAR:
+        raise HTTPException(status_code=500, detail="ACCOUNTS_DIR or CURRENT_YEAR is not configured")
+    base_dir = state.ACCOUNTS_DIR_PATH / state.CURRENT_YEAR
+    rent_dir = base_dir / 'rentalsummary'
+    comp_dir = base_dir / 'companysummary'
+    out_path = base_dir / f"accounts_{state.CURRENT_YEAR}.xlsx"
+
+    # Collect rental summary rows
+    rental_cols = [
+        "property","rent","commissions","insurance","proffees","mortgageinterest","repairs","tax","utilities","depreciation","hoa","other","costbasis","renteddays","profit"
+    ]
+    rental_rows: List[Dict[str, Any]] = []
+    try:
+        if rent_dir.exists():
+            for p in sorted(rent_dir.glob('*.yaml')):
+                try:
+                    with p.open('r', encoding='utf-8') as yf:
+                        data = yaml.safe_load(yf) or {}
+                        if isinstance(data, dict):
+                            row: Dict[str, Any] = { 'property': p.stem }
+                            for k, v in data.items():
+                                kk = str(k).strip().lower()
+                                if kk in rental_cols and v is not None and str(v) != '':
+                                    row[kk] = v
+                            rental_rows.append(row)
+                except Exception:
+                    continue
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read rentalsummary: {e}")
+
+    # Collect company summary rows
+    company_cols = [
+        "Name","income","rentpassedtoowners","bankfees","c_auto","c_donate","c_entertainment","c_internet","c_license","c_mobile","c_off_exp","c_parktoll","c_phone","c_website","ignore","insurane","proffees","utilities","profit"
+    ]
+    company_rows: List[Dict[str, Any]] = []
+    try:
+        if comp_dir.exists():
+            for p in sorted(comp_dir.glob('*.yaml')):
+                try:
+                    with p.open('r', encoding='utf-8') as yf:
+                        data = yaml.safe_load(yf) or {}
+                        if isinstance(data, dict):
+                            row: Dict[str, Any] = { 'Name': p.stem }
+                            for col in company_cols:
+                                if col == 'Name':
+                                    continue
+                                row[col] = ''
+                            for k, v in data.items():
+                                kk = str(k).strip()
+                                if kk in company_cols and v is not None and str(v) != '':
+                                    row[kk] = v
+                            company_rows.append(row)
+                except Exception:
+                    continue
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read companysummary: {e}")
+
+    # Write Excel
+    try:
+        from openpyxl import Workbook
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"openpyxl not installed: {e}")
+
+    try:
+        wb = Workbook()
+        # Rentalsummary sheet
+        ws1 = wb.active
+        ws1.title = 'rentalsummary'
+        ws1.append(rental_cols)
+        for r in rental_rows:
+            ws1.append([r.get(c, '') for c in rental_cols])
+        # Companysummary sheet
+        ws2 = wb.create_sheet('companysummary')
+        ws2.append(company_cols)
+        for r in company_rows:
+            ws2.append([r.get(c, '') for c in company_cols])
+        # Ensure parent dir
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        wb.save(str(out_path))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to write Excel: {e}")
+
+    return {"ok": True, "path": str(out_path)}
