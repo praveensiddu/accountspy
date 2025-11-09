@@ -3213,6 +3213,26 @@
                                 })}
                               </tr>
                             ))}
+                            {(() => {
+                              const fields = ['rent','commissions','insurance','proffees','mortgageinterest','repairs','tax','utilities','depreciation','hoa','other','costbasis','renteddays','profit'];
+                              const sum = (f) => {
+                                try {
+                                  return rows.reduce((acc, row) => {
+                                    const v = row && row[f];
+                                    const n = Number(v);
+                                    return Number.isFinite(n) ? acc + n : acc;
+                                  }, 0);
+                                } catch (_) { return 0; }
+                              };
+                              return (
+                                <tr key="rs-total">
+                                  <td className="font-semibold">total</td>
+                                  {fields.map((f, i) => (
+                                    <td key={`t-${i}`} className="font-semibold">{sum(f)}</td>
+                                  ))}
+                                </tr>
+                              );
+                            })()}
                           </tbody>
                         </table>
                       ); })()}
