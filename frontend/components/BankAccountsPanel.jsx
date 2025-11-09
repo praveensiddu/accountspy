@@ -7,6 +7,11 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
   const [mode, setMode] = React.useState('add');
   const [originalKey, setOriginalKey] = React.useState('');
   const [filter, setFilter] = React.useState({ bankaccountname: '', bankname: '', statement_location: '' });
+  const [uploadOpen, setUploadOpen] = React.useState(false);
+  const [uploadTarget, setUploadTarget] = React.useState('');
+  const [uploadFile, setUploadFile] = React.useState(null);
+  const [uploadErr, setUploadErr] = React.useState('');
+  const [uploading, setUploading] = React.useState(false);
   const onChange = (e) => {
     const { name, value } = e.target;
     if (name === 'bankaccountname') setForm({ ...form, [name]: (value || '').toLowerCase().replace(/[^a-z0-9_]/g, '') });
@@ -38,6 +43,36 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
     setOriginalKey(x.bankaccountname);
     setForm({ bankaccountname: x.bankaccountname, bankname: x.bankname, statement_location: x.statement_location || '' });
     setOpen(true);
+  };
+  const onOpenUpload = (baName) => {
+    setUploadTarget(baName);
+    setUploadFile(null);
+    setUploadErr('');
+    setUploadOpen(true);
+  };
+  const onSubmitUpload = async (e) => {
+    e && e.preventDefault();
+    try {
+      setUploadErr('');
+      if (!uploadTarget) throw new Error('Missing bankaccountname');
+      if (!uploadFile) throw new Error('Please choose a .csv file');
+      const name = uploadFile.name || '';
+      if (!name.toLowerCase().endsWith('.csv')) throw new Error('Only .csv files are supported');
+      const fd = new FormData();
+      fd.append('file', uploadFile);
+      setUploading(true);
+      const resp = await fetch(`/api/bankaccounts/${encodeURIComponent(uploadTarget)}/upload-statement`, { method: 'POST', body: fd });
+      if (!resp.ok) {
+        const t = await resp.text().catch(()=> '');
+        throw new Error(t || 'Upload failed');
+      }
+      setUploadOpen(false);
+      await reload();
+    } catch (err) {
+      setUploadErr(err.message || 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
   };
   return (
     <React.Fragment>
@@ -123,6 +158,7 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
                   <td>{x.bankname}</td>
                   <td className="whitespace-pre-wrap">{x.statement_location}</td>
                   <td>
+                    <button onClick={() => onOpenUpload(x.bankaccountname)} className="px-2 py-1 mr-2 bg-blue-600 text-white rounded hover:bg-blue-700">Upload Statement</button>
                     <button onClick={() => onEdit(x)} className="px-2 py-1 mr-2 bg-gray-700 text-white rounded hover:bg-gray-800">Edit</button>
                     <button onClick={() => onDelete(x.bankaccountname)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
                   </td>
@@ -133,6 +169,25 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
           </table>
         )}
       </div>
+      <Modal
+        title={`Upload Statement${uploadTarget ? `: ${uploadTarget}` : ''}`}
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onSubmit={onSubmitUpload}
+        submitLabel={uploading ? 'Uploading...' : 'Upload'}
+        submitDisabled={uploading || !uploadFile}
+      >
+        <form onSubmit={onSubmitUpload} className="grid grid-cols-1 gap-4">
+          <p className="text-sm text-gray-600">
+            Upload backstatement for bankaccountname starting from Jan 1st till current date  or Dec 31
+          </p>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">File (.csv)</label>
+            <input type="file" accept=".csv" onChange={(e)=> setUploadFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)} />
+          </div>
+          {uploadErr && <div className="text-sm text-red-600">{uploadErr}</div>}
+        </form>
+      </Modal>
     </React.Fragment>
   );
 };

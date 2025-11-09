@@ -1,9 +1,12 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from typing import List
+from pathlib import Path
+import csv
 
 from .. import main as state
 from ..core.models import BankAccountRecord
 from ..core.utils import dump_yaml_entities
+from ..bank_statement_parser import _normalize_date
 
 router = APIRouter(prefix="/api", tags=["bankaccounts"])
 
@@ -154,3 +157,99 @@ async def delete_bankaccount(bankaccountname: str):
     except Exception:
         pass
     return
+
+
+@router.post("/bankaccounts/{bankaccountname}/upload-statement")
+async def upload_bank_statement(bankaccountname: str, file: UploadFile = File(...)):
+    key = (bankaccountname or '').strip().lower()
+    if not key or key not in state.BA_DB:
+        raise HTTPException(status_code=404, detail="Bank account not found")
+    ba = state.BA_DB[key]
+    bankname = (ba.get('bankname') or '').strip().lower()
+    stmt_loc = (ba.get('statement_location') or '').strip()
+    if not (bankname and stmt_loc):
+        raise HTTPException(status_code=400, detail="Bank account is missing bankname or statement_location")
+    cfg = state.BANKS_CFG_DB.get(bankname)
+    if not cfg:
+        raise HTTPException(status_code=400, detail=f"Missing bank config for {bankname}")
+
+    # Read uploaded CSV into memory as text
+    try:
+        raw = await file.read()
+        text = raw.decode('utf-8')
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read uploaded file: {e}")
+
+    # Parse CSV using bank config and validate dates belong to CURRENT_YEAR
+    delim = (cfg.get('delim') or ',')
+    starts = cfg.get('ignore_lines_startswith') or []
+    contains = cfg.get('ignore_lines_contains') or []
+    columns_list = cfg.get('columns') or []
+    colmap = {}
+    for entry in columns_list:
+        if isinstance(entry, dict) and entry:
+            colmap = entry
+            break
+    date_idx = int(colmap.get('date') or 0)
+    if not date_idx:
+        raise HTTPException(status_code=400, detail="Bank config is missing date column index")
+    raw_fmt = (cfg.get('date_format') or '').strip()
+    year_expected = str(state.CURRENT_YEAR)
+
+    # Filter lines according to ignore rules
+    filtered_lines = []
+    for raw_line in text.splitlines():
+        line = raw_line.rstrip('\n')
+        if not line.strip():
+            continue
+        skip = False
+        for s in starts:
+            try:
+                if s and line.startswith(s):
+                    skip = True; break
+            except Exception:
+                continue
+        if skip:
+            continue
+        for c in contains:
+            try:
+                if c and (c in line):
+                    skip = True; break
+            except Exception:
+                continue
+        if skip:
+            continue
+        filtered_lines.append(line)
+
+    # Validate year on each row
+    try:
+        reader = csv.reader(filtered_lines, delimiter=delim)
+        row_idx = 0
+        for parts in reader:
+            row_idx += 1
+            if not parts:
+                continue
+            parts = [p.strip() for p in parts]
+            if date_idx <= 0:
+                continue
+            date_val = parts[date_idx-1] if len(parts) >= date_idx else ''
+            date_out = _normalize_date(date_val, raw_fmt)
+            # Expect date_out like YYYY-MM-DD; validate year
+            if not date_out or len(date_out) < 4 or date_out[:4] != year_expected:
+                raise HTTPException(status_code=400, detail=f"Row {row_idx}: date not in CURRENT_YEAR {year_expected}: '{date_val}' -> '{date_out}'")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse CSV: {e}")
+
+    # Save file to statement_location/CURRENT_YEAR/bank_stmts/<bankaccountname>.csv
+    try:
+        dest_dir = Path(stmt_loc).expanduser().resolve() / str(state.CURRENT_YEAR) / 'bank_stmts'
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest_path = dest_dir / f"{key}.csv"
+        with dest_path.open('w', encoding='utf-8', newline='') as wf:
+            wf.write(text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {e}")
+
+    return {"ok": True, "path": str(dest_path)}

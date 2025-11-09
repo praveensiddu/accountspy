@@ -1178,6 +1178,11 @@
         const [form, setForm] = React.useState(emptyBA);
         const [saving, setSaving] = React.useState(false);
         const [filter, setFilter] = React.useState({ bankaccountname: '', bankname: '' });
+        const [uploadOpen, setUploadOpen] = React.useState(false);
+        const [uploadTarget, setUploadTarget] = React.useState('');
+        const [uploadFile, setUploadFile] = React.useState(null);
+        const [uploadErr, setUploadErr] = React.useState('');
+        const [uploading, setUploading] = React.useState(false);
         const onChange = (e) => {
           const { name, value } = e.target;
           if (name === 'bankaccountname') {
@@ -1200,6 +1205,28 @@
           if (!confirm(`Delete ${name}?`)) return;
           try { await api.removeBankaccount(name); await reload(); } catch (e) { alert(e.message || 'Error'); }
         };
+        const openUpload = (baName) => { setUploadTarget(baName); setUploadFile(null); setUploadErr(''); setUploadOpen(true); };
+        const doUpload = async () => {
+          try {
+            setUploadErr('');
+            if (!uploadTarget) throw new Error('Missing bankaccountname');
+            if (!uploadFile) throw new Error('Please choose a .csv file');
+            const name = uploadFile.name || '';
+            if (!name.toLowerCase().endsWith('.csv')) throw new Error('Only .csv files are supported');
+            const fd = new FormData();
+            fd.append('file', uploadFile);
+            setUploading(true);
+            const res = await fetch(`/api/bankaccounts/${encodeURIComponent(uploadTarget)}/upload-statement`, { method: 'POST', body: fd });
+            if (!res.ok) { const t = await res.text().catch(()=> ''); throw new Error(t || 'Upload failed'); }
+            setUploadOpen(false);
+            await reload();
+          } catch (e) {
+            setUploadErr(e.message || 'Upload failed');
+          } finally {
+            setUploading(false);
+          }
+        };
+
         return (
           <React.Fragment>
             <h2>Bank Accounts</h2>
@@ -1248,7 +1275,10 @@
                       <tr key={x.bankaccountname}>
                         <td>{x.bankaccountname}</td>
                         <td>{x.bankname}</td>
-                        <td><button onClick={() => onDelete(x.bankaccountname)}>Delete</button></td>
+                        <td style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <button type="button" onClick={() => openUpload(x.bankaccountname)}>Upload Statement</button>
+                          <button onClick={() => onDelete(x.bankaccountname)}>Delete</button>
+                        </td>
                       </tr>
                     ))}
                     {bankaccounts.length === 0 && (<tr><td colSpan="3" className="muted">No bank accounts</td></tr>)}
@@ -1256,6 +1286,32 @@
                 </table>
               )}
             </div>
+
+            {uploadOpen && (
+              <div role="dialog" aria-modal="true" style={{ position:'fixed', inset:0, zIndex:3000, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.45)' }} onClick={()=> setUploadOpen(false)} />
+                <div style={{ position:'relative', background:'#fff', width:'min(92vw, 560px)', borderRadius:12, boxShadow:'0 10px 30px rgba(0,0,0,0.25)' }}>
+                  <div style={{ padding:'16px 20px', borderBottom:'1px solid #eee', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <div style={{ fontSize:18, fontWeight:600 }}>Upload Statement</div>
+                    <button onClick={()=> setUploadOpen(false)} title="Close" style={{ border:0, background:'transparent', fontSize:20, lineHeight:1, cursor:'pointer' }}>×</button>
+                  </div>
+                  <div style={{ padding:'16px 20px', display:'grid', gap:12 }}>
+                    <div className="muted" style={{ whiteSpace:'pre-wrap' }}>
+                      Upload backstatement for bankaccountname starting from Jan 1st till current date  or Dec 31
+                    </div>
+                    <div>
+                      <label style={{ display:'block', marginBottom:6 }}>File (.csv)</label>
+                      <input type="file" accept=".csv" onChange={(e)=> setUploadFile(e.target.files && e.target.files[0] ? e.target.files[0] : null)} />
+                    </div>
+                    {uploadErr && <div className="error" style={{ color:'#b91c1c' }}>{uploadErr}</div>}
+                  </div>
+                  <div style={{ padding:'12px 20px', display:'flex', justifyContent:'flex-end', gap:8, borderTop:'1px solid #eee' }}>
+                    <button onClick={()=> setUploadOpen(false)} style={{ padding:'8px 12px', borderRadius:8, border:'1px solid #ddd', background:'#fff', cursor:'pointer' }}>Cancel</button>
+                    <button onClick={doUpload} disabled={uploading || !uploadFile} style={{ padding:'8px 12px', borderRadius:8, background:'#0b6bcb', color:'#fff', border:0, cursor:'pointer' }}>{uploading ? 'Uploading…' : 'Upload'}</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </React.Fragment>
         );
       }
