@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Dict, Any
 from pathlib import Path
@@ -239,3 +240,17 @@ async def export_accounts_excel() -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"Failed to write Excel: {e}")
 
     return {"ok": True, "path": str(out_path)}
+
+
+@router.get("/export-accounts/download")
+async def download_accounts_excel():
+    if not state.ACCOUNTS_DIR_PATH or not state.CURRENT_YEAR:
+        raise HTTPException(status_code=500, detail="ACCOUNTS_DIR or CURRENT_YEAR is not configured")
+    base_dir = state.ACCOUNTS_DIR_PATH / state.CURRENT_YEAR
+    out_path = base_dir / f"accounts_{state.CURRENT_YEAR}.xlsx"
+    if not out_path.exists() or not out_path.is_file():
+        raise HTTPException(status_code=404, detail="Export file not found. Run export first.")
+    return FileResponse(str(out_path), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename=out_path.name)
+
+
+
