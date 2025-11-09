@@ -4,7 +4,7 @@ from typing import List
 from .. import main as state
 from ..core.models import GroupRecord
 from ..core.utils import dump_yaml_entities
-
+import os
 router = APIRouter(prefix="/api", tags=["groups"])
 
 
