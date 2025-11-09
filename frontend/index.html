@@ -3196,10 +3196,18 @@
                               <tr key={`rs-${idx}`}>
                                 <td className="break-words whitespace-pre-wrap">{r.property}</td>
                                 {['rent','commissions','insurance','proffees','mortgageinterest','repairs','tax','utilities','depreciation','hoa','other','costbasis','renteddays','profit'].map((f,i)=> {
+                                  const tooltip = (()=>{
+                                    try {
+                                      const rev = r && r._reverse && r._reverse[f];
+                                      if (!rev || !Array.isArray(rev) || rev.length === 0) return '';
+                                      const lines = rev.map(x => `${x.bankaccountname||''} | ${x.description||''} | ${x.credit!=null?x.credit:''}`);
+                                      return lines.join('\n');
+                                    } catch(_) { return ''; }
+                                  })();
                                   return (
                                     <td key={`c-${i}`} className={`break-words whitespace-pre-wrap ${isRSVerified(r,f) ? 'bg-green-100' : ''}`}> 
                                       <div className="flex flex-col items-end gap-1">
-                                        <span style={{ wordBreak:'break-word', whiteSpace:'pre-wrap' }} className="self-start">{r[f]}</span>
+                                        <span title={tooltip} style={{ wordBreak:'break-word', whiteSpace:'pre-wrap' }} className="self-start">{r[f]}</span>
                                         <button
                                           type="button"
                                           title={isRSVerified(r,f) ? 'Unverify' : 'Mark verified'}

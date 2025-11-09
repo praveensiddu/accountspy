@@ -43,6 +43,7 @@ async def get_rental_summary() -> List[Dict[str, Any]]:
         raise HTTPException(status_code=500, detail="ACCOUNTS_DIR or CURRENT_YEAR is not configured")
     base = state.ACCOUNTS_DIR_PATH / state.CURRENT_YEAR / 'rentalsummary'
     ver_base = state.ACCOUNTS_DIR_PATH / state.CURRENT_YEAR / 'rentalsummary_verified'
+    rev_base = state.ACCOUNTS_DIR_PATH / state.CURRENT_YEAR / 'rentalsummary_reverse'
     try:
         all_rows: List[Dict[str, Any]] = []
         if base.exists() and base.is_dir():
@@ -74,6 +75,17 @@ async def get_rental_summary() -> List[Dict[str, Any]]:
                                                     verified[vkk] = vv
                                             if verified:
                                                 row['_verified'] = verified
+                            except Exception:
+                                pass
+                            # Attach reverse map if present (from rentalsummary_reverse/<property>.yaml)
+                            try:
+                                if rev_base.exists():
+                                    rev_path = rev_base / f"{prop_name}.yaml"
+                                    if rev_path.exists():
+                                        with rev_path.open('r', encoding='utf-8') as rf:
+                                            rdata = yaml.safe_load(rf) or {}
+                                            if isinstance(rdata, dict):
+                                                row['_reverse'] = rdata
                             except Exception:
                                 pass
                             all_rows.append(row)

@@ -73,6 +73,8 @@ def prepare_and_save_property_sum() -> None:
         return
 
     summary: Dict[str, Dict[str, float]] = {}
+    # reverse map: property -> transaction_type -> list of {bankaccountname, description, credit}
+    reverse_map: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
 
     # Iterate all bank accounts from state to know filenames
     for ba in list(state.BA_DB.keys()):
@@ -90,6 +92,7 @@ def prepare_and_save_property_sum() -> None:
                 if not tx_type:
                     continue
                 credit = _to_float(r.get('credit'))
+                desc = (r.get('description') or '').strip()
                 props: List[str] = []
                 prop = (r.get('property') or '').strip().lower()
                 grp = (r.get('group') or '').strip().lower()
@@ -109,14 +112,26 @@ def prepare_and_save_property_sum() -> None:
                     if p not in summary:
                         summary[p] = {}
                     summary[p][tx_type] = summary[p].get(tx_type, 0.0) + credit
+                    # build reverse map entry
+                    if p not in reverse_map:
+                        reverse_map[p] = {}
+                    if tx_type not in reverse_map[p]:
+                        reverse_map[p][tx_type] = []
+                    reverse_map[p][tx_type].append({
+                        'bankaccountname': ba,
+                        'description': desc,
+                        'credit': credit,
+                    })
             except Exception:
                 # Skip bad rows
                 continue
 
     # Ensure rentalsummary dir
     out_dir: Path = state.ACCOUNTS_DIR_PATH / state.CURRENT_YEAR / 'rentalsummary'
+    rev_dir: Path = state.ACCOUNTS_DIR_PATH / state.CURRENT_YEAR / 'rentalsummary_reverse'
     try:
         out_dir.mkdir(parents=True, exist_ok=True)
+        rev_dir.mkdir(parents=True, exist_ok=True)
     except Exception:
         return
 
@@ -138,7 +153,7 @@ def prepare_and_save_property_sum() -> None:
     except Exception:
         pass
 
-    # Dump one YAML per property
+    # Dump one YAML per property and corresponding reverse map
     for p, totals in summary.items():
         try:
             # Sort keys for determinism and round to 2 decimals
@@ -146,6 +161,11 @@ def prepare_and_save_property_sum() -> None:
             out_path = out_dir / f"{p}.yaml"
             with out_path.open('w', encoding='utf-8') as yf:
                 yaml.safe_dump(ordered, yf, sort_keys=True, allow_unicode=True)
+            # dump reverse map for this property (keep list order as encountered)
+            rev = reverse_map.get(p) or {}
+            rev_out = rev_dir / f"{p}.yaml"
+            with rev_out.open('w', encoding='utf-8') as rf:
+                yaml.safe_dump(rev, rf, sort_keys=True, allow_unicode=True)
         except Exception:
             # continue with others
             continue
