@@ -10,6 +10,7 @@ router = APIRouter(prefix="/api", tags=["groups"])
 
 @router.get("/groups", response_model=List[GroupRecord])
 async def list_groups():
+    print(f"list_groups ENTITIES_DIR={os.getenv('ENTITIES_DIR')}")
     return list(state.GROUP_DB.values())
 
 
