@@ -146,9 +146,8 @@ try:
     app.include_router(addendum_router.router)
     app.include_router(rentalsummary_router.router)
     app.include_router(companysummary_router.router)
-except Exception:
-    # In case of import issues during incremental refactor, continue with inline endpoints
-    pass
+except Exception as e:
+    logger.exception("Router include failed", exc_info=e)
 
 
 def _dict_reader_ignoring_comments(f) -> csv.DictReader:
