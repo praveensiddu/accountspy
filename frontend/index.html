@@ -2341,7 +2341,13 @@
           try {
             const v = row && row._verified && row._verified[field];
             const cur = row && row[field];
-            if (v == null || v === '') return false;
+            // If verified value is explicitly empty string, consider verified when current field is missing/empty
+            if (v === '') {
+              if (cur == null) return true;
+              const cs = String(cur).toString().trim();
+              return cs === '';
+            }
+            if (v == null) return false;
             return String(cur) === String(v);
           } catch(_) { return false; }
         };
@@ -2350,7 +2356,6 @@
             if (!row || !row.property || field === 'property') return;
             const prop = String(row.property||'').toLowerCase();
             const curVal = row[field];
-            if (curVal == null || String(curVal).toString().trim() === '') return; // do nothing when no value
             const verified = isRSVerified(row, field);
             let res;
             if (verified) {
@@ -3191,16 +3196,14 @@
                               <tr key={`rs-${idx}`}>
                                 <td className="break-words whitespace-pre-wrap">{r.property}</td>
                                 {['rent','commissions','insurance','proffees','mortgageinterest','repairs','tax','utilities','depreciation','hoa','other','costbasis','renteddays','profit'].map((f,i)=> {
-                                  const hasVal = (()=>{ const v = r[f]; return !(v == null || String(v).toString().trim() === ''); })();
                                   return (
                                     <td key={`c-${i}`} className={`break-words whitespace-pre-wrap ${isRSVerified(r,f) ? 'bg-green-100' : ''}`}> 
                                       <div className="flex flex-col items-end gap-1">
                                         <span style={{ wordBreak:'break-word', whiteSpace:'pre-wrap' }} className="self-start">{r[f]}</span>
                                         <button
                                           type="button"
-                                          disabled={!hasVal}
-                                          title={hasVal ? (isRSVerified(r,f) ? 'Unverify' : 'Mark verified') : 'No value to verify'}
-                                          className={`text-white rounded disabled:opacity-50 ${isRSVerified(r,f) ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-500 hover:bg-gray-600'}`}
+                                          title={isRSVerified(r,f) ? 'Unverify' : 'Mark verified'}
+                                          className={`text-white rounded ${isRSVerified(r,f) ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-500 hover:bg-gray-600'}`}
                                           style={{ width: '6px', height: '6px', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '6px', lineHeight: '6px' }}
                                           onClick={()=> verifyRSCell(r, f)}
                                         >✓</button>

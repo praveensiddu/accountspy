@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pathlib import Path
 import yaml
 
@@ -87,7 +87,7 @@ async def get_rental_summary() -> List[Dict[str, Any]]:
 class VerifyCellPayload(BaseModel):
     property: str
     field: str
-    value: Any
+    value: Optional[Any] = ''
 
 
 @router.post("/rental-summary/verify")
@@ -112,7 +112,9 @@ async def verify_rental_summary_cell(payload: VerifyCellPayload) -> Dict[str, An
                     current = data
     except Exception:
         current = {}
-    current[field] = payload.value
+    # If value is missing or None, record as empty string
+    val = payload.value if payload.value is not None else ''
+    current[field] = val
     try:
         with ver_path.open('w', encoding='utf-8') as f:
             yaml.safe_dump(current, f, sort_keys=True, allow_unicode=True)
