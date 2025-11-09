@@ -150,8 +150,7 @@ def _write_bank_rules_list(bank: str, items: list):
         yaml.safe_dump(items, f, sort_keys=True, allow_unicode=True)
 
 
-def _write_and_recompute(bank: str, items: list):
-    _write_bank_rules_list(bank, items)
+def _recompute(bank: str):
     try:
         classifier.classify_bank(bank)
     except Exception:
@@ -229,7 +228,8 @@ async def update_bank_rule_order(bankaccountname: str = Query(""), payload: Upda
     # Renumber continuous 1..n
     for i, it in enumerate(items, start=1):
         it['order'] = i
-    _write_and_recompute(bank, items)
+    _write_bank_rules_list(bank, items)
+    _recompute(bank)
     return {"ok": True, "max_order": max_order}
 
 
@@ -344,7 +344,8 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
         merged_list.sort(key=lambda x: int(x.get('order') or 0))
         for idx, it in enumerate(merged_list, start=1):
             it['order'] = idx
-        _write_and_recompute(bank, merged_list)
+        _write_bank_rules_list(bank, merged_list)
+        _recompute(bank)
         return updated
 
     if new_key in key_to_item:
@@ -392,7 +393,8 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
     for idx, it in enumerate(merged_list, start=1):
         it['order'] = idx
 
-    _write_and_recompute(bank, merged_list)
+    _write_bank_rules_list(bank, merged_list)
+    _recompute(bank)
     return rec
 
 
@@ -447,7 +449,8 @@ async def delete_bank_rule(
         pass
     for idx, it in enumerate(remaining, start=1):
         it['order'] = idx
-    _write_and_recompute(bank, remaining)
+    _write_bank_rules_list(bank, remaining)
+    _recompute(bank)
     return
 
 

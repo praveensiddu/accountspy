@@ -31,6 +31,25 @@ const TransactionTypesPanelExt = ({ transactionTypes, loading, reload }) => {
     if (!(await window.showConfirm(`Delete ${tt}?`))) return;
     try { await window.api.removeTransactionType(tt); await reload(); } catch (err) { alert(err.message || 'Error'); }
   };
+  const onRename = async (oldName) => {
+    try {
+      const input = window.prompt('New transaction type name (lowercase, a-z0-9_)', oldName);
+      if (input == null) return;
+      const to = (input || '').trim().toLowerCase();
+      if (!to) { alert('Name is required'); return; }
+      if (!/^[a-z0-9_]+$/.test(to)) { alert('Use lowercase letters, numbers, and underscore only (no spaces)'); return; }
+      if (to === oldName) return;
+      const res = await fetch('/api/transaction-types/rename', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from_type: oldName, to_type: to })
+      });
+      if (!res.ok) { const t = await res.text().catch(()=> ''); throw new Error(t || 'Rename failed'); }
+      await reload();
+    } catch (err) {
+      alert(err.message || 'Rename failed');
+    }
+  };
   const onEdit = (t) => {
     setMode('edit');
     setOriginalKey(t.transactiontype);
@@ -81,6 +100,7 @@ const TransactionTypesPanelExt = ({ transactionTypes, loading, reload }) => {
                 <tr key={t.transactiontype}>
                   <td>{t.transactiontype}</td>
                   <td>
+                    <button onClick={() => onRename(t.transactiontype)} className="px-2 py-1 mr-2 bg-blue-600 text-white rounded hover:bg-blue-700">Rename</button>
                     <button onClick={() => onDelete(t.transactiontype)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
                   </td>
                 </tr>
