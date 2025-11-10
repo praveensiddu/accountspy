@@ -193,16 +193,7 @@ def _get_any(row: Dict[str, str], keys: List[str]) -> str:
     return ""
 
 
- 
 
-
-# Banks endpoints moved to routers/banks.py
-
-
-# Tax categories endpoints moved to routers/tax_categories.py
-
-
-# Transaction types endpoints moved to routers/transaction_types.py
 
 def _dump_yaml_entities(path: Path, entities: List[Dict], key_field: str) -> None:
     # Sort records by key_field and sort keys within each dict for determinism
@@ -221,18 +212,6 @@ def _dump_yaml_entities(path: Path, entities: List[Dict], key_field: str) -> Non
         yaml.safe_dump(normalized, yf, sort_keys=True, allow_unicode=True)
 
 
-# Bank accounts moved to routers/bankaccounts.py
-
-
-# Groups moved to routers/groups.py
-
-
-# Owners moved to routers/owners.py
-
-
- 
-
-
  
 
 
@@ -242,37 +221,8 @@ def _split_pipe_list(value: str) -> List[str]:
     return [x.strip().lower() for x in value.split("|") if x.strip()]
 
 
- 
-
-
- 
-
-
- 
-
-
- 
-
- 
-
-
- 
-
-
 def _normalize_str(val: Optional[str]) -> str:
     return (val or "").strip()
-
-
- 
-
-
- 
-
-
- 
-
-
- 
 
 
 def _init_fs_and_env() -> Path:
@@ -438,12 +388,6 @@ async def startup_event():
         prepare_and_save_company_sum()
     except Exception as e:
         logger.error(f"Failed to build company summary on startup: {e}")
-
-
-# Properties moved to routers/properties.py
-
-
-# Companies moved to routers/companies.py
 
 
 # Serve static frontend
