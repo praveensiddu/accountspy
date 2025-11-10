@@ -252,6 +252,6 @@ def classify_bank(bankaccountname: str) -> None:
             writer.writeheader()
             for r in out_rows:
                 writer.writerow(r)
-        logger.info(f"Saved processed CSV for {bank}")
+        logger.info(f"Saved processed CSV for {bank}: {out_csv}")
     except Exception as e:
         logger.info(f"Error saving processed CSV for {bank}: {e}")
