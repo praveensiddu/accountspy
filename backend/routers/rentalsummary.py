@@ -76,7 +76,7 @@ async def get_rental_summary() -> List[Dict[str, Any]]:
                                             if verified:
                                                 row['_verified'] = verified
                             except Exception:
-                                pass
+                                state.logger.exception("Failed attaching verified values to rental summary row")
                             # Attach reverse map if present (from rentalsummary_reverse/<property>.yaml)
                             try:
                                 if rev_base.exists():
@@ -87,7 +87,7 @@ async def get_rental_summary() -> List[Dict[str, Any]]:
                                             if isinstance(rdata, dict):
                                                 row['_reverse'] = rdata
                             except Exception:
-                                pass
+                                state.logger.exception("Failed attaching reverse map to rental summary row")
                             all_rows.append(row)
                 except Exception as e:
                     state.logger.error(f"Failed to read rental summary file {p}: {e}")

@@ -105,7 +105,7 @@ class TaxCategoryRecord(BaseModel):
 class TransactionTypeRecord(BaseModel):
     transactiontype: str = Field(..., description="Transaction type name")
 
-app = FastAPI(title="Properties API", version="1.0.0")
+app = FastAPI(title="Properties API", version="1.0.0", debug=True)
 
 logger = logging.getLogger("uvicorn.error")
 

@@ -118,7 +118,7 @@ def classify_bank(bankaccountname: str) -> None:
                 # Expecting columns: tr_id,date,description,credit
                 seed_rows.append(ProcRow.from_dict(row))
     except Exception as e:
-        logger.info(f"Error loading normalized CSV for {bank}: {e}")
+        logger.exception(f"Error loading normalized CSV for {bank}: {e}")
         return
 
     processed[bank] = [r.to_dict() for r in seed_rows]
@@ -238,7 +238,7 @@ def classify_bank(bankaccountname: str) -> None:
         try:
             return float(v)
         except Exception as e:
-            logger.info(f"Error converting credit to float: {v} {e}")
+            logger.exception(f"Error converting credit to float: {v} {e}")
             return 0.0
 
     out_rows.sort(key=lambda r: (str(r.get("date", "")), str(r.get("description", "")), _credit_as_float(r.get("credit", 0))))
@@ -254,4 +254,4 @@ def classify_bank(bankaccountname: str) -> None:
                 writer.writerow(r)
         logger.info(f"Saved processed CSV for {bank}: {out_csv}")
     except Exception as e:
-        logger.info(f"Error saving processed CSV for {bank}: {e}")
+        logger.exception(f"Error saving processed CSV for {bank}: {e}")

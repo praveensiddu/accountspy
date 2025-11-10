@@ -58,7 +58,7 @@ def _read_processed_csv(path: Path) -> List[Dict[str, Any]]:
                     'fromaddendum': row.get('fromaddendum',''),
                 })
     except Exception:
-        pass
+        state.logger.exception(f"Failed reading processed CSV: {path}")
     return rows
 
 
@@ -227,17 +227,17 @@ async def save_transactions(bankaccountname: str, payload: TransactionsPayload) 
     try:
         classifier.classify_bank(key)
     except Exception:
-        # Do not fail the request if regeneration fails
-        pass
+        # Do not fail the request if regeneration fails, but log details
+        state.logger.exception(f"Failed to reclassify after save for {key}")
     # Update rental summaries
     try:
         prepare_and_save_property_sum()
     except Exception:
-        pass
+        state.logger.exception("Failed to update property summary after save")
     try:
         prepare_and_save_company_sum()
     except Exception:
-        pass
+        state.logger.exception("Failed to update company summary after save")
     return {"ok": True, "path": str(out_path)}
 
 

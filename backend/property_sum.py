@@ -23,7 +23,7 @@ def _read_processed_csv(path: Path) -> List[Dict[str, Any]]:
                     'group': row.get('group',''),
                 })
     except Exception:
-        pass
+        state.logger.exception(f"Failed reading processed CSV: {path}")
     return rows
 
 
@@ -123,7 +123,7 @@ def prepare_and_save_property_sum() -> None:
                         'credit': credit,
                     })
             except Exception:
-                # Skip bad rows
+                state.logger.exception("Error while aggregating rental summary row")
                 continue
 
     # Ensure rentalsummary dir
@@ -133,25 +133,26 @@ def prepare_and_save_property_sum() -> None:
         out_dir.mkdir(parents=True, exist_ok=True)
         rev_dir.mkdir(parents=True, exist_ok=True)
     except Exception:
+        state.logger.exception("Failed to create rentalsummary directories")
         return
 
     # Adjust rent using property management company rentPercentage
     try:
         rent_from_company(summary)
     except Exception:
-        pass
+        state.logger.exception("rent_from_company failed")
 
     # Augment summary with depreciation numbers before dumping
     try:
         calculate_depreciation(summary)
     except Exception:
-        pass
+        state.logger.exception("calculate_depreciation failed")
 
     # Compute profit per property
     try:
         calculate_profit(summary)
     except Exception:
-        pass
+        state.logger.exception("calculate_profit failed")
 
     # Dump one YAML per property and corresponding reverse map
     for p, totals in summary.items():
@@ -167,7 +168,7 @@ def prepare_and_save_property_sum() -> None:
             with rev_out.open('w', encoding='utf-8') as rf:
                 yaml.safe_dump(rev, rf, sort_keys=True, allow_unicode=True)
         except Exception:
-            # continue with others
+            state.logger.exception(f"Failed to write rentalsummary YAML for {p}")
             continue
 
 
@@ -225,6 +226,7 @@ def calculate_depreciation(summary: Dict[str, Dict[str, float]]):
                 summary[prop_id] = {}
             summary[prop_id]['depreciation'] = -(float(depreciation))
         except Exception:
+            state.logger.exception("calculate_depreciation: failed for a property")
             continue
 
 
