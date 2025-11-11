@@ -710,9 +710,30 @@
           if (crSubTab === 'inherit') fetchInherit();
         }, [crSubTab, fetchCommon, fetchInherit]);
 
-        // Persist selected subtab for stickiness across refresh/hard refresh
+        // Sync subtab from URL and persist to localStorage; also push URL on change
+        useEffect(() => {
+          try {
+            const raw = (window.location && window.location.pathname) || '/';
+            const parts = raw.replace(/^\/+|\/+$/g,'').split('/');
+            if ((parts[0]||'').toLowerCase() === 'classifyrules') {
+              const p1 = (parts[1]||'').toLowerCase();
+              const sub = ({ bankrules:'bank', common:'common', inherit:'inherit' })[p1] || null;
+              if (sub && sub !== crSubTab) setCrSubTab(sub);
+            }
+          } catch(_) {}
+        }, []);
+        // Persist subtab and push URL when it changes
         React.useEffect(() => {
           try { window.localStorage.setItem('crSubTab', crSubTab); } catch (_) {}
+          try {
+            const slug = ({ bank:'bankrules', common:'common', inherit:'inherit' })[crSubTab] || 'bankrules';
+            if ((window.location && !/\/classifyrules\//.test(window.location.pathname))) {
+              // If not on classifyrules path, let App manage routing
+            } else {
+              const path = `/classifyrules/${slug}`;
+              if (window.location.pathname !== path) window.history.pushState(null, '', path);
+            }
+          } catch(_) {}
         }, [crSubTab]);
 
         // CommonRules CRUD (Modal based)
@@ -2283,6 +2304,75 @@
         const [setupTab, setSetupTab] = useState(() => {
           try { return window.localStorage.getItem('setupTab') || 'properties'; } catch (_) { return 'properties'; }
         }); // 'properties' | 'companies' | 'bankaccounts' | 'groups' | 'owners' | 'banks' | 'taxcats' | 'txtypes'
+
+        // --- Simple URL routing for tabs/subtabs ---
+        const slugToSetup = (s) => ({
+          properties:'properties', companies:'companies', bankaccounts:'bankaccounts', groups:'groups', owners:'owners', banks:'banks', taxcats:'taxcats', txtypes:'txtypes'
+        })[s] || 'properties';
+        const setupToSlug = (s) => ({
+          properties:'properties', companies:'companies', bankaccounts:'bankaccounts', groups:'groups', owners:'owners', banks:'banks', taxcats:'taxcats', txtypes:'txtypes'
+        })[s] || 'properties';
+        const crSlugToSub = (s) => ({ bankrules:'bank', common:'common', inherit:'inherit' })[s] || 'bank';
+        const crSubToSlug = (s) => ({ bank:'bankrules', common:'common', inherit:'inherit' })[s] || 'bankrules';
+
+        const applyRouteFromPath = React.useCallback(() => {
+          try {
+            const raw = (window.location && window.location.pathname) || '/';
+            const parts = raw.replace(/^\/+|\/+$/g,'').split('/');
+            const p0 = (parts[0]||'').toLowerCase();
+            const p1 = (parts[1]||'').toLowerCase();
+            if (p0 === 'setup') {
+              setTopTab('setup');
+              if (p1) setSetupTab(slugToSetup(p1));
+              return;
+            }
+            if (p0 === 'classifyrules') {
+              setTopTab('classifyrules');
+              const sub = crSlugToSub(p1);
+              try { window.localStorage.setItem('crSubTab', sub); } catch(_) {}
+              return;
+            }
+            if (p0 === 'transactions') { setTopTab('transactions'); return; }
+            if (p0 === 'rentalsummary') { setTopTab('rentalsummary'); return; }
+            if (p0 === 'companysummary') { setTopTab('companysummary'); return; }
+            if (p0 === 'report') { setTopTab('report'); return; }
+          } catch (_) {}
+        }, [setTopTab, setSetupTab]);
+
+        useEffect(() => {
+          // On initial load, derive state from URL
+          applyRouteFromPath();
+          const onPop = () => applyRouteFromPath();
+          window.addEventListener('popstate', onPop);
+          return () => window.removeEventListener('popstate', onPop);
+        }, [applyRouteFromPath]);
+
+        const pushRouteForState = React.useCallback(() => {
+          try {
+            let path = '/';
+            if (topTab === 'setup') {
+              path = `/setup/${setupToSlug(setupTab)}`;
+            } else if (topTab === 'classifyrules') {
+              let sub = 'bank';
+              try { sub = window.localStorage.getItem('crSubTab') || 'bank'; } catch(_) {}
+              path = `/classifyrules/${crSubToSlug(sub)}`;
+            } else if (topTab === 'transactions') {
+              path = '/transactions';
+            } else if (topTab === 'rentalsummary') {
+              path = '/rentalsummary';
+            } else if (topTab === 'companysummary') {
+              path = '/companysummary';
+            } else if (topTab === 'report') {
+              path = '/report';
+            }
+            if ((window.location && window.location.pathname) !== path) {
+              window.history.pushState(null, '', path);
+            }
+          } catch (_) {}
+        }, [topTab, setupTab]);
+
+        // When tab state changes, push URL
+        useEffect(() => { pushRouteForState(); }, [topTab, setupTab, pushRouteForState]);
 
         const empty = { property: '', cost: 0, landValue: 0, renovation: 0, loanClosingCOst: 0, ownerCount: 1, purchaseDate: '', propMgmgtComp: '' };
         const [form, setForm] = useState(empty);
