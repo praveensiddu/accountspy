@@ -215,6 +215,8 @@ def classify_bank(bankaccountname: str) -> None:
         return False
 
     # iterate processed records; for each, scan rules in the order in file
+    # Track rule usage by 'order'
+    rule_used_counts: Dict[int, int] = {}
     for rec in processed[bank]:
         matched = False
         for rule in rules:
@@ -226,11 +228,35 @@ def classify_bank(bankaccountname: str) -> None:
                 rec["group"] = str(rule.get("group", ""))
                 rec["company"] = str(rule.get("company", ""))
                 rec["otherentity"] = str(rule.get("otherentity", ""))
+                try:
+                    o = int(rule.get("order") or 0)
+                    if o > 0:
+                        rule_used_counts[o] = rule_used_counts.get(o, 0) + 1
+                except Exception:
+                    pass
                 matched = True
                 break
         if not matched:
             # leave as-is when no match
             pass
+
+    # Persist updated usedcount back into bank_rules YAML
+    try:
+        updated_rules: List[Dict[str, Any]] = []
+        for r in rules:
+            try:
+                o = int(r.get("order") or 0)
+            except Exception:
+                o = 0
+            r = dict(r)
+            r["usedcount"] = int(rule_used_counts.get(o, 0))
+            updated_rules.append(r)
+        # Keep the same order as sorted above
+        with bank_rules_path.open("w", encoding="utf-8") as wf:
+            yaml.safe_dump(updated_rules, wf, sort_keys=True, allow_unicode=True)
+    except Exception:
+        # non-fatal
+        pass
 
     # 3) Save processed CSV sorted by date, then description, then credit
     out_rows = processed.get(bank, [])

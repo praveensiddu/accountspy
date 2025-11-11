@@ -56,3 +56,10 @@ class ClassifyRuleRecord(BaseModel):
     company: str = Field('', description="Optional company name")
     otherentity: str = Field(..., description="Other entity (e.g., vendor/payee)")
     order: int = Field(0, description="Order/priority for rule evaluation")
+
+    class Config:
+        extra = 'forbid'
+
+
+class ClassifyRuleRecordOut(ClassifyRuleRecord):
+    usedcount: int = Field(0, description="Number of times this rule matched in the latest classification run")

@@ -5,7 +5,7 @@ from .. import main as state
 from .. import classify as classifier
 from ..property_sum import prepare_and_save_property_sum
 from ..company_sum import prepare_and_save_company_sum
-from ..core.models import ClassifyRuleRecord, InheritRuleRecord
+from ..core.models import ClassifyRuleRecord, ClassifyRuleRecordOut, InheritRuleRecord
 from pydantic import BaseModel
 from ..core.utils import dump_yaml_entities
 from pathlib import Path
@@ -60,7 +60,7 @@ async def list_bank_rules_banks():
     return sorted(out)
 
 
-@router.get("/bank-rules", response_model=List[ClassifyRuleRecord])
+@router.get("/bank-rules", response_model=List[ClassifyRuleRecordOut])
 async def get_bank_rules(bankaccountname: str = Query("")):
     bank = (bankaccountname or "").strip().lower()
     if not bank:
@@ -96,6 +96,7 @@ async def get_bank_rules(bankaccountname: str = Query("")):
                 'company': (item.get('company') or ''),
                 'otherentity': (item.get('otherentity') or ''),
                 'order': int(item.get('order', 0) or 0),
+                'usedcount': int(item.get('usedcount', 0) or 0),
             }
             out.append(rec)
         return out
@@ -296,6 +297,7 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
         'company': company,
         'otherentity': other,
         'order': order,
+        'usedcount': 0,
     }
     items = [dict(x) for x in _read_bank_rules_list(bank) if isinstance(x, dict)]
     new_key = _rule_key(rec)
@@ -332,6 +334,7 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
             'company': company,
             'otherentity': other,
             'order': keep_order,
+            'usedcount': 0,
         }
         # Remove all items with this pattern and add the single updated one
         merged_list = []
@@ -352,6 +355,11 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
         # Update existing: keep original order, ignore payload order
         existing = key_to_item[new_key]
         rec['order'] = int(existing.get('order') or 0) or 1
+        # Preserve existing usedcount when updating an existing rule
+        try:
+            rec['usedcount'] = int(existing.get('usedcount', 0) or 0)
+        except Exception:
+            rec['usedcount'] = 0
         # Replace fields except we keep order as above
         key_to_item[new_key] = rec
         merged_list = list(key_to_item.values())
