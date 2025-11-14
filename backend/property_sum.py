@@ -106,12 +106,19 @@ def prepare_and_save_property_sum() -> None:
                         props = []
                 if not props:
                     continue
+                # If this row points to a group, split the credit equally across all properties
+                # Otherwise (single property), use the full credit
+                share = 0.0
+                try:
+                    share = credit if (prop and len(props) == 1) else (credit / float(len(props)))
+                except Exception:
+                    share = 0.0
                 for p in props:
                     if not p:
                         continue
                     if p not in summary:
                         summary[p] = {}
-                    summary[p][tx_type] = summary[p].get(tx_type, 0.0) + credit
+                    summary[p][tx_type] = summary[p].get(tx_type, 0.0) + share
                     # build reverse map entry
                     if p not in reverse_map:
                         reverse_map[p] = {}
@@ -120,7 +127,7 @@ def prepare_and_save_property_sum() -> None:
                     reverse_map[p][tx_type].append({
                         'bankaccountname': ba,
                         'description': desc,
-                        'credit': credit,
+                        'credit': round(share, 2),
                     })
             except Exception:
                 state.logger.exception("Error while aggregating rental summary row")
