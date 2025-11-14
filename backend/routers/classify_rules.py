@@ -251,7 +251,7 @@ def _rule_key(rec: dict) -> str:
     ])
 
 
-@router.post("/bank-rules", response_model=ClassifyRuleRecord, status_code=201)
+@router.post("/bank-rules", response_model=ClassifyRuleRecordOut, status_code=201)
 async def add_bank_rule(payload: ClassifyRuleRecord):
     bank = (payload.bankaccountname or '').strip().lower()
     ttype = (payload.transaction_type or '').strip().lower()

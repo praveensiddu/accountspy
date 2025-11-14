@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
 import re
@@ -389,6 +390,21 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Failed to build company summary on startup: {e}")
 
+
+# Minimal SPA fallback for Classify Rules client routes
+FRONTEND_INDEX = (Path(__file__).resolve().parent.parent / "frontend" / "index.html")
+
+@app.get("/classifyrules")
+async def spa_classifyrules_root():
+    if FRONTEND_INDEX.exists():
+        return FileResponse(str(FRONTEND_INDEX))
+    raise HTTPException(status_code=404, detail="index.html not found")
+
+@app.get("/classifyrules/{rest:path}")
+async def spa_classifyrules(rest: str = ""):
+    if FRONTEND_INDEX.exists():
+        return FileResponse(str(FRONTEND_INDEX))
+    raise HTTPException(status_code=404, detail="index.html not found")
 
 # Serve static frontend
 if FRONTEND_DIR.exists():
