@@ -162,16 +162,17 @@ const PropertiesPanelExt = ({ items, companies, loading, reload }) => {
                   if (ap < bp) return -1; if (ap > bp) return 1; return 0;
                 })
                 .filter(x => {
+                  const matchesText = (val, query) => { const s = (val||'').toString().toLowerCase(); const t = (query||'').toString().toLowerCase().trim(); if (!t) return true; const isNeg = t.startsWith('!'); const needle = isNeg ? t.slice(1) : t; if (!needle) return true; const has = s.includes(needle); return isNeg ? !has : has; };
                   const lcc = (x.loanClosingCost != null ? x.loanClosingCost : x.loanClosingCOst);
                   return (
-                    (filter.property ? String(x.property||'').toLowerCase().includes(filter.property.toLowerCase()) : true) &&
-                    (filter.cost ? String(x.cost||'').toLowerCase().includes(filter.cost.toLowerCase()) : true) &&
-                    (filter.landValue ? String(x.landValue||'').toLowerCase().includes(filter.landValue.toLowerCase()) : true) &&
-                    (filter.renovation ? String(x.renovation||'').toLowerCase().includes(filter.renovation.toLowerCase()) : true) &&
-                    (filter.loanClosingCost ? String(lcc||'').toLowerCase().includes(filter.loanClosingCost.toLowerCase()) : true) &&
-                    (filter.ownerCount ? String(x.ownerCount||'').toLowerCase().includes(filter.ownerCount.toLowerCase()) : true) &&
-                    (filter.purchaseDate ? String(x.purchaseDate||'').toLowerCase().includes(filter.purchaseDate.toLowerCase()) : true) &&
-                    (filter.propMgmgtComp ? String(x.propMgmgtComp||'').toLowerCase().includes(filter.propMgmgtComp.toLowerCase()) : true)
+                    matchesText(x.property, filter.property) &&
+                    matchesText(String(x.cost||''), filter.cost) &&
+                    matchesText(String(x.landValue||''), filter.landValue) &&
+                    matchesText(String(x.renovation||''), filter.renovation) &&
+                    matchesText(String(lcc||''), filter.loanClosingCost) &&
+                    matchesText(String(x.ownerCount||''), filter.ownerCount) &&
+                    matchesText(String(x.purchaseDate||''), filter.purchaseDate) &&
+                    matchesText(String(x.propMgmgtComp||''), filter.propMgmgtComp)
                   );
                 })
                 .map((x) => (

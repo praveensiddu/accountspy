@@ -94,10 +94,13 @@ const CompaniesPanelExt = ({ companyRecords, loading, reload }) => {
             </thead>
             <tbody>
               {companyRecords
-                .filter(x => (
-                  (filter.companyname ? (x.companyname||'').toString().toLowerCase().includes(filter.companyname.toLowerCase()) : true) &&
-                  (filter.rentPercentage ? String(x.rentPercentage||'').toLowerCase().includes(filter.rentPercentage.toLowerCase()) : true)
-                ))
+                .filter(x => {
+                  const matchesText = (val, query) => { const s = (val||'').toString().toLowerCase(); const t = (query||'').toString().toLowerCase().trim(); if (!t) return true; const isNeg = t.startsWith('!'); const needle = isNeg ? t.slice(1) : t; if (!needle) return true; const has = s.includes(needle); return isNeg ? !has : has; };
+                  return (
+                    matchesText(x.companyname, filter.companyname) &&
+                    matchesText(String(x.rentPercentage||''), filter.rentPercentage)
+                  );
+                })
                 .map((x) => (
                 <tr key={x.companyname}>
                   <td>{x.companyname}</td>

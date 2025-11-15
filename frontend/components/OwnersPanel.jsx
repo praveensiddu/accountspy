@@ -138,12 +138,15 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
             </thead>
             <tbody>
               {owners
-                .filter(x => (
-                  (filter.name ? (x.name||'').toLowerCase().includes(filter.name.toLowerCase()) : true) &&
-                  (filter.bankaccounts ? (x.bankaccounts||[]).join(' ').toLowerCase().includes(filter.bankaccounts.toLowerCase()) : true) &&
-                  (filter.properties ? (x.properties||[]).join(' ').toLowerCase().includes(filter.properties.toLowerCase()) : true) &&
-                  (filter.companies ? (x.companies||[]).join(' ').toLowerCase().includes(filter.companies.toLowerCase()) : true)
-                ))
+                .filter(x => {
+                  const matchesText = (val, query) => { const s = (val||'').toString().toLowerCase(); const t = (query||'').toString().toLowerCase().trim(); if (!t) return true; const isNeg = t.startsWith('!'); const needle = isNeg ? t.slice(1) : t; if (!needle) return true; const has = s.includes(needle); return isNeg ? !has : has; };
+                  return (
+                    matchesText(x.name, filter.name) &&
+                    matchesText((x.bankaccounts||[]).join(' '), filter.bankaccounts) &&
+                    matchesText((x.properties||[]).join(' '), filter.properties) &&
+                    matchesText((x.companies||[]).join(' '), filter.companies)
+                  );
+                })
                 .map(x => (
                 <tr key={x.name}>
                   <td>{x.name}</td>

@@ -400,6 +400,13 @@ async def spa_classifyrules_root():
         return FileResponse(str(FRONTEND_INDEX))
     raise HTTPException(status_code=404, detail="index.html not found")
 
+# Transactions SPA fallback
+@app.get("/transactions")
+async def spa_transactions_root():
+    if FRONTEND_INDEX.exists():
+        return FileResponse(str(FRONTEND_INDEX))
+    raise HTTPException(status_code=404, detail="index.html not found")
+
 @app.get("/classifyrules/{rest:path}")
 async def spa_classifyrules(rest: str = ""):
     if FRONTEND_INDEX.exists():

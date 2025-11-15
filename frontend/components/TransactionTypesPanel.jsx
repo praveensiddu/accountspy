@@ -95,7 +95,10 @@ const TransactionTypesPanelExt = ({ transactionTypes, loading, reload }) => {
                   const bt = (b.transactiontype || '').toLowerCase();
                   if (at < bt) return -1; if (at > bt) return 1; return 0;
                 })
-                .filter(t => (filter.transactiontype ? (t.transactiontype||'').toLowerCase().includes(filter.transactiontype.toLowerCase()) : true))
+                .filter(t => {
+                  const matchesText = (val, query) => { const s = (val||'').toString().toLowerCase(); const t0 = (query||'').toString().toLowerCase().trim(); if (!t0) return true; const isNeg = t0.startsWith('!'); const needle = isNeg ? t0.slice(1) : t0; if (!needle) return true; const has = s.includes(needle); return isNeg ? !has : has; };
+                  return matchesText(t.transactiontype, filter.transactiontype);
+                })
                 .map(t => (
                 <tr key={t.transactiontype}>
                   <td>{t.transactiontype}</td>

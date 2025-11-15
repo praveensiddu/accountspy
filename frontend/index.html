@@ -70,6 +70,31 @@
             return { order, transaction_type:'', pattern_match_logic:'', tax_category:'', pgc:'', comment:'', otherentity:'', usedcount:'' };
           } catch(_) { return { order:'', transaction_type:'', pattern_match_logic:'', tax_category:'', pgc:'', comment:'', otherentity:'', usedcount:'' }; }
         });
+        const [filterDraft, setFilterDraft] = useState(filter);
+        useEffect(()=>{ setFilterDraft(filter); }, []);
+        const filterDebTimer = React.useRef(null);
+        const applyFilterDebounced = React.useCallback((next) => {
+          if (filterDebTimer.current) clearTimeout(filterDebTimer.current);
+          filterDebTimer.current = setTimeout(() => {
+            setFilter(prev => (typeof next === 'function' ? next(prev) : next));
+          }, 250);
+        }, []);
+        const onFilterChange = (key, value) => {
+          setFilterDraft(fd => ({ ...fd, [key]: value }));
+          applyFilterDebounced(f => ({ ...f, [key]: value }));
+          if (key === 'order') { try { window.localStorage.setItem('bankrules_filter_order', value || ''); } catch(_) {} }
+        };
+        const matchesText = (val, query) => {
+          const s = (val || '').toString().toLowerCase();
+          const t = (query || '').toString().toLowerCase().trim();
+          if (!t) return true;
+          const isNeg = t.startsWith('!');
+          const needle = isNeg ? t.slice(1) : t;
+          if (!needle) return true; // treat '!' as no-op
+          const has = s.includes(needle);
+          return isNeg ? !has : has;
+        };
+        const [showFilterTips, setShowFilterTips] = useState(false);
         // Local groups data sourced from Groups table
         const [bankGroupsData, setBankGroupsData] = useState(groups || []);
         useEffect(() => { setBankGroupsData(groups || []); }, [groups]);
@@ -560,6 +585,14 @@
                 </Modal>
                 {loading ? (<div>Loading...</div>) : (
                   <div className="overflow-x-auto">
+                  <div style={{ display:'flex', justifyContent:'flex-end', marginBottom: 6 }}>
+                    <button type="button" className="text-sm text-gray-600 hover:text-gray-900" onClick={()=> setShowFilterTips(v=>!v)}>Filter tips ?</button>
+                  </div>
+                  {showFilterTips && (
+                    <div className="text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded p-2 mb-2">
+                      Filters support negation: type <code>!term</code> to exclude rows containing term. Matching is case-insensitive.
+                    </div>
+                  )}
                   <table className="min-w-full" style={{ tableLayout: 'auto' }}>
                     <thead>
                       <tr>
@@ -574,14 +607,14 @@
                         <th>actions</th>
                       </tr>
                       <tr>
-                        <th className="w-16"><input placeholder="filter" value={filter.order} onChange={(e)=> setFilter(f => ({...f, order: e.target.value}))} /></th>
-                        <th><input placeholder="filter" value={filter.transaction_type} onChange={(e)=> setFilter(f => ({...f, transaction_type: e.target.value}))} /></th>
-                        <th><input placeholder="filter" value={filter.pattern_match_logic} onChange={(e)=> setFilter(f => ({...f, pattern_match_logic: e.target.value}))} /></th>
-                        <th><input placeholder="filter" value={filter.tax_category} onChange={(e)=> setFilter(f => ({...f, tax_category: e.target.value}))} /></th>
-                        <th><input placeholder="filter" value={filter.pgc} onChange={(e)=> setFilter(f => ({...f, pgc: e.target.value}))} /></th>
-                        <th><input placeholder="filter" value={filter.comment} onChange={(e)=> setFilter(f => ({...f, comment: e.target.value}))} /></th>
-                        <th><input placeholder="filter" value={filter.otherentity} onChange={(e)=> setFilter(f => ({...f, otherentity: e.target.value}))} /></th>
-                        <th className="w-16"><input placeholder="filter" value={filter.usedcount} onChange={(e)=> setFilter(f => ({...f, usedcount: e.target.value}))} /></th>
+                        <th className="w-16"><input placeholder="filter" value={filterDraft.order} onChange={(e)=> onFilterChange('order', e.target.value)} /></th>
+                        <th><input placeholder="filter" value={filterDraft.transaction_type} onChange={(e)=> onFilterChange('transaction_type', e.target.value)} /></th>
+                        <th><input placeholder="filter" value={filterDraft.pattern_match_logic} onChange={(e)=> onFilterChange('pattern_match_logic', e.target.value)} /></th>
+                        <th><input placeholder="filter" value={filterDraft.tax_category} onChange={(e)=> onFilterChange('tax_category', e.target.value)} /></th>
+                        <th><input placeholder="filter" value={filterDraft.pgc} onChange={(e)=> onFilterChange('pgc', e.target.value)} /></th>
+                        <th><input placeholder="filter" value={filterDraft.comment} onChange={(e)=> onFilterChange('comment', e.target.value)} /></th>
+                        <th><input placeholder="filter" value={filterDraft.otherentity} onChange={(e)=> onFilterChange('otherentity', e.target.value)} /></th>
+                        <th className="w-16"><input placeholder="filter" value={filterDraft.usedcount} onChange={(e)=> onFilterChange('usedcount', e.target.value)} /></th>
                         <th></th>
                       </tr>
                     </thead>
@@ -597,14 +630,14 @@
                           if (at < bt) return -1; if (at > bt) return 1; return 0;
                         })
                         .filter(r => (
-                          (filter.order ? String(r.order||'').toLowerCase().includes(String(filter.order).toLowerCase()) : true) &&
-                          (filter.transaction_type ? (((r.transaction_type||'').trim() ? (r.transaction_type||'') : 'empty').toLowerCase().includes(filter.transaction_type.toLowerCase())) : true) &&
-                          (filter.pattern_match_logic ? (r.pattern_match_logic||'').toLowerCase().includes(filter.pattern_match_logic.toLowerCase()) : true) &&
-                          (filter.tax_category ? (r.tax_category||'').toLowerCase().includes(filter.tax_category.toLowerCase()) : true) &&
-                          (filter.pgc ? (((r.property||'') + ' ' + (r.group||'') + ' ' + (r.company||'')).toLowerCase().includes(filter.pgc.toLowerCase())) : true) &&
-                          (filter.comment ? (r.comment||'').toLowerCase().includes(filter.comment.toLowerCase()) : true) &&
-                          (filter.otherentity ? (r.otherentity||'').toLowerCase().includes(filter.otherentity.toLowerCase()) : true) &&
-                          (filter.usedcount ? String(Number(r.usedcount||0)).toLowerCase().includes(String(filter.usedcount).toLowerCase()) : true)
+                          matchesText(String(r.order||''), filter.order) &&
+                          matchesText(((r.transaction_type||'').trim() ? (r.transaction_type||'') : 'empty'), filter.transaction_type) &&
+                          matchesText((r.pattern_match_logic||''), filter.pattern_match_logic) &&
+                          matchesText((r.tax_category||''), filter.tax_category) &&
+                          matchesText(((r.property||'') + ' ' + (r.group||'') + ' ' + (r.company||'')), filter.pgc) &&
+                          matchesText((r.comment||''), filter.comment) &&
+                          matchesText((r.otherentity||''), filter.otherentity) &&
+                          matchesText(String(Number(r.usedcount||0)), filter.usedcount)
                         ))
                         .map((r, idx) => (
                           <tr key={`bankrules-${active}-${idx}`}>
@@ -951,10 +984,13 @@
                           const bt = (b.transaction_type || '').toLowerCase();
                           if (at < bt) return -1; if (at > bt) return 1; return 0;
                         })
-                        .filter(r => (
-                          (commonFilter.transaction_type ? (r.transaction_type||'').toLowerCase().includes(commonFilter.transaction_type.toLowerCase()) : true) &&
-                          (commonFilter.pattern_match_logic ? (r.pattern_match_logic||'').toLowerCase().includes(commonFilter.pattern_match_logic.toLowerCase()) : true)
-                        ))
+                        .filter(r => {
+                          const matchesText = (val, query) => { const s = (val||'').toString().toLowerCase(); const t = (query||'').toString().toLowerCase().trim(); if (!t) return true; const isNeg = t.startsWith('!'); const needle = isNeg ? t.slice(1) : t; if (!needle) return true; const has = s.includes(needle); return isNeg ? !has : has; };
+                          return (
+                            matchesText(r.transaction_type, commonFilter.transaction_type) &&
+                            matchesText(r.pattern_match_logic, commonFilter.pattern_match_logic)
+                          );
+                        })
                         .map((r, idx) => (
                           <tr key={`common-${r.transaction_type}-${idx}`}>
                             <td>{r.transaction_type}</td>
@@ -1060,13 +1096,16 @@
                           if (atc < btc) return -1; if (atc > btc) return 1;
                           return 0;
                         })
-                        .filter(r => (
-                          (inheritFilter.bankaccountname ? (r.bankaccountname||'').toLowerCase().includes(inheritFilter.bankaccountname.toLowerCase()) : true) &&
-                          (inheritFilter.tax_category ? (r.tax_category||'').toLowerCase().includes(inheritFilter.tax_category.toLowerCase()) : true) &&
-                          (inheritFilter.property ? (r.property||'').toLowerCase().includes(inheritFilter.property.toLowerCase()) : true) &&
-                          (inheritFilter.group ? (r.group||'').toLowerCase().includes(inheritFilter.group.toLowerCase()) : true) &&
-                          (inheritFilter.otherentity ? (r.otherentity||'').toLowerCase().includes(inheritFilter.otherentity.toLowerCase()) : true)
-                        ))
+                        .filter(r => {
+                          const matchesText = (val, query) => { const s = (val||'').toString().toLowerCase(); const t = (query||'').toString().toLowerCase().trim(); if (!t) return true; const isNeg = t.startsWith('!'); const needle = isNeg ? t.slice(1) : t; if (!needle) return true; const has = s.includes(needle); return isNeg ? !has : has; };
+                          return (
+                            matchesText(r.bankaccountname, inheritFilter.bankaccountname) &&
+                            matchesText(r.tax_category, inheritFilter.tax_category) &&
+                            matchesText(r.property, inheritFilter.property) &&
+                            matchesText(r.group, inheritFilter.group) &&
+                            matchesText(r.otherentity, inheritFilter.otherentity)
+                          );
+                        })
                         .map((r, idx) => (
                           <tr key={`inherit-${r.bankaccountname}-${r.property}-${idx}`}>
                             <td>{r.bankaccountname}</td>
@@ -2978,22 +3017,21 @@
                             </div>
                           </form>
                         </Modal>
-                        {(() => { const filteredRows = (rows || []).filter(r => {
-                          const f = txnFilters;
-                          const keys = Object.keys(f);
+                        {(() => { const matchesText = (val, query) => { const s = (val||'').toString().toLowerCase(); const t = (query||'').toString().toLowerCase().trim(); if (!t) return true; const isNeg = t.startsWith('!'); const needle = isNeg ? t.slice(1) : t; if (!needle) return true; const has = s.includes(needle); return isNeg ? !has : has; }; const filteredRows = (rows || []).filter(r => {
+                          const f = txnFilters; const keys = Object.keys(f);
                           for (let k of keys) {
                             const fv = (f[k] || '').toString().trim();
                             if (!fv) continue;
                             let rv = '';
                             if (k === 'pgc') {
-                              rv = [r.property, r.group, r.company].map(x => (x == null ? '' : String(x))).join(' ').toLowerCase();
+                              rv = [r.property, r.group, r.company].map(x => (x == null ? '' : String(x))).join(' ');
                             } else if (k === 'transaction_type') {
                               const t = (r.transaction_type == null ? '' : String(r.transaction_type));
-                              rv = ((t.trim() ? t : 'empty')).toLowerCase();
+                              rv = (t.trim() ? t : 'empty');
                             } else {
-                              rv = (r[k] == null ? '' : String(r[k])).toLowerCase();
+                              rv = (r[k] == null ? '' : String(r[k]));
                             }
-                            if (!rv.includes(fv.toLowerCase())) return false;
+                            if (!matchesText(rv, fv)) return false;
                           }
                           return true;
                         });

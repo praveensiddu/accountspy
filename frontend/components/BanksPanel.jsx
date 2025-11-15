@@ -209,16 +209,17 @@ const BanksPanelExt = ({ banks, loading, reload }) => {
                   if (an < bn) return -1; if (an > bn) return 1; return 0;
                 })
                 .filter(b => {
-                  const ilc = (b.ignore_lines_contains || []).join(' ').toLowerCase();
-                  const ils = (b.ignore_lines_startswith || []).join(' ').toLowerCase();
-                  const cols = JSON.stringify(b.columns || []).toLowerCase();
+                  const matchesText = (val, query) => { const s = (val||'').toString().toLowerCase(); const t = (query||'').toString().toLowerCase().trim(); if (!t) return true; const isNeg = t.startsWith('!'); const needle = isNeg ? t.slice(1) : t; if (!needle) return true; const has = s.includes(needle); return isNeg ? !has : has; };
+                  const ilc = (b.ignore_lines_contains || []).join(' ');
+                  const ils = (b.ignore_lines_startswith || []).join(' ');
+                  const cols = JSON.stringify(b.columns || []);
                   return (
-                    (filter.name ? (b.name||'').toLowerCase().includes(filter.name.toLowerCase()) : true) &&
-                    (filter.date_format ? (b.date_format||'').toLowerCase().includes(filter.date_format.toLowerCase()) : true) &&
-                    (filter.delim ? (b.delim||'').toLowerCase().includes(filter.delim.toLowerCase()) : true) &&
-                    (filter.ignore_lines_contains ? ilc.includes(filter.ignore_lines_contains.toLowerCase()) : true) &&
-                    (filter.ignore_lines_startswith ? ils.includes(filter.ignore_lines_startswith.toLowerCase()) : true) &&
-                    (filter.columns ? cols.includes(filter.columns.toLowerCase()) : true)
+                    matchesText(b.name, filter.name) &&
+                    matchesText(b.date_format, filter.date_format) &&
+                    matchesText(b.delim, filter.delim) &&
+                    matchesText(ilc, filter.ignore_lines_contains) &&
+                    matchesText(ils, filter.ignore_lines_startswith) &&
+                    matchesText(cols, filter.columns)
                   );
                 })
                 .map(b => (

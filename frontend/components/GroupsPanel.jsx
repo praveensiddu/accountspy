@@ -101,10 +101,13 @@ const GroupsPanelExt = ({ groups, loading, reload, items }) => {
             </thead>
             <tbody>
               {groups
-                .filter(x => (
-                  (filter.groupname ? (x.groupname||'').toLowerCase().includes(filter.groupname.toLowerCase()) : true) &&
-                  (filter.propertylist ? (x.propertylist||[]).join(' ').toLowerCase().includes(filter.propertylist.toLowerCase()) : true)
-                ))
+                .filter(x => {
+                  const matchesText = (val, query) => { const s = (val||'').toString().toLowerCase(); const t = (query||'').toString().toLowerCase().trim(); if (!t) return true; const isNeg = t.startsWith('!'); const needle = isNeg ? t.slice(1) : t; if (!needle) return true; const has = s.includes(needle); return isNeg ? !has : has; };
+                  return (
+                    matchesText(x.groupname, filter.groupname) &&
+                    matchesText((x.propertylist||[]).join(' '), filter.propertylist)
+                  );
+                })
                 .map(x => (
                 <tr key={x.groupname}>
                   <td>{x.groupname}</td>

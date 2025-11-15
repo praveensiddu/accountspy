@@ -70,7 +70,10 @@ const TaxCategoriesPanelExt = ({ taxCategories, loading, reload }) => {
             </thead>
             <tbody>
               {taxCategories
-                .filter(t => (filter.category ? (t.category||'').toLowerCase().includes(filter.category.toLowerCase()) : true))
+                .filter(t => {
+                  const matchesText = (val, query) => { const s = (val||'').toString().toLowerCase(); const t0 = (query||'').toString().toLowerCase().trim(); if (!t0) return true; const isNeg = t0.startsWith('!'); const needle = isNeg ? t0.slice(1) : t0; if (!needle) return true; const has = s.includes(needle); return isNeg ? !has : has; };
+                  return matchesText(t.category, filter.category);
+                })
                 .map(t => (
                 <tr key={t.category}>
                   <td>{t.category}</td>

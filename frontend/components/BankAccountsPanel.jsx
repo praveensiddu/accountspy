@@ -147,11 +147,14 @@ const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
                   const bn = (b.bankaccountname || '').toLowerCase();
                   if (an < bn) return -1; if (an > bn) return 1; return 0;
                 })
-                .filter(x => (
-                  (filter.bankaccountname ? (x.bankaccountname||'').toLowerCase().includes(filter.bankaccountname.toLowerCase()) : true) &&
-                  (filter.bankname ? (x.bankname||'').toLowerCase().includes(filter.bankname.toLowerCase()) : true) &&
-                  (filter.statement_location ? String(x.statement_location||'').toLowerCase().includes(filter.statement_location.toLowerCase()) : true)
-                ))
+                .filter(x => {
+                  const matchesText = (val, query) => { const s = (val||'').toString().toLowerCase(); const t = (query||'').toString().toLowerCase().trim(); if (!t) return true; const isNeg = t.startsWith('!'); const needle = isNeg ? t.slice(1) : t; if (!needle) return true; const has = s.includes(needle); return isNeg ? !has : has; };
+                  return (
+                    matchesText(x.bankaccountname, filter.bankaccountname) &&
+                    matchesText(x.bankname, filter.bankname) &&
+                    matchesText(String(x.statement_location||''), filter.statement_location)
+                  );
+                })
                 .map(x => (
                 <tr key={x.bankaccountname}>
                   <td>{x.bankaccountname}</td>
