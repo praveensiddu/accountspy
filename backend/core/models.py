@@ -55,6 +55,7 @@ class ClassifyRuleRecord(BaseModel):
     group: str = Field('', description="Optional group name")
     company: str = Field('', description="Optional company name")
     otherentity: str = Field(..., description="Other entity (e.g., vendor/payee)")
+    comment: str = Field('', description="Optional comment/annotation for the rule")
     order: int = Field(0, description="Order/priority for rule evaluation")
 
     class Config:

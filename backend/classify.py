@@ -229,6 +229,12 @@ def classify_bank(bankaccountname: str) -> None:
                 rec["company"] = str(rule.get("company", ""))
                 rec["otherentity"] = str(rule.get("otherentity", ""))
                 try:
+                    cm = str(rule.get("comment", "")).strip()
+                    if cm:
+                        rec["comment"] = cm
+                except Exception:
+                    pass
+                try:
                     o = int(rule.get("order") or 0)
                     if o > 0:
                         rule_used_counts[o] = rule_used_counts.get(o, 0) + 1

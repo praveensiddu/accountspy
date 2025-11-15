@@ -67,8 +67,8 @@
         const [filter, setFilter] = useState(() => {
           try {
             const order = window.localStorage.getItem('bankrules_filter_order') || '';
-            return { order, transaction_type:'', pattern_match_logic:'', tax_category:'', property:'', group:'', company:'', otherentity:'', usedcount:'' };
-          } catch(_) { return { order:'', transaction_type:'', pattern_match_logic:'', tax_category:'', property:'', group:'', company:'', otherentity:'', usedcount:'' }; }
+            return { order, transaction_type:'', pattern_match_logic:'', tax_category:'', pgc:'', comment:'', otherentity:'', usedcount:'' };
+          } catch(_) { return { order:'', transaction_type:'', pattern_match_logic:'', tax_category:'', pgc:'', comment:'', otherentity:'', usedcount:'' }; }
         });
         // Local groups data sourced from Groups table
         const [bankGroupsData, setBankGroupsData] = useState(groups || []);
@@ -104,7 +104,7 @@
           try { if (typeof window.showConfirm === 'function') return await window.showConfirm(message); } catch (_) {}
           return window.confirm(message);
         };
-        const emptyForm = { bankaccountname:'', order: 10000, transaction_type:'', match:'desc_contains', description:'', credit:'', tax_category:'', property:'', group:'', company:'', otherentity:'' };
+        const emptyForm = { bankaccountname:'', order: 10000, transaction_type:'', match:'desc_contains', description:'', credit:'', tax_category:'', property:'', group:'', company:'', otherentity:'', comment:'' };
         const [open, setOpen] = useState(false);
         const [mode, setMode] = useState('add');
         const [saving, setSaving] = useState(false);
@@ -299,25 +299,35 @@
           const p = (r.pattern_match_logic || '').toString();
           let match = 'desc_contains', description = '', credit = '';
           const m1 = p.match(/^(desc_startswith|desc_contains)\s*=\s*(.*)$/i);
-          const m2 = p.match(/^credit_equals\s*=\s*([-+]?[0-9]*\.?[0-9]+)$/i);
-          if (m1) { match = m1[1].toLowerCase(); description = m1[2] || ''; }
-          else if (m2) { match = 'credit_equals'; credit = m2[1] || ''; }
+          if (m1) {
+            match = m1[1].toLowerCase();
+            description = (m1[2] || '').trim();
+          } else {
+            const m2 = p.match(/^credit_equals\s*=\s*([-+]?[0-9]*\.?[0-9]+)$/i);
+            if (m2) {
+              match = 'credit_equals';
+              credit = (m2[1] || '').trim();
+            }
+          }
           setForm({
             bankaccountname: (r.bankaccountname||'').toLowerCase(),
-            order: Number(r.order || 10000),
+            order: Number(r.order||10000),
             transaction_type: (r.transaction_type||'').toLowerCase(),
-            match, description, credit,
+            match,
+            description,
+            credit,
             tax_category: (r.tax_category||'').toLowerCase(),
             property: (r.property||'').toLowerCase(),
             group: (r.group||'').toLowerCase(),
             company: (r.company||'').toLowerCase(),
-            otherentity: r.otherentity||''
+            otherentity: (r.otherentity||''),
+            comment: (r.comment||'')
           });
           setOpen(true);
         };
+
         const onSubmit = async (e) => {
           e.preventDefault();
-          if (!form.bankaccountname || !form.transaction_type || !form.match) return;
           try {
             setSaving(true);
             // Compose pattern_match_logic from UI
@@ -338,6 +348,7 @@
               group: (form.group||'').trim().toLowerCase(),
               company: (form.company||'').trim().toLowerCase(),
               otherentity: (form.otherentity||'').trim(),
+              comment: (form.comment||'').trim().toLowerCase(),
             };
             const res = await fetch('/api/bank-rules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!res.ok) throw new Error('Failed to save bank rule');
@@ -541,34 +552,36 @@
                       <label className="block text-sm font-medium text-gray-700">otherentity</label>
                       <input name="otherentity" value={form.otherentity} onChange={onChange} placeholder="optional" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
                     </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700">comment</label>
+                      <input name="comment" value={form.comment} onChange={onChange} placeholder="optional note (lowercased in backend)" className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
                   </form>
                 </Modal>
                 {loading ? (<div>Loading...</div>) : (
                   <div className="overflow-x-auto">
-                  <table className="min-w-full" style={{ tableLayout: 'fixed' }}>
+                  <table className="min-w-full" style={{ tableLayout: 'auto' }}>
                     <thead>
                       <tr>
-                        <th>order</th>
+                        <th className="w-16 text-center">order</th>
                         <th>transaction_type</th>
                         <th>pattern_match_logic</th>
                         <th>tax_category</th>
-                        <th>property</th>
-                        <th>group</th>
-                        <th>company</th>
+                        <th>property/group/company</th>
+                        <th>comment</th>
                         <th>otherentity</th>
-                        <th>usedcount</th>
+                        <th className="w-16 text-center">usedcount</th>
                         <th>actions</th>
                       </tr>
                       <tr>
-                        <th><input placeholder="filter" value={filter.order} onChange={(e)=> setFilter(f => ({...f, order: e.target.value}))} /></th>
+                        <th className="w-16"><input placeholder="filter" value={filter.order} onChange={(e)=> setFilter(f => ({...f, order: e.target.value}))} /></th>
                         <th><input placeholder="filter" value={filter.transaction_type} onChange={(e)=> setFilter(f => ({...f, transaction_type: e.target.value}))} /></th>
                         <th><input placeholder="filter" value={filter.pattern_match_logic} onChange={(e)=> setFilter(f => ({...f, pattern_match_logic: e.target.value}))} /></th>
                         <th><input placeholder="filter" value={filter.tax_category} onChange={(e)=> setFilter(f => ({...f, tax_category: e.target.value}))} /></th>
-                        <th><input placeholder="filter" value={filter.property} onChange={(e)=> setFilter(f => ({...f, property: e.target.value}))} /></th>
-                        <th><input placeholder="filter" value={filter.group} onChange={(e)=> setFilter(f => ({...f, group: e.target.value}))} /></th>
-                        <th><input placeholder="filter" value={filter.company} onChange={(e)=> setFilter(f => ({...f, company: e.target.value}))} /></th>
+                        <th><input placeholder="filter" value={filter.pgc} onChange={(e)=> setFilter(f => ({...f, pgc: e.target.value}))} /></th>
+                        <th><input placeholder="filter" value={filter.comment} onChange={(e)=> setFilter(f => ({...f, comment: e.target.value}))} /></th>
                         <th><input placeholder="filter" value={filter.otherentity} onChange={(e)=> setFilter(f => ({...f, otherentity: e.target.value}))} /></th>
-                        <th><input placeholder="filter" value={filter.usedcount} onChange={(e)=> setFilter(f => ({...f, usedcount: e.target.value}))} /></th>
+                        <th className="w-16"><input placeholder="filter" value={filter.usedcount} onChange={(e)=> setFilter(f => ({...f, usedcount: e.target.value}))} /></th>
                         <th></th>
                       </tr>
                     </thead>
@@ -588,23 +601,21 @@
                           (filter.transaction_type ? (((r.transaction_type||'').trim() ? (r.transaction_type||'') : 'empty').toLowerCase().includes(filter.transaction_type.toLowerCase())) : true) &&
                           (filter.pattern_match_logic ? (r.pattern_match_logic||'').toLowerCase().includes(filter.pattern_match_logic.toLowerCase()) : true) &&
                           (filter.tax_category ? (r.tax_category||'').toLowerCase().includes(filter.tax_category.toLowerCase()) : true) &&
-                          (filter.property ? (r.property||'').toLowerCase().includes(filter.property.toLowerCase()) : true) &&
-                          (filter.group ? (r.group||'').toLowerCase().includes(filter.group.toLowerCase()) : true) &&
-                          (filter.company ? (r.company||'').toLowerCase().includes(filter.company.toLowerCase()) : true) &&
+                          (filter.pgc ? (((r.property||'') + ' ' + (r.group||'') + ' ' + (r.company||'')).toLowerCase().includes(filter.pgc.toLowerCase())) : true) &&
+                          (filter.comment ? (r.comment||'').toLowerCase().includes(filter.comment.toLowerCase()) : true) &&
                           (filter.otherentity ? (r.otherentity||'').toLowerCase().includes(filter.otherentity.toLowerCase()) : true) &&
                           (filter.usedcount ? String(Number(r.usedcount||0)).toLowerCase().includes(String(filter.usedcount).toLowerCase()) : true)
                         ))
                         .map((r, idx) => (
                           <tr key={`bankrules-${active}-${idx}`}>
-                            <td className="break-words whitespace-pre-wrap">{r.order || 10000}</td>
+                            <td className="whitespace-nowrap text-center w-16">{r.order || 10000}</td>
                             <td className="break-words whitespace-pre-wrap">{r.transaction_type}</td>
                             <td className="break-words whitespace-pre-wrap">{r.pattern_match_logic}</td>
                             <td className="break-words whitespace-pre-wrap">{r.tax_category}</td>
-                            <td className="break-words whitespace-pre-wrap">{r.property}</td>
-                            <td className="break-words whitespace-pre-wrap">{r.group}</td>
-                            <td className="break-words whitespace-pre-wrap">{r.company}</td>
+                            <td className="break-words whitespace-pre-wrap">{(r.property || r.group || r.company || '')}</td>
+                            <td className="break-words whitespace-pre-wrap">{r.comment || ''}</td>
                             <td className="break-words whitespace-pre-wrap">{r.otherentity}</td>
-                            <td className={`break-words whitespace-pre-wrap ${Number(r.usedcount||0) > 0 ? 'bg-green-100 text-green-800 font-semibold' : ''}`}>{Number(r.usedcount||0)}</td>
+                            <td className={`whitespace-nowrap text-center w-16 ${Number(r.usedcount||0) > 0 ? 'bg-green-100 text-green-800 font-semibold' : ''}`}>{Number(r.usedcount||0)}</td>
                             <td>
                               <button onClick={()=> handleEdit(r)} className="px-2 py-1 mr-2 bg-gray-700 text-white rounded hover:bg-gray-800">Edit</button>
                               <button onClick={()=> handleDelete(r)} className="px-2 py-1 mr-2 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
@@ -640,7 +651,7 @@
                           </tr>
                         ))}
                       {(rules||[]).length === 0 && (
-                        <tr><td colSpan="10" className="muted">No rules</td></tr>
+                        <tr><td colSpan="9" className="muted">No rules</td></tr>
                       )}
                     </tbody>
                   </table>

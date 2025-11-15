@@ -406,6 +406,19 @@ async def spa_classifyrules(rest: str = ""):
         return FileResponse(str(FRONTEND_INDEX))
     raise HTTPException(status_code=404, detail="index.html not found")
 
+# Setup SPA fallbacks
+@app.get("/setup")
+async def spa_setup_root():
+    if FRONTEND_INDEX.exists():
+        return FileResponse(str(FRONTEND_INDEX))
+    raise HTTPException(status_code=404, detail="index.html not found")
+
+@app.get("/setup/{rest:path}")
+async def spa_setup(rest: str = ""):
+    if FRONTEND_INDEX.exists():
+        return FileResponse(str(FRONTEND_INDEX))
+    raise HTTPException(status_code=404, detail="index.html not found")
+
 # Serve static frontend
 if FRONTEND_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="static")

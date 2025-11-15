@@ -95,6 +95,7 @@ async def get_bank_rules(bankaccountname: str = Query("")):
                 'group': (item.get('group') or ''),
                 'company': (item.get('company') or ''),
                 'otherentity': (item.get('otherentity') or ''),
+                'comment': (item.get('comment') or ''),
                 'order': int(item.get('order', 0) or 0),
                 'usedcount': int(item.get('usedcount', 0) or 0),
             }
@@ -261,6 +262,7 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
     group = (payload.group or '').strip().lower()
     company = (getattr(payload, 'company', '') or '').strip().lower()
     other = (payload.otherentity or '').strip()
+    comment = ((getattr(payload, 'comment', '') or '').strip().lower())
     # order is mandatory integer
     try:
         order = int(getattr(payload, 'order'))
@@ -296,6 +298,7 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
         'group': group,
         'company': company,
         'otherentity': other,
+        'comment': comment,
         'order': order,
         'usedcount': 0,
     }
@@ -333,6 +336,7 @@ async def add_bank_rule(payload: ClassifyRuleRecord):
             'group': group,
             'company': company,
             'otherentity': other,
+            'comment': comment,
             'order': keep_order,
             'usedcount': 0,
         }
