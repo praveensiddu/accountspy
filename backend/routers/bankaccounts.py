@@ -27,7 +27,6 @@ async def add_bankaccount(payload: BankAccountRecord):
         "bankaccountname": key,
         "bankname": (payload.bankname or "").strip().lower(),
         "statement_location": "",
-        "abbreviation": (getattr(payload, 'abbreviation', '') or '').strip(),
     }
     if not item["bankname"]:
         raise HTTPException(status_code=400, detail="bankname is required")
@@ -69,7 +68,6 @@ async def update_bankaccount(bankaccountname: str, payload: BankAccountRecord):
     bankname = (payload.bankname or "").strip().lower()
     if not bankname:
         raise HTTPException(status_code=400, detail="bankname is required")
-    abbreviation = (getattr(payload, 'abbreviation', '') or '').strip()
     # Validate statement_location: require non-empty, strip edges, reject if whitespace in middle, ensure trailing '/'
     try:
         raw_sl = payload.statement_location or ""
@@ -90,7 +88,6 @@ async def update_bankaccount(bankaccountname: str, payload: BankAccountRecord):
         "bankaccountname": key,
         "bankname": bankname,
         "statement_location": sl,
-        "abbreviation": abbreviation,
     }
     # Persist YAML
     try:
