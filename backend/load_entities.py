@@ -195,6 +195,7 @@ def load_owners_yaml_into_memory(owners_yaml_path: Path, owner_db: Dict[str, Dic
                     'bankaccounts': _norm_list(item.get('bankaccounts')),
                     'properties': _norm_list(item.get('properties')),
                     'companies': _norm_list(item.get('companies')),
+                    'export_dir': (item.get('export_dir') or '').strip(),
                 }
     except Exception as e:
         logger.error(f"Failed to load owners.yaml: {e}")

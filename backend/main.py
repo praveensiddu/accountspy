@@ -407,6 +407,27 @@ async def spa_transactions_root():
         return FileResponse(str(FRONTEND_INDEX))
     raise HTTPException(status_code=404, detail="index.html not found")
 
+# Company Summary SPA fallback
+@app.get("/companysummary")
+async def spa_companysummary_root():
+    if FRONTEND_INDEX.exists():
+        return FileResponse(str(FRONTEND_INDEX))
+    raise HTTPException(status_code=404, detail="index.html not found")
+
+# Rental Summary SPA fallback
+@app.get("/rentalsummary")
+async def spa_rentalsummary_root():
+    if FRONTEND_INDEX.exists():
+        return FileResponse(str(FRONTEND_INDEX))
+    raise HTTPException(status_code=404, detail="index.html not found")
+
+# Report SPA fallback
+@app.get("/report")
+async def spa_report_root():
+    if FRONTEND_INDEX.exists():
+        return FileResponse(str(FRONTEND_INDEX))
+    raise HTTPException(status_code=404, detail="index.html not found")
+
 @app.get("/classifyrules/{rest:path}")
 async def spa_classifyrules(rest: str = ""):
     if FRONTEND_INDEX.exists():

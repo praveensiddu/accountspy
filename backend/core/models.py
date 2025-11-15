@@ -30,6 +30,7 @@ class OwnerRecord(BaseModel):
     bankaccounts: List[str] = []
     properties: List[str] = []
     companies: List[str] = []
+    export_dir: str = Field('', description="Optional export directory override")
 
 class TaxCategoryRecord(BaseModel):
     category: str = Field(..., description="Tax category name")

@@ -1,13 +1,16 @@
 const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companies }) => {
   const Modal = window.Modal;
   const MultiSelect = window.MultiSelect;
-  const empty = { name: '', bankaccounts: [], properties: [], companies: [] };
+  const empty = { name: '', bankaccounts: [], properties: [], companies: [], export_dir: '' };
   const [form, setForm] = React.useState(empty);
   const [saving, setSaving] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [mode, setMode] = React.useState('add');
   const [originalKey, setOriginalKey] = React.useState('');
-  const [filter, setFilter] = React.useState({ name: '', bankaccounts: '', properties: '', companies: '' });
+  const [filter, setFilter] = React.useState({ name: '', bankaccounts: '', properties: '', companies: '', export_dir: '' });
+  const [exportOpen, setExportOpen] = React.useState(false);
+  const [exportFiles, setExportFiles] = React.useState([]);
+  const [exportTitle, setExportTitle] = React.useState('Export Successful');
   const onChange = (e) => {
     const { name, value, multiple, selectedOptions } = e.target;
     if (name === 'name') {
@@ -19,6 +22,32 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
       setForm({ ...form, [name]: value });
     }
   };
+  const onExportAll = async () => {
+    try {
+      const res = await fetch('/api/export-accounts', { method: 'POST' });
+      const text = await res.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch (_) { data = {}; }
+      if (!res.ok) {
+        const msg = data && data.error ? data.error : (text || 'Export failed');
+        throw new Error(msg);
+      }
+      if ((data && data.status) === 'error') {
+        const msg = data.error || 'Export failed';
+        alert(`Export failed: ${msg}`);
+        return;
+      }
+      const files = [];
+      if (Array.isArray(data && data.results)) {
+        data.results.forEach(r => { if (r && r.path) files.push(r.path); });
+      }
+      setExportTitle('Export Successful: All Owners');
+      setExportFiles(files);
+      setExportOpen(true);
+    } catch (e) {
+      alert(e.message || 'Export failed');
+    }
+  };
   const onSubmit = async (e) => {
     e.preventDefault(); setSaving(true);
     try {
@@ -28,6 +57,7 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
         bankaccounts: Array.from(new Set((form.bankaccounts || []).map(s => (s || '').toLowerCase()))),
         properties: Array.from(new Set((form.properties || []).map(s => (s || '').toLowerCase()))),
         companies: Array.from(new Set((form.companies || []).map(s => (s || '').toLowerCase()))),
+        export_dir: (form.export_dir || '').trim(),
       };
       if (mode === 'edit' && originalKey) {
         await window.api.removeOwner(originalKey);
@@ -53,15 +83,33 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
       bankaccounts: lc(x.bankaccounts),
       properties: lc(x.properties),
       companies: lc(x.companies),
+      export_dir: (x.export_dir || ''),
     });
     setOpen(true);
   };
   const onExport = async (name) => {
     try {
       const res = await fetch('/api/owners/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json().catch(()=>({ status:'ok' }));
-      alert(`Export requested: ${data.owner || name}`);
+      const text = await res.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch (_) { data = {}; }
+      if (!res.ok) {
+        const msg = data && data.error ? data.error : (text || 'Export failed');
+        throw new Error(msg);
+      }
+      if ((data && data.status) === 'error') {
+        const msg = data.error || 'Export failed';
+        alert(`Export failed: ${msg}`);
+        return;
+      }
+      const files = [];
+      if (data && data.path) files.push(data.path);
+      if (Array.isArray(data.results)) {
+        data.results.forEach(r => { if (r && r.path) files.push(r.path); });
+      }
+      setExportTitle(`Export Successful${data && data.owner ? `: ${data.owner}` : ''}`);
+      setExportFiles(files);
+      setExportOpen(true);
     } catch (e) {
       alert(e.message || 'Export failed');
     }
@@ -69,10 +117,24 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
   return (
     <React.Fragment>
       <h2>Owners</h2>
+      <Modal title={exportTitle} open={exportOpen} onClose={() => setExportOpen(false)} onSubmit={() => setExportOpen(false)} submitLabel="Close">
+        <div>
+          {(exportFiles || []).length === 0 ? (
+            <div>No files created</div>
+          ) : (
+            <ul className="list-disc pl-5">
+              {(exportFiles || []).map((p, idx) => (
+                <li key={idx} className="break-words">{p}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </Modal>
       <div className="actions" style={{ marginBottom: 12 }}>
         <span className="mr-3 text-gray-600">Total: {owners.length}</span>
         <button type="button" onClick={() => { setForm(empty); setMode('add'); setOriginalKey(''); setOpen(true); }} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add owner</button>
         <button type="button" onClick={reload} disabled={loading} className="px-3 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-60">Refresh</button>
+        <button type="button" onClick={onExportAll} className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Export All</button>
       </div>
       <Modal title={mode==='edit' ? 'Edit Owner' : 'Add Owner'} open={open} onClose={() => { setOpen(false); setMode('add'); setOriginalKey(''); }} onSubmit={onSubmit} submitLabel={saving ? 'Saving...' : 'Save'} submitDisabled={!((form.name || '').trim()) || !((form.properties || []).length) || !((form.bankaccounts || []).length)}>
         <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -115,6 +177,16 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
               placeholder="Select companies..."
             />
           </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700">export_dir</label>
+            <input
+              name="export_dir"
+              value={form.export_dir}
+              onChange={onChange}
+              placeholder="optional absolute/relative export directory"
+              className="mt-1 w-full border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
         </form>
       </Modal>
       <div className="card">
@@ -126,6 +198,7 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
                 <th>bankaccounts</th>
                 <th>properties</th>
                 <th>companies</th>
+                <th>export_dir</th>
                 <th></th>
               </tr>
               <tr>
@@ -133,6 +206,7 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
                 <th><input placeholder="filter" value={filter.bankaccounts} onChange={(e)=> setFilter(f=>({...f, bankaccounts: e.target.value }))} /></th>
                 <th><input placeholder="filter" value={filter.properties} onChange={(e)=> setFilter(f=>({...f, properties: e.target.value }))} /></th>
                 <th><input placeholder="filter" value={filter.companies} onChange={(e)=> setFilter(f=>({...f, companies: e.target.value }))} /></th>
+                <th><input placeholder="filter" value={filter.export_dir} onChange={(e)=> setFilter(f=>({...f, export_dir: e.target.value }))} /></th>
                 <th></th>
               </tr>
             </thead>
@@ -144,7 +218,8 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
                     matchesText(x.name, filter.name) &&
                     matchesText((x.bankaccounts||[]).join(' '), filter.bankaccounts) &&
                     matchesText((x.properties||[]).join(' '), filter.properties) &&
-                    matchesText((x.companies||[]).join(' '), filter.companies)
+                    matchesText((x.companies||[]).join(' '), filter.companies) &&
+                    matchesText((x.export_dir||''), filter.export_dir)
                   );
                 })
                 .map(x => (
@@ -153,6 +228,7 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
                   <td>{x.bankaccounts.join(' | ')}</td>
                   <td>{x.properties.join(' | ')}</td>
                   <td>{x.companies.join(' | ')}</td>
+                  <td className="whitespace-pre-wrap">{x.export_dir}</td>
                   <td>
                     <button onClick={() => onEdit(x)} className="px-2 py-1 mr-2 bg-gray-700 text-white rounded hover:bg-gray-800">Edit</button>
                     <button onClick={() => onExport(x.name)} className="px-2 py-1 mr-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Export</button>

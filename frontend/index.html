@@ -2844,13 +2844,6 @@
 
         return (
           <div className="container" style={{ position: 'relative' }}>
-            <button
-              type="button"
-              onClick={handleExport}
-              disabled={exporting}
-              style={{ position: 'fixed', top: 12, right: 12, zIndex: 1000 }}
-              className={`px-3 py-1 text-sm text-white rounded ${exporting ? 'bg-gray-500' : 'bg-blue-600 hover:bg-blue-700'}`}
-            >{exporting ? 'Exporting…' : 'Export'}</button>
             {exportResult.open && (
               <div
                 role="dialog"
