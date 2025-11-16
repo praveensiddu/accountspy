@@ -248,9 +248,10 @@ def _init_fs_and_env() -> Path:
 
 def _resolve_entities_dir() -> Optional[Path]:
     global ACCOUNTS_DIR_PATH, CURRENT_YEAR
-    entities_dir = f'{ACCOUNTS_DIR_PATH}/{CURRENT_YEAR}/entities'
-    if entities_dir:
-        entities_dir = entities_dir.expanduser().resolve()
+    if not ACCOUNTS_DIR_PATH or not CURRENT_YEAR:
+        logger.info("entities_dir: unresolved because ACCOUNTS_DIR_PATH or CURRENT_YEAR missing")
+        return None
+    entities_dir: Path = (ACCOUNTS_DIR_PATH / CURRENT_YEAR / 'entities').expanduser().resolve()
     logger.info(f"entities_dir: {entities_dir} exists={entities_dir.exists() if entities_dir else False}")
     return entities_dir
 
@@ -355,22 +356,8 @@ def _load_manual_rules() -> None:
 
 
 def _emit_yaml_snapshots() -> None:
-    try:
-        if BANKS_YAML_PATH:
-            _dump_yaml_entities(
-                path=BANKS_YAML_PATH,
-                entities=list(BANKS_CFG_DB.values()),
-                key_field='name',
-            )
-        if CLASSIFY_YAML_PATH:
-            base_dir = CLASSIFY_YAML_PATH.parent
-            _dump_yaml_entities(
-                path=base_dir / 'bank_rules.yaml',
-                entities=list(CLASSIFY_DB.values()),
-                key_field='bankaccountname',
-            )
-    except Exception as e:
-        logger.error(f"Failed to write YAML snapshots: {e}")
+    # No-op: do not prepare or write banks.yaml or bank_rules.yaml at startup
+    return
 
 
 def _process_statements() -> None:

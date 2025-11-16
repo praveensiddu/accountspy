@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from pathlib import Path
 import csv
 from datetime import datetime
@@ -91,6 +91,8 @@ def _process_bank_statement_for_account(bankaccountname: str, cfg: Dict[str, Any
     raw_fmt = (cfg.get('date_format') or '').strip()
 
     out_rows: List[Dict[str, str]] = []
+    # Track duplicates by (date, normalized description, amount) within this file
+    dup_counts: Dict[Tuple[str, str, str], int] = {}
     try:
         with src_path.open('r', encoding='utf-8') as rf:
             kept_lines: List[str] = []
@@ -156,6 +158,14 @@ def _process_bank_statement_for_account(bankaccountname: str, cfg: Dict[str, Any
                 except Exception:
                     pass
                 desc_out = str(desc_out).lower()
+                # Make duplicates unique by appending marker to description starting with the 2nd occurrence
+                dup_key = (date_out, desc_out, amt_out)
+                prev = dup_counts.get(dup_key, 0)
+                cur = prev + 1
+                dup_counts[dup_key] = cur
+                if cur > 1:
+                    desc_out = f"{desc_out} makeunique-{cur}"
+
                 s = (bankaccountname + date_out + desc_out + amt_out).lower()
                 s = ''.join(s.split())
                 tr_id = hashlib.sha256(s.encode()).hexdigest()[:10]
