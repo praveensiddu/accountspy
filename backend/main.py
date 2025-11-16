@@ -50,15 +50,25 @@ COMMON_RULES_DB: Dict[str, Dict] = {}
 INHERIT_RULES_DB: Dict[str, Dict] = {}
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-CSV_PATH = None  # set on startup from ENTITIES_DIR
-COMP_CSV_PATH = None  # set on startup from ENTITIES_DIR
-BANK_CSV_PATH = None  # set on startup from ENTITIES_DIR
-GROUPS_CSV_PATH = None  # set on startup from ENTITIES_DIR
-OWNERS_CSV_PATH = None  # set on startup from ENTITIES_DIR
-BANKS_YAML_PATH = None  # set on startup from ENTITIES_DIR
-TAX_CSV_PATH = None  # set on startup from ENTITIES_DIR
-TT_CSV_PATH = None  # set on startup from ENTITIES_DIR
-CLASSIFY_CSV_PATH = None  # set on startup from ENTITIES_DIR
+PROPERTIES_YAML_PATH = None  # set on startup from ENTITIES_DIR
+COMP_YAML_PATH = None  # set on startup from ENTITIES_DIR
+BANK_YAML_PATH = None  # set on startup from ENTITIES_DIR (bankaccounts)
+GROUPS_YAML_PATH = None  # set on startup from ENTITIES_DIR
+OWNERS_YAML_PATH = None  # set on startup from ENTITIES_DIR
+BANKS_YAML_PATH = None  # set on startup from ENTITIES_DIR (bank configs)
+TAX_YAML_PATH = None  # set on startup from ENTITIES_DIR
+TT_YAML_PATH = None  # set on startup from ENTITIES_DIR
+CLASSIFY_YAML_PATH = None  # set on startup from ENTITIES_DIR (for locating rules dir)
+
+# Back-compat aliases for legacy code expecting *_CSV_PATH
+CSV_PATH = None
+COMP_CSV_PATH = None
+BANK_CSV_PATH = None
+GROUPS_CSV_PATH = None
+OWNERS_CSV_PATH = None
+TAX_CSV_PATH = None
+TT_CSV_PATH = None
+CLASSIFY_CSV_PATH = None
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
 # Mandatory environment configuration
@@ -285,47 +295,54 @@ def _ensure_year_dirs() -> None:
 
 
 def _compute_entity_paths(entities_dir: Optional[Path]) -> None:
-    global CSV_PATH, COMP_CSV_PATH, BANK_CSV_PATH, GROUPS_CSV_PATH, OWNERS_CSV_PATH, TAX_CSV_PATH, TT_CSV_PATH, BANKS_YAML_PATH, CLASSIFY_CSV_PATH
-    CSV_PATH = (entities_dir / "properties.csv") if entities_dir else None
-    COMP_CSV_PATH = (entities_dir / "companies.csv") if entities_dir else None
-    BANK_CSV_PATH = (entities_dir / "bankaccounts.csv") if entities_dir else None
-    GROUPS_CSV_PATH = (entities_dir / "groups.csv") if entities_dir else None
-    OWNERS_CSV_PATH = (entities_dir / "owners.csv") if entities_dir else None
-    BANKS_YAML_PATH = (entities_dir / "banks.yaml") if entities_dir else None
-    TAX_CSV_PATH = (entities_dir / "tax_category.csv") if entities_dir else None
-    TT_CSV_PATH = (entities_dir / "transaction_types.csv") if entities_dir else None
-    CLASSIFY_CSV_PATH = (entities_dir / "classify_rules.csv") if entities_dir else None
+    global PROPERTIES_YAML_PATH, COMP_YAML_PATH, BANK_YAML_PATH, GROUPS_YAML_PATH, OWNERS_YAML_PATH, BANKS_YAML_PATH, TAX_YAML_PATH, TT_YAML_PATH, CLASSIFY_YAML_PATH
+    global CSV_PATH, COMP_CSV_PATH, BANK_CSV_PATH, GROUPS_CSV_PATH, OWNERS_CSV_PATH, TAX_CSV_PATH, TT_CSV_PATH, CLASSIFY_CSV_PATH
+    if entities_dir:
+        PROPERTIES_YAML_PATH = entities_dir / "properties.yaml"
+        COMP_YAML_PATH = entities_dir / "companies.yaml"
+        BANK_YAML_PATH = entities_dir / "bankaccounts.yaml"
+        GROUPS_YAML_PATH = entities_dir / "groups.yaml"
+        OWNERS_YAML_PATH = entities_dir / "owners.yaml"
+        BANKS_YAML_PATH = entities_dir / "banks.yaml"
+        TAX_YAML_PATH = entities_dir / "tax_category.yaml"
+        TT_YAML_PATH = entities_dir / "transaction_types.yaml"
+        CLASSIFY_YAML_PATH = entities_dir / "classify_rules.yaml"
+    else:
+        PROPERTIES_YAML_PATH = COMP_YAML_PATH = BANK_YAML_PATH = GROUPS_YAML_PATH = OWNERS_YAML_PATH = BANKS_YAML_PATH = TAX_YAML_PATH = TT_YAML_PATH = CLASSIFY_YAML_PATH = None
+
+    # Backwards compatibility: set legacy *_CSV_PATH names to YAML paths so existing code keeps working
+    CSV_PATH = PROPERTIES_YAML_PATH
+    COMP_CSV_PATH = COMP_YAML_PATH
+    BANK_CSV_PATH = BANK_YAML_PATH
+    GROUPS_CSV_PATH = GROUPS_YAML_PATH
+    OWNERS_CSV_PATH = OWNERS_YAML_PATH
+    TAX_CSV_PATH = TAX_YAML_PATH
+    TT_CSV_PATH = TT_YAML_PATH
+    CLASSIFY_CSV_PATH = CLASSIFY_YAML_PATH
 
 
 def _load_entities() -> None:
-    comp_yaml_path = COMP_CSV_PATH.with_suffix('.yaml') if COMP_CSV_PATH else None
-    loaders.load_companies_yaml_into_memory(comp_yaml_path, COMP_DB, logger)
-    logger.info(f"Loaded {len(COMP_DB)} company records from {comp_yaml_path}")
-    prop_yaml_path = CSV_PATH.with_suffix('.yaml') if CSV_PATH else None
-    loaders.load_properties_yaml_into_memory(prop_yaml_path, DB, COMP_DB, logger)
-    logger.info(f"Loaded {len(DB)} properties from {prop_yaml_path}")
-    bank_yaml_path = BANK_CSV_PATH.with_suffix('.yaml') if BANK_CSV_PATH else None
-    loaders.load_bankaccounts_yaml_into_memory(bank_yaml_path, BA_DB, logger)
-    logger.info(f"Loaded {len(BA_DB)} bank accounts from {bank_yaml_path}")
-    grp_yaml_path = GROUPS_CSV_PATH.with_suffix('.yaml') if GROUPS_CSV_PATH else None
-    loaders.load_groups_yaml_into_memory(grp_yaml_path, GROUP_DB, logger)
-    logger.info(f"Loaded {len(GROUP_DB)} groups from {grp_yaml_path}")
-    owners_yaml_path = OWNERS_CSV_PATH.with_suffix('.yaml') if OWNERS_CSV_PATH else None
-    loaders.load_owners_yaml_into_memory(owners_yaml_path, OWNER_DB, logger)
-    logger.info(f"Loaded {len(OWNER_DB)} owners from {owners_yaml_path}")
-    tax_yaml_path = TAX_CSV_PATH.with_suffix('.yaml') if TAX_CSV_PATH else None
-    loaders.load_tax_categories_yaml_into_memory(tax_yaml_path, TAX_DB, logger)
-    logger.info(f"Loaded {len(TAX_DB)} tax categories from {tax_yaml_path}")
-    tt_yaml_path = TT_CSV_PATH.with_suffix('.yaml') if TT_CSV_PATH else None
-    loaders.load_transaction_types_yaml_into_memory(tt_yaml_path, TT_DB, logger)
-    logger.info(f"Loaded {len(TT_DB)} transaction types from {tt_yaml_path}")
+    loaders.load_companies_yaml_into_memory(COMP_YAML_PATH, COMP_DB, logger)
+    logger.info(f"Loaded {len(COMP_DB)} company records from {COMP_YAML_PATH}")
+    loaders.load_properties_yaml_into_memory(PROPERTIES_YAML_PATH, DB, COMP_DB, logger)
+    logger.info(f"Loaded {len(DB)} properties from {PROPERTIES_YAML_PATH}")
+    loaders.load_bankaccounts_yaml_into_memory(BANK_YAML_PATH, BA_DB, logger)
+    logger.info(f"Loaded {len(BA_DB)} bank accounts from {BANK_YAML_PATH}")
+    loaders.load_groups_yaml_into_memory(GROUPS_YAML_PATH, GROUP_DB, logger)
+    logger.info(f"Loaded {len(GROUP_DB)} groups from {GROUPS_YAML_PATH}")
+    loaders.load_owners_yaml_into_memory(OWNERS_YAML_PATH, OWNER_DB, logger)
+    logger.info(f"Loaded {len(OWNER_DB)} owners from {OWNERS_YAML_PATH}")
+    loaders.load_tax_categories_yaml_into_memory(TAX_YAML_PATH, TAX_DB, logger)
+    logger.info(f"Loaded {len(TAX_DB)} tax categories from {TAX_YAML_PATH}")
+    loaders.load_transaction_types_yaml_into_memory(TT_YAML_PATH, TT_DB, logger)
+    logger.info(f"Loaded {len(TT_DB)} transaction types from {TT_YAML_PATH}")
     loaders.load_banks_yaml_into_memory(BANKS_YAML_PATH, BANKS_CFG_DB, logger)
     logger.info(f"Loaded {len(BANKS_CFG_DB)} bank configs from {BANKS_YAML_PATH}")
 
 
 def _load_manual_rules() -> None:
-    if CLASSIFY_CSV_PATH:
-        base_dir = CLASSIFY_CSV_PATH.parent
+    if CLASSIFY_YAML_PATH:
+        base_dir = CLASSIFY_YAML_PATH.parent
         # Dedupe per-bank YAML files to remove duplicate pattern_match_logic entries
         loaders.dedupe_bank_rules_dir(base_dir / 'bank_rules', logger)
         # Do not load bank_rules.yaml anymore; rules are sourced from per-bank files under bank_rules/
@@ -345,8 +362,8 @@ def _emit_yaml_snapshots() -> None:
                 entities=list(BANKS_CFG_DB.values()),
                 key_field='name',
             )
-        if CLASSIFY_CSV_PATH:
-            base_dir = CLASSIFY_CSV_PATH.parent
+        if CLASSIFY_YAML_PATH:
+            base_dir = CLASSIFY_YAML_PATH.parent
             _dump_yaml_entities(
                 path=base_dir / 'bank_rules.yaml',
                 entities=list(CLASSIFY_DB.values()),
