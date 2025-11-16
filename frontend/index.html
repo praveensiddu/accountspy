@@ -2534,7 +2534,13 @@
           try {
             const v = row && row._verified && row._verified[field];
             const cur = row && row[field];
-            if (v == null || v === '') return false;
+            // Mirror property summary behavior: allow verifying as empty
+            if (v === '') {
+              if (cur == null) return true;
+              const cs = String(cur).toString().trim();
+              return cs === '';
+            }
+            if (v == null) return false;
             return String(cur) === String(v);
           } catch(_) { return false; }
         };
@@ -2542,14 +2548,14 @@
           try {
             if (!row || !row.Name || field === 'Name') return;
             const curVal = row[field];
-            if (curVal == null || String(curVal).toString().trim() === '') return;
             const name = String(row.Name||'');
             const verified = isCSVerified(row, field);
             let res;
             if (verified) {
               res = await fetch('/api/company-summary/verify', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ Name: name, field }) });
             } else {
-              res = await fetch('/api/company-summary/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ Name: name, field, value: curVal }) });
+              const payload = { Name: name, field, value: (curVal == null ? '' : curVal) };
+              res = await fetch('/api/company-summary/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             }
             if (!res.ok) { const t = await res.text().catch(()=> ''); throw new Error(t || 'Failed to verify'); }
             await loadCompanySummary();
@@ -3244,15 +3250,13 @@
                               <tr key={`cs-${idx}`}>
                                 <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.Name}</td>
                                 {['income','rentpassedtoowners','bankfees','c_auto','c_donate','c_entertainment','c_internet','c_license','c_mobile','c_off_exp','c_parktoll','c_phone','c_website','ignore','insurane','proffees','utilities','profit'].map((f,i)=> {
-                                  const hasVal = (()=>{ const v = r[f]; return !(v == null || String(v).toString().trim() === ''); })();
                                   return (
                                     <td key={`cc-${i}`} className={`break-words whitespace-pre-wrap ${isCSVerified(r,f) ? 'bg-green-100' : ''}`}> 
                                       <div className="flex flex-col items-end gap-1">
                                         <span style={{ wordBreak:'break-word', whiteSpace:'pre-wrap' }} className="self-start">{r[f]}</span>
                                         <button
                                           type="button"
-                                          disabled={!hasVal}
-                                          title={hasVal ? (isCSVerified(r,f) ? 'Unverify' : 'Mark verified') : 'No value to verify'}
+                                          title={isCSVerified(r,f) ? 'Unverify' : 'Mark verified'}
                                           className={`text-white rounded disabled:opacity-50 ${isCSVerified(r,f) ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-500 hover:bg-gray-600'}`}
                                           style={{ width: '6px', height: '6px', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '6px', lineHeight: '6px' }}
                                           onClick={()=> verifyCSCell(r, f)}
