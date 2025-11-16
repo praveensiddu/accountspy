@@ -187,7 +187,10 @@ def calculate_income_rentpassed(summary: Dict[str, Dict[str, float]]) -> None:
                     rent_val = 0.0
                 if comp_key not in summary:
                     summary[comp_key] = {}
-                summary[comp_key]['rentpassedtoowners'] = -(round(float(summary[comp_key].get('rentpassedtoowners', 0.0) or 0.0) + rent_val, 2))
+                summary[comp_key]['rentpassedtoowners'] += rent_val
+
+            for comp_key in summary:
+                summary[comp_key]['rentpassedtoowners'] = -round(summary[comp_key].get('rentpassedtoowners', 0.0) or 0.0, 2)
     except Exception:
         pass
 
@@ -197,7 +200,7 @@ def calculate_income_rentpassed(summary: Dict[str, Dict[str, float]]) -> None:
             comp_rec = comps.get(cname) or {}
             pct = float(comp_rec.get('rentPercentage', 0) or 0)
             rp = -(float(totals.get('rentpassedtoowners', 0.0) or 0.0))
-            income = rp + (rp * (pct / 100.0))
+            income = (rp * 100)/(100-pct)
             totals['income'] = round(income, 2)
         except Exception:
             continue
