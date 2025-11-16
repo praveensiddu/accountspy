@@ -62,6 +62,33 @@ def _read_processed_csv(path: Path) -> List[Dict[str, Any]]:
     return rows
 
 
+def _read_addendum_csv(path: Path) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    try:
+        with path.open('r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                rows.append({
+                    'tr_id': row.get('tr_id',''),
+                    'date': row.get('date',''),
+                    'description': row.get('description',''),
+                    'credit': row.get('credit',''),
+                    'ruleid': '',
+                    'comment': '',
+                    'transaction_type': '',
+                    'tax_category': '',
+                    'property': '',
+                    'group': '',
+                    'company': '',
+                    'otherentity': '',
+                    'override': '',
+                    'fromaddendum': 'yes',
+                })
+    except Exception:
+        pass
+    return rows
+
+
 def _read_processed_yaml(path: Path) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
     try:
@@ -104,7 +131,17 @@ async def list_all_transactions() -> Dict[str, Any]:
                 result[key] = _read_processed_yaml(py)
                 continue
             pc = state.PROCESSED_DIR_PATH / f"{key}.csv"
-            result[key] = _read_processed_csv(pc) if pc.exists() else []
+            if pc.exists():
+                result[key] = _read_processed_csv(pc)
+                continue
+            # Fallback: show addendum rows if processed is not present
+            ba = state.BA_DB.get(key) or {}
+            sl = (ba.get('statement_location') or '').strip()
+            if sl:
+                addendum_path = Path(sl) / (state.CURRENT_YEAR or '') / 'addendum' / f"{key}.csv"
+                result[key] = _read_addendum_csv(addendum_path) if addendum_path.exists() else []
+            else:
+                result[key] = []
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read processed CSVs: {e}")
     return result
@@ -130,7 +167,17 @@ async def get_transactions(bankaccountname: str) -> Dict[str, Any]:
         rows = _read_processed_yaml(py)
     else:
         pc = state.PROCESSED_DIR_PATH / f"{key}.csv"
-        rows = _read_processed_csv(pc) if pc.exists() else []
+        if pc.exists():
+            rows = _read_processed_csv(pc)
+        else:
+            # Fallback to addendum-only view
+            ba = state.BA_DB.get(key) or {}
+            sl = (ba.get('statement_location') or '').strip()
+            if not sl:
+                rows = []
+            else:
+                addendum_path = Path(sl) / (state.CURRENT_YEAR or '') / 'addendum' / f"{key}.csv"
+                rows = _read_addendum_csv(addendum_path) if addendum_path.exists() else []
     return {"bankaccountname": key, "rows": rows}
 
 @router.post("/transactions/{bankaccountname}")
