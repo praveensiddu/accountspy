@@ -27,7 +27,7 @@ share/python-wheels/
 MANIFEST
 
 # PyInstaller
-# Local data (CSV entities should live outside the repo via ENTITIES_DIR)
+# Local data (CSV entities should live outside the repo )
 data/
 *.csv
 #  Usually these files are written by a python script from a template

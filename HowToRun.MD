@@ -43,7 +43,6 @@ pip install -r requirements.txt
 ## 6) Configure environment variables (.env)
 Create a file named `.env` in the project root `accountspy/.env` with the following keys:
 ```env
-ENTITIES_DIR=/absolute/path/to/entities/root
 CURRENT_YEAR=2024
 ACCOUNTS_DIR=/absolute/path/to/accounts/root
 ```
@@ -51,7 +50,6 @@ Notes:
 - Use absolute paths.
 - Example (yours will differ):
 ```env
-ENTITIES_DIR=/Users/you/selfmanaged/cpa
 CURRENT_YEAR=2024
 ACCOUNTS_DIR=/Users/you/selfmanaged/cpa
 ```

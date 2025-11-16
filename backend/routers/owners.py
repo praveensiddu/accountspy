@@ -265,6 +265,129 @@ async def export_all_owners():
     return {"status": "ok", "results": results}
 
 
+class OwnerPrepPayload(BaseModel):
+    name: str = ""
+
+
+@router.post("/owners/prepentities")
+async def prep_entities(payload: OwnerPrepPayload):
+    name = (payload.name or "").strip().lower()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    owner = (state.OWNER_DB or {}).get(name)
+    if not owner:
+        raise HTTPException(status_code=404, detail="Owner not found")
+
+    if not state.ACCOUNTS_DIR_PATH or not state.CURRENT_YEAR:
+        raise HTTPException(status_code=500, detail="ACCOUNTS_DIR or CURRENT_YEAR not configured")
+
+    entities_dir: Path = f'{state.ACCOUNTS_DIR_PATH}/{state.CURRENT_YEAR}/entities' 
+    entities_dir = Path(entities_dir).expanduser().resolve()
+
+    if not entities_dir or not entities_dir.exists():
+        raise HTTPException(status_code=500, detail="entities dir is not resolved")
+
+    dest_root: Path = state.ACCOUNTS_DIR_PATH / state.CURRENT_YEAR / 'export' / name / 'entities'
+
+    # Copy top-level YAMLs to entities/
+    try:
+        for fname in ['banks.yaml', 'transaction_types.yaml','tax_category.yaml','inherit_common_to_bank.yaml', 'common_rules.yaml']:
+            src = entities_dir / fname
+            if src.exists() and src.is_file():
+                shutil.copy2(src, dest_root / fname)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed copying top-level YAMLs: {e}")
+
+    # Helpers
+    def _load_yaml_list(path: Path) -> List[Dict[str, Any]]:
+        try:
+            with path.open('r', encoding='utf-8') as f:
+                data = yaml.safe_load(f) or []
+                return data if isinstance(data, list) else []
+        except Exception:
+            return []
+
+    def _save_yaml_list(path: Path, rows: List[Dict[str, Any]]):
+        try:
+            with path.open('w', encoding='utf-8') as f:
+                yaml.safe_dump(rows, f, sort_keys=True, allow_unicode=True)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed writing {path.name}: {e}")
+
+    # companies.yaml
+    try:
+        comp_src = entities_dir / 'companies.yaml'
+        all_comp = _load_yaml_list(comp_src)
+        want = set([ (c or '').strip().lower() for c in (owner.get('companies') or []) ])
+        filtered: List[Dict[str, Any]] = []
+        for rec in all_comp:
+            if not isinstance(rec, dict):
+                continue
+            key = (str(rec.get('companyname') or '')).strip().lower()
+            if key and key in want:
+                filtered.append(rec)
+        _save_yaml_list(dest_root / 'companies.yaml', filtered)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed filtering companies.yaml: {e}")
+
+    # properties.yaml
+    try:
+        prop_src = entities_dir / 'properties.yaml'
+        all_props = _load_yaml_list(prop_src)
+        want = set([ (p or '').strip().lower() for p in (owner.get('properties') or []) ])
+        filtered = []
+        for rec in all_props:
+            if not isinstance(rec, dict):
+                continue
+            key = (str(rec.get('property') or '')).strip().lower()
+            if key and key in want:
+                filtered.append(rec)
+        _save_yaml_list(dest_root / 'properties.yaml', filtered)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed filtering properties.yaml: {e}")
+
+    # bankaccounts.yaml
+    try:
+        ba_src = entities_dir / 'bankaccounts.yaml'
+        all_bas = _load_yaml_list(ba_src)
+        want = set([ (b or '').strip().lower() for b in (owner.get('bankaccounts') or []) ])
+        filtered = []
+        for rec in all_bas:
+            if not isinstance(rec, dict):
+                continue
+            key = (str(rec.get('bankaccountname') or '')).strip().lower()
+            if key and key in want:
+                filtered.append(rec)
+        _save_yaml_list(dest_root / 'bankaccounts.yaml', filtered)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed filtering bankaccounts.yaml: {e}")
+
+    # owners.yaml (filtered to just this owner)
+    try:
+        owners_src = entities_dir / 'owners.yaml'
+        all_owners = _load_yaml_list(owners_src)
+        filtered = []
+        for rec in all_owners:
+            if not isinstance(rec, dict):
+                continue
+            key = (str(rec.get('name') or '')).strip().lower()
+            if key == name:
+                filtered.append(rec)
+        _save_yaml_list(dest_root / 'owners.yaml', filtered)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed filtering owners.yaml: {e}")
+
+    return {"status": "ok", "owner": name, "export_path": str(dest_root)}
+
+
 @router.post("/export-accounts")
 async def export_accounts():
     """Export accounts for all owners that have export_dir set.

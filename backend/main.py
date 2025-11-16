@@ -50,15 +50,15 @@ COMMON_RULES_DB: Dict[str, Dict] = {}
 INHERIT_RULES_DB: Dict[str, Dict] = {}
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-PROPERTIES_YAML_PATH = None  # set on startup from ENTITIES_DIR
-COMP_YAML_PATH = None  # set on startup from ENTITIES_DIR
-BANK_YAML_PATH = None  # set on startup from ENTITIES_DIR (bankaccounts)
-GROUPS_YAML_PATH = None  # set on startup from ENTITIES_DIR
-OWNERS_YAML_PATH = None  # set on startup from ENTITIES_DIR
-BANKS_YAML_PATH = None  # set on startup from ENTITIES_DIR (bank configs)
-TAX_YAML_PATH = None  # set on startup from ENTITIES_DIR
-TT_YAML_PATH = None  # set on startup from ENTITIES_DIR
-CLASSIFY_YAML_PATH = None  # set on startup from ENTITIES_DIR (for locating rules dir)
+PROPERTIES_YAML_PATH = None  # set on startup 
+COMP_YAML_PATH = None  # set on startup 
+BANK_YAML_PATH = None  # set on startup  (bankaccounts)
+GROUPS_YAML_PATH = None  # set on startup 
+OWNERS_YAML_PATH = None  # set on startup 
+BANKS_YAML_PATH = None  # set on startup  (bank configs)
+TAX_YAML_PATH = None  # set on startup 
+TT_YAML_PATH = None  # set on startup 
+CLASSIFY_YAML_PATH = None  # set on startup  (for locating rules dir)
 
 # Back-compat aliases for legacy code expecting *_CSV_PATH
 CSV_PATH = None
@@ -247,11 +247,11 @@ def _init_fs_and_env() -> Path:
 
 
 def _resolve_entities_dir() -> Optional[Path]:
-    entities_dir_env = os.getenv("ENTITIES_DIR", "").strip()
-    entities_dir = Path(entities_dir_env) if entities_dir_env else None
+    global ACCOUNTS_DIR_PATH, CURRENT_YEAR
+    entities_dir = f'{ACCOUNTS_DIR_PATH}/{CURRENT_YEAR}/entities'
     if entities_dir:
         entities_dir = entities_dir.expanduser().resolve()
-    logger.info(f"ENTITIES_DIR: {entities_dir} exists={entities_dir.exists() if entities_dir else False}")
+    logger.info(f"entities_dir: {entities_dir} exists={entities_dir.exists() if entities_dir else False}")
     return entities_dir
 
 
@@ -383,8 +383,8 @@ def _process_statements() -> None:
 @app.on_event("startup")
 async def startup_event():
     _init_fs_and_env()
-    entities_dir = _resolve_entities_dir()
     _read_mandatory_envs()
+    entities_dir = _resolve_entities_dir()
     _ensure_year_dirs()
     _compute_entity_paths(entities_dir)
     _load_entities()

@@ -22,6 +22,29 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
       setForm({ ...form, [name]: value });
     }
   };
+  const onPrep = async (name) => {
+    try {
+      const res = await fetch('/api/owners/prepentities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+      const text = await res.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch (_) { data = {}; }
+      if (!res.ok) {
+        const msg = data && data.detail ? data.detail : (text || 'Prep failed');
+        throw new Error(msg);
+      }
+      if ((data && data.status) !== 'ok') {
+        const msg = (data && (data.error || data.detail)) || 'Prep failed';
+        throw new Error(msg);
+      }
+      const files = [];
+      if (data && data.export_path) files.push(data.export_path);
+      setExportTitle(`Prep Successful${data && data.owner ? `: ${data.owner}` : ''}`);
+      setExportFiles(files);
+      setExportOpen(true);
+    } catch (e) {
+      alert(e.message || 'Prep failed');
+    }
+  };
   const onExportAll = async () => {
     try {
       const res = await fetch('/api/export-accounts', { method: 'POST' });
@@ -231,6 +254,7 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
                   <td className="whitespace-pre-wrap">{x.export_dir}</td>
                   <td>
                     <button onClick={() => onEdit(x)} className="px-2 py-1 mr-2 bg-gray-700 text-white rounded hover:bg-gray-800">Edit</button>
+                    <button onClick={() => onPrep(x.name)} className="px-2 py-1 mr-2 bg-green-600 text-white rounded hover:bg-green-700">Prep</button>
                     <button onClick={() => onExport(x.name)} className="px-2 py-1 mr-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Export</button>
                     <button onClick={() => onDelete(x.name)} className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
                   </td>

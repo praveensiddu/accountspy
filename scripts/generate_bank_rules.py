@@ -21,7 +21,7 @@ Algorithm:
 
 Usage:
   python scripts/generate_bank_rules.py --entities-dir /path/to/entities
-If --entities-dir is omitted, ENTITIES_DIR env var is used.
+If --entities-dir is omitted
 """
 import argparse
 import os
@@ -83,11 +83,11 @@ def _write_yaml_list(path: Path, items: List[Dict[str, Any]]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description='Generate bank_rules.yaml by merging inherit and common rules with classify overrides')
-    parser.add_argument('--entities-dir', dest='entities_dir', default=os.getenv('ENTITIES_DIR', ''), help='Path to ENTITIES_DIR containing YAML files')
+    parser.add_argument('--entities-dir', dest='entities_dir', ''), help='Path to entities containing YAML files')
     args = parser.parse_args()
 
     if not args.entities_dir:
-        print('Error: --entities-dir not provided and ENTITIES_DIR is not set', file=sys.stderr)
+        print('Error: --entities-dir not provided ', file=sys.stderr)
         return 2
     entities_dir = Path(args.entities_dir).expanduser().resolve()
     if not entities_dir.exists() or not entities_dir.is_dir():
