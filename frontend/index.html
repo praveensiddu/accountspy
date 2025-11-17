@@ -2189,6 +2189,13 @@
         const [transactionTypes, setTransactionTypes] = useState([]);
         const [banks, setBanks] = useState([]);
         const [classifyRules, setClassifyRules] = useState([]);
+        // Settings: prepare year selection state
+        const [prepYear, setPrepYear] = useState(() => {
+          try { return window.localStorage.getItem('currentYearSelect') || (window.current_year || ''); } catch(_) { return (window.current_year || ''); }
+        });
+        useEffect(() => {
+          try { window.localStorage.setItem('currentYearSelect', prepYear || ''); } catch(_) {}
+        }, [prepYear]);
         // Transactions subtabs state (per bankaccount)
         const [txnBATab, setTxnBATab] = useState(() => {
           try { return window.localStorage.getItem('txnBATab') || ''; } catch(_) { return ''; }
@@ -2897,6 +2904,7 @@
             {topTab === 'setup' && (
               <div className="tabcontent">
                 <div className="actions" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
+                  <TabButton active={setupTab==='settings'} onClick={() => setSetupTab('settings')}>Settings</TabButton>
                   <TabButton active={setupTab==='banks'} onClick={() => setSetupTab('banks')}>Banks</TabButton>
                   <TabButton active={setupTab==='bankaccounts'} onClick={() => setSetupTab('bankaccounts')}>Bank Accounts</TabButton>
                   <TabButton active={setupTab==='companies'} onClick={() => setSetupTab('companies')}>Company Records</TabButton>
@@ -2906,6 +2914,44 @@
                   <TabButton active={setupTab==='taxcats'} onClick={() => setSetupTab('taxcats')}>Tax Categories</TabButton>
                   <TabButton active={setupTab==='txtypes'} onClick={() => setSetupTab('txtypes')}>Transaction Types</TabButton>
                 </div>
+
+                {setupTab === 'settings' && (
+                  <div className="card">
+                    <div className="row" style={{ alignItems:'flex-end' }}>
+                      <div className="col">
+                        <label>Prepare for year<br/>
+                          {(() => {
+                            const yearOptions = Array.from({ length: 38 }, (_, i) => 2023 + i).map(y => ({ value: String(y), label: String(y) }));
+                            const selectedArr = prepYear ? [String(prepYear)] : [];
+                            return (
+                              <MultiSelect
+                                options={yearOptions}
+                                selected={selectedArr}
+                                onChange={(arr)=>{ const y = (arr && arr[0]) || ''; setPrepYear(y); }}
+                                placeholder="Select year..."
+                              />
+                            );
+                          })()}
+                        </label>
+                      </div>
+                      <div className="col" style={{ textAlign:'right' }}>
+                        <button
+                          type="button"
+                          style={{ padding:'6px 12px', background:'#2563eb', color:'#fff', border:'none', borderRadius:'4px', cursor:'pointer' }}
+                          onClick={async ()=>{
+                            try {
+                              const y = String(prepYear||'');
+                              if (!y) { alert('Select a year'); return; }
+                              const res = await fetch('/api/settings/prepyear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year: y }) });
+                              if (!res.ok) { const t = await res.text().catch(()=> ''); throw new Error(t || 'prepyear failed'); }
+                              alert('Year prepared: ' + y);
+                            } catch (e) { alert(e.message || 'Failed'); }
+                          }}
+                        >prepare</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {setupTab === 'properties' && (
                   <PropertiesPanelExt items={items} companies={companies} loading={loading} reload={load} />

@@ -144,6 +144,7 @@ try:
     from backend.routers import rentalsummary as rentalsummary_router
     from backend.routers import companysummary as companysummary_router
     from backend.routers import addendum as addendum_router
+    from backend.routers import settings as settings_router
     app.include_router(banks_router.router)
     app.include_router(tax_categories_router.router)
     app.include_router(transaction_types_router.router)
@@ -157,6 +158,7 @@ try:
     app.include_router(addendum_router.router)
     app.include_router(rentalsummary_router.router)
     app.include_router(companysummary_router.router)
+    app.include_router(settings_router.router)
 except Exception as e:
     logger.exception("Router include failed", exc_info=e)
 
