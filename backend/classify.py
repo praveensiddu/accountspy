@@ -151,6 +151,7 @@ def classify_bank(bankaccountname: str) -> None:
     # Only check per-bank bank_rules under statement_location/CURRENT_YEAR/bank_rules
     per_bank_candidate: Optional[Path] = None
     bank_rules_path: Optional[Path] = None
+    rules: List[Dict[str, Any]] = []
     try:
         ba = state.BA_DB.get(bank) or {}
         sl = (ba.get('statement_location') or '').strip()
@@ -161,18 +162,17 @@ def classify_bank(bankaccountname: str) -> None:
     except Exception:
         bank_rules_path = None
 
-    if not bank_rules_path or not bank_rules_path.exists():
+    if bank_rules_path and bank_rules_path.exists():
+        try:
+            with bank_rules_path.open("r", encoding="utf-8") as f:
+                rules_raw = yaml.safe_load(f) or []
+                rules = [r for r in rules_raw if isinstance(r, dict)]
+        except Exception:
+            rules = []
+    else:
         logger.info(
-            f"No bank rules found at per-bank path: {per_bank_candidate}"
+            f"No bank rules found at per-bank path: {per_bank_candidate} (treating as empty rules)"
         )
-        return
-
-    try:
-        with bank_rules_path.open("r", encoding="utf-8") as f:
-            rules_raw = yaml.safe_load(f) or []
-            rules: List[Dict[str, Any]] = [r for r in rules_raw if isinstance(r, dict)]
-    except Exception:
-        rules = []
     # Apply rules in ascending numeric 'order'
     def _order_key(r: Dict[str, Any]) -> int:
         try:
@@ -246,23 +246,24 @@ def classify_bank(bankaccountname: str) -> None:
             # leave as-is when no match
             pass
 
-    # Persist updated usedcount back into bank_rules YAML
-    try:
-        updated_rules: List[Dict[str, Any]] = []
-        for r in rules:
-            try:
-                o = int(r.get("order") or 0)
-            except Exception:
-                o = 0
-            r = dict(r)
-            r["usedcount"] = int(rule_used_counts.get(o, 0))
-            updated_rules.append(r)
-        # Keep the same order as sorted above
-        with bank_rules_path.open("w", encoding="utf-8") as wf:
-            yaml.safe_dump(updated_rules, wf, sort_keys=True, allow_unicode=True)
-    except Exception:
-        # non-fatal
-        pass
+    # Persist updated usedcount back into bank_rules YAML (only if file exists and rules present)
+    if bank_rules_path and bank_rules_path.exists() and rules:
+        try:
+            updated_rules: List[Dict[str, Any]] = []
+            for r in rules:
+                try:
+                    o = int(r.get("order") or 0)
+                except Exception:
+                    o = 0
+                r = dict(r)
+                r["usedcount"] = int(rule_used_counts.get(o, 0))
+                updated_rules.append(r)
+            # Keep the same order as sorted above
+            with bank_rules_path.open("w", encoding="utf-8") as wf:
+                yaml.safe_dump(updated_rules, wf, sort_keys=True, allow_unicode=True)
+        except Exception:
+            # non-fatal
+            pass
 
     # 3) Save processed CSV sorted by date, then description, then credit
     out_rows = processed.get(bank, [])
