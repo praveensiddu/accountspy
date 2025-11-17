@@ -2354,19 +2354,51 @@
         const [savingTxType, setSavingTxType] = useState(false);
         const [savingBank, setSavingBank] = useState(false);
 
-        // Tabs state (persisted)
+        // Tabs state (persisted + initialized from URL)
         const [topTab, setTopTab] = useState(() => {
-          try { return window.localStorage.getItem('topTab') || 'setup'; } catch (_) { return 'setup'; }
+          try {
+            const path = (window.location && window.location.pathname) || '/';
+            if (path.startsWith('/setup')) return 'setup';
+            if (path.startsWith('/classifyrules')) return 'classifyrules';
+            if (path.startsWith('/transactions')) return 'transactions';
+            if (path.startsWith('/rentalsummary')) return 'rentalsummary';
+            if (path.startsWith('/companysummary')) return 'companysummary';
+            if (path.startsWith('/report')) return 'report';
+            return window.localStorage.getItem('topTab') || 'setup';
+          } catch (_) {
+            return 'setup';
+          }
         }); // 'setup' | 'classifyrules' | 'transactions' | 'rentalsummary' | 'companysummary' | 'report'
+
         const [setupTab, setSetupTab] = useState(() => {
-          try { return window.localStorage.getItem('setupTab') || 'properties'; } catch (_) { return 'properties'; }
-        }); // 'properties' | 'companies' | 'bankaccounts' | 'groups' | 'owners' | 'banks' | 'taxcats' | 'txtypes'
+          try {
+            const path = (window.location && window.location.pathname) || '/';
+            if (path.startsWith('/setup/')) {
+              const slug = path.split('/')[2] || '';
+              if (slug === 'settings') return 'settings';
+              if (slug === 'banks') return 'banks';
+              if (slug === 'bankaccounts') return 'bankaccounts';
+              if (slug === 'companies') return 'companies';
+              if (slug === 'properties') return 'properties';
+              if (slug === 'groups') return 'groups';
+              if (slug === 'owners') return 'owners';
+              if (slug === 'taxcats') return 'taxcats';
+              if (slug === 'txtypes') return 'txtypes';
+            }
+            return window.localStorage.getItem('setupTab') || 'properties';
+          } catch (_) {
+            return 'properties';
+          }
+        });
+ // 'properties' | 'companies' | 'bankaccounts' | 'groups' | 'owners' | 'banks' | 'taxcats' | 'txtypes'
 
         // --- Simple URL routing for tabs/subtabs ---
         const slugToSetup = (s) => ({
+          settings:'settings',
           properties:'properties', companies:'companies', bankaccounts:'bankaccounts', groups:'groups', owners:'owners', banks:'banks', taxcats:'taxcats', txtypes:'txtypes'
         })[s] || 'properties';
         const setupToSlug = (s) => ({
+          settings:'settings',
           properties:'properties', companies:'companies', bankaccounts:'bankaccounts', groups:'groups', owners:'owners', banks:'banks', taxcats:'taxcats', txtypes:'txtypes'
         })[s] || 'properties';
         const crSlugToSub = (s) => ({ bankrules:'bank', common:'common', inherit:'inherit' })[s] || 'bank';
