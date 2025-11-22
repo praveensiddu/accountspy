@@ -150,14 +150,31 @@
 
         const loadBanks = React.useCallback(async () => {
           try {
-            const res = await fetch('/api/bank-rules/banks');
-            if (!res.ok) throw new Error('Failed to fetch bank list');
-            const data = await res.json();
-            const all = Array.isArray(data) ? data : [];
-            const allowed = new Set((bankaccounts||[]).map(b => (b.bankaccountname||'').toLowerCase()));
-            const filtered = all.filter(name => allowed.has((name||'').toLowerCase()));
-            setBanks(filtered);
-            if (filtered.length > 0) setActive(prev => prev && filtered.includes(prev) ? prev : filtered[0]);
+            // Base set: all bankaccounts from setup (even if they don't yet have bank_rules YAML)
+            const allAccounts = (bankaccounts || []).map(b => (b.bankaccountname || '').toLowerCase()).filter(Boolean);
+
+            // Optional: enrich with list of banks that already have rules, but do not restrict to them
+            let withRules = [];
+            try {
+              const res = await fetch('/api/bank-rules/banks');
+              if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                  withRules = data.map(n => (n || '').toLowerCase()).filter(Boolean);
+                }
+              }
+            } catch (_) {
+              // ignore errors; we'll fall back to allAccounts only
+            }
+
+            // Union of all known bankaccounts and those that have rules
+            const union = Array.from(new Set([...(allAccounts || []), ...(withRules || [])]));
+            setBanks(union);
+
+            // Preserve current active if it's a valid bank; otherwise default to first
+            if (union.length > 0) {
+              setActive(prev => (prev && union.includes(prev)) ? prev : union[0]);
+            }
           } catch (_) {
             setBanks([]);
           }
