@@ -77,6 +77,30 @@ async def prep_year(payload: PrepYearPayload) -> Dict[str, Any]:
                 # Continue with other bank accounts if any error
                 continue
 
+        # bank_rules handling per bankaccount using statement_location
+        # Copy per-bank bank_rules YAML forward from previous year to current year
+        for ba_name, ba_cfg in (state.BA_DB or {}).items():
+            try:
+                stmt_loc = ba_cfg.get('statement_location') if isinstance(ba_cfg, dict) else None
+                if not stmt_loc:
+                    continue
+                stmt_root = Path(str(stmt_loc)).expanduser().resolve()
+                prev_bank_rules_dir = stmt_root / str(cur_year - 1) / 'bank_rules'
+                cur_bank_rules_dir = stmt_root / str(cur_year) / 'bank_rules'
+                cur_bank_rules_dir.mkdir(parents=True, exist_ok=True)
+                prev_file = prev_bank_rules_dir / f"{ba_name}.yaml"
+                cur_file = cur_bank_rules_dir / f"{ba_name}.yaml"
+                # If already exists in current year, do not overwrite
+                if cur_file.exists():
+                    continue
+                if not prev_file.exists():
+                    continue
+                # Copy previous year's YAML into current year
+                cur_file.write_bytes(prev_file.read_bytes())
+            except Exception:
+                # Continue with other bank accounts if any error
+                continue
+
     except HTTPException:
         raise
     except Exception as e:

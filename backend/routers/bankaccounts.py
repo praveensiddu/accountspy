@@ -6,7 +6,8 @@ import csv
 from .. import main as state
 from ..core.models import BankAccountRecord
 from ..core.utils import dump_yaml_entities
-from ..bank_statement_parser import _normalize_date
+from ..bank_statement_parser import _normalize_date, _process_bank_statement_for_account
+from ..classify import classify_bank
 
 router = APIRouter(prefix="/api", tags=["bankaccounts"])
 
@@ -248,5 +249,18 @@ async def upload_bank_statement(bankaccountname: str, file: UploadFile = File(..
             wf.write(text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save uploaded file: {e}")
+
+    # After saving the raw statement, prepare normalized CSV and classify
+    try:
+        normalized_dir = state.NORMALIZED_DIR_PATH
+        if not normalized_dir:
+            raise RuntimeError("NORMALIZED_DIR_PATH is not configured")
+        # Build normalized CSV for this specific bank account
+        _process_bank_statement_for_account(key, cfg, dest_path, normalized_dir, state.logger)
+        # Classify this bank account using the freshly normalized data
+        classify_bank(key)
+    except Exception as e:
+        # Surface errors so caller knows normalization/classification failed
+        raise HTTPException(status_code=500, detail=f"Failed to normalize or classify statement: {e}")
 
     return {"ok": True, "path": str(dest_path)}
