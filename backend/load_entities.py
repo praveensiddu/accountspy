@@ -70,11 +70,11 @@ def load_properties_yaml_into_memory(properties_yaml_path: Path, db: Dict[str, D
                     cost = int(item.get('cost') or 0)
                     land_value = int(item.get('landValue') or 0)
                     renov = int(item.get('renovation') or 0)
-                    lcc = int(item.get('loanClosingCOst') or 0)
+                    lcc = int(item.get('loanClosingCost') or 0)
                     owners = int(item.get('ownerCount') or 0)
                 except Exception:
                     continue
-                comp_raw = (item.get('propMgmgtComp') or '').strip().lower()
+                comp_raw = (item.get('propMgmtComp') or '').strip().lower()
                 if not comp_raw or not ALNUM_LOWER_RE.match(comp_raw):
                     continue
                 if comp_raw not in comp_db:
@@ -84,10 +84,10 @@ def load_properties_yaml_into_memory(properties_yaml_path: Path, db: Dict[str, D
                     'cost': cost,
                     'landValue': land_value,
                     'renovation': renov,
-                    'loanClosingCOst': lcc,
+                    'loanClosingCost': lcc,
                     'ownerCount': owners,
                     'purchaseDate': (item.get('purchaseDate') or '').strip(),
-                    'propMgmgtComp': comp_raw,
+                    'propMgmtComp': comp_raw,
                 }
     except Exception as e:
         logger.error(f"Failed to load properties.yaml: {e}")

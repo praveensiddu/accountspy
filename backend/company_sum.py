@@ -173,7 +173,7 @@ def calculate_income_rentpassed(summary: Dict[str, Dict[str, float]]) -> None:
                 prop_id = (pkey or '').strip().lower()
                 if not prop_id:
                     continue
-                comp_key = (prec.get('propMgmgtComp') or '').strip().lower()
+                comp_key = (prec.get('propMgmtComp') or '').strip().lower()
                 if not comp_key:
                     continue
                 p_yaml = rentals_dir / f"{prop_id}.yaml"

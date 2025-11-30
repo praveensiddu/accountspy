@@ -86,10 +86,10 @@ class Property(BaseModel):
     cost: int
     landValue: int
     renovation: int
-    loanClosingCOst: int
+    loanClosingCost: int
     ownerCount: int
     purchaseDate: str
-    propMgmgtComp: str
+    propMgmtComp: str
 
 
 class CompanyRecord(BaseModel):

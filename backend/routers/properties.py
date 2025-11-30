@@ -26,13 +26,13 @@ async def add_property(payload: Property):
     key = payload.property
     if key in state.DB:
         raise HTTPException(status_code=409, detail="Property already exists")
-    comp = (payload.propMgmgtComp or "").strip().lower()
+    comp = (payload.propMgmtComp or "").strip().lower()
     if not comp or not state.ALNUM_LOWER_RE.match(comp):
-        raise HTTPException(status_code=400, detail="Invalid propMgmgtComp: must be lowercase alphanumeric")
+        raise HTTPException(status_code=400, detail="Invalid propMgmtComp: must be lowercase alphanumeric")
     if comp not in state.COMP_DB:
-        raise HTTPException(status_code=400, detail="propMgmgtComp not found in companies")
+        raise HTTPException(status_code=400, detail="propMgmtComp not found in companies")
     item = payload.dict()
-    item["propMgmgtComp"] = comp
+    item["propMgmtComp"] = comp
     state.DB[key] = item
     # persist YAML
     try:

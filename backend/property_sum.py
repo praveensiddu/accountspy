@@ -251,7 +251,7 @@ def rent_from_company(summary: Dict[str, Dict[str, float]]):
     for prop_id, totals in (summary or {}).items():
         try:
             prec = props.get(prop_id) or {}
-            comp_key = (prec.get('propMgmgtComp') or '').strip().lower()
+            comp_key = (prec.get('propMgmtComp') or '').strip().lower()
             comp = comps.get(comp_key) or {}
             pct = float(comp.get('rentPercentage', 0) or 0)
             current_rent = float(totals.get('rent', 0.0) or 0.0)

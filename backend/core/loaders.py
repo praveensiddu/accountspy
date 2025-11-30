@@ -62,16 +62,16 @@ def load_csv_into_memory(csv_path: Path) -> None:
                 row["cost"] = int(row.get("cost") or 0)
                 row["landValue"] = int(row.get("landValue") or 0)
                 row["renovation"] = int(row.get("renovation") or 0)
-                row["loanClosingCOst"] = int(row.get("loanClosingCOst") or 0)
+                row["loanClosingCost"] = int(row.get("loanClosingCost") or 0)
                 row["ownerCount"] = int(row.get("ownerCount") or 0)
             except ValueError:
                 continue
-            comp_raw = (row.get("propMgmgtComp") or "").strip().lower()
+            comp_raw = (row.get("propMgmtComp") or "").strip().lower()
             if not comp_raw or not ALNUM_LOWER_RE.match(comp_raw):
                 continue
             if comp_raw not in COMP_DB:
                 continue
-            row["propMgmgtComp"] = comp_raw
+            row["propMgmtComp"] = comp_raw
             DB[key] = row
 
 

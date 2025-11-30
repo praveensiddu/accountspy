@@ -1616,14 +1616,14 @@
       }
 
       function PropertiesPanel({ items, companies, loading, reload }) {
-        const empty = { property: '', cost: 0, landValue: 0, renovation: 0, loanClosingCOst: 0, ownerCount: 1, purchaseDate: '', propMgmgtComp: '' };
+        const empty = { property: '', cost: 0, landValue: 0, renovation: 0, loanClosingCost: 0, ownerCount: 1, purchaseDate: '', propMgmtComp: '' };
         const [form, setForm] = React.useState(empty);
         const [saving, setSaving] = React.useState(false);
         const [error, setError] = React.useState('');
-        const [filter, setFilter] = React.useState({ property:'', cost:'', landValue:'', renovation:'', loanClosingCOst:'', ownerCount:'', purchaseDate:'', propMgmgtComp:'' });
+        const [filter, setFilter] = React.useState({ property:'', cost:'', landValue:'', renovation:'', loanClosingCost:'', ownerCount:'', purchaseDate:'', propMgmtComp:'' });
         const onChange = (e) => {
           const { name, value } = e.target;
-          if ([ 'cost','landValue','renovation','loanClosingCOst','ownerCount' ].includes(name)) {
+          if ([ 'cost','landValue','renovation','loanClosingCost','ownerCount' ].includes(name)) {
             setForm({ ...form, [name]: Number(value || 0) });
           } else {
             setForm({ ...form, [name]: value });
@@ -1637,7 +1637,7 @@
               ...form,
               property: (form.property || '').trim().toLowerCase(),
               purchaseDate: (form.purchaseDate || '').trim().toLowerCase(),
-              propMgmgtComp: (form.propMgmgtComp || '').trim().toLowerCase(),
+              propMgmtComp: (form.propMgmtComp || '').trim().toLowerCase(),
             };
             await api.add(payload);
             setForm(empty);
@@ -1658,11 +1658,11 @@
                   <div className="col"><label>cost<br/><input name="cost" type="number" value={form.cost} onChange={onChange} /></label></div>
                   <div className="col"><label>landValue<br/><input name="landValue" type="number" value={form.landValue} onChange={onChange} /></label></div>
                   <div className="col"><label>renovation<br/><input name="renovation" type="number" value={form.renovation} onChange={onChange} /></label></div>
-                  <div className="col"><label>loanClosingCOst<br/><input name="loanClosingCOst" type="number" value={form.loanClosingCOst} onChange={onChange} /></label></div>
+                  <div className="col"><label>loanClosingCost<br/><input name="loanClosingCost" type="number" value={form.loanClosingCost} onChange={onChange} /></label></div>
                   <div className="col"><label>ownerCount<br/><input name="ownerCount" type="number" value={form.ownerCount} onChange={onChange} min="1" /></label></div>
                   <div className="col"><label>purchaseDate<br/><input name="purchaseDate" type="text" value={form.purchaseDate} onChange={onChange} placeholder="MM/DD/YYYY" /></label></div>
-                  <div className="col"><label>propMgmgtComp<br/>
-                    <select name="propMgmgtComp" value={form.propMgmgtComp} onChange={onChange}>
+                  <div className="col"><label>propMgmtComp<br/>
+                    <select name="propMgmtComp" value={form.propMgmtComp} onChange={onChange}>
                       <option value="">Select company</option>
                       {companies.map((c) => (
                         <option key={c} value={c}>{c}</option>
@@ -1687,10 +1687,10 @@
                       <th>cost</th>
                       <th>landValue</th>
                       <th>renovation</th>
-                      <th>loanClosingCOst</th>
+                      <th>loanClosingCost</th>
                       <th>ownerCount</th>
                       <th>purchaseDate</th>
-                      <th>propMgmgtComp</th>
+                      <th>propMgmtComp</th>
                       <th></th>
                     </tr>
                     <tr>
@@ -1698,10 +1698,10 @@
                       <th><input placeholder="filter" value={filter.cost} onChange={(e)=> setFilter(f=>({...f, cost: e.target.value }))} /></th>
                       <th><input placeholder="filter" value={filter.landValue} onChange={(e)=> setFilter(f=>({...f, landValue: e.target.value }))} /></th>
                       <th><input placeholder="filter" value={filter.renovation} onChange={(e)=> setFilter(f=>({...f, renovation: e.target.value }))} /></th>
-                      <th><input placeholder="filter" value={filter.loanClosingCOst} onChange={(e)=> setFilter(f=>({...f, loanClosingCOst: e.target.value }))} /></th>
+                      <th><input placeholder="filter" value={filter.loanClosingCost} onChange={(e)=> setFilter(f=>({...f, loanClosingCost: e.target.value }))} /></th>
                       <th><input placeholder="filter" value={filter.ownerCount} onChange={(e)=> setFilter(f=>({...f, ownerCount: e.target.value }))} /></th>
                       <th><input placeholder="filter" value={filter.purchaseDate} onChange={(e)=> setFilter(f=>({...f, purchaseDate: e.target.value }))} /></th>
-                      <th><input placeholder="filter" value={filter.propMgmgtComp} onChange={(e)=> setFilter(f=>({...f, propMgmgtComp: e.target.value }))} /></th>
+                      <th><input placeholder="filter" value={filter.propMgmtComp} onChange={(e)=> setFilter(f=>({...f, propMgmtComp: e.target.value }))} /></th>
                       <th></th>
                     </tr>
                   </thead>
@@ -1712,10 +1712,10 @@
                         (filter.cost ? String(x.cost||'').toLowerCase().includes(filter.cost.toLowerCase()) : true) &&
                         (filter.landValue ? String(x.landValue||'').toLowerCase().includes(filter.landValue.toLowerCase()) : true) &&
                         (filter.renovation ? String(x.renovation||'').toLowerCase().includes(filter.renovation.toLowerCase()) : true) &&
-                        (filter.loanClosingCOst ? String(x.loanClosingCOst||'').toLowerCase().includes(filter.loanClosingCOst.toLowerCase()) : true) &&
+                        (filter.loanClosingCost ? String(x.loanClosingCost||'').toLowerCase().includes(filter.loanClosingCost.toLowerCase()) : true) &&
                         (filter.ownerCount ? String(x.ownerCount||'').toLowerCase().includes(filter.ownerCount.toLowerCase()) : true) &&
                         (filter.purchaseDate ? String(x.purchaseDate||'').toLowerCase().includes(filter.purchaseDate.toLowerCase()) : true) &&
-                        (filter.propMgmgtComp ? String(x.propMgmgtComp||'').toLowerCase().includes(filter.propMgmgtComp.toLowerCase()) : true)
+                        (filter.propMgmtComp ? String(x.propMgmtComp||'').toLowerCase().includes(filter.propMgmtComp.toLowerCase()) : true)
                       ))
                       .map((x) => (
                       <tr key={x.property}>
@@ -1723,10 +1723,10 @@
                         <td>{x.cost}</td>
                         <td>{x.landValue}</td>
                         <td>{x.renovation}</td>
-                        <td>{x.loanClosingCOst}</td>
+                        <td>{x.loanClosingCost}</td>
                         <td>{x.ownerCount}</td>
                         <td>{x.purchaseDate}</td>
-                        <td>{x.propMgmgtComp}</td>
+                        <td>{x.propMgmtComp}</td>
                         <td><button onClick={() => onDelete(x.property)}>Delete</button></td>
                       </tr>
                     ))}
@@ -2480,7 +2480,7 @@
         // When tab state changes, push URL
         useEffect(() => { pushRouteForState(); }, [topTab, setupTab, pushRouteForState]);
 
-        const empty = { property: '', cost: 0, landValue: 0, renovation: 0, loanClosingCOst: 0, ownerCount: 1, purchaseDate: '', propMgmgtComp: '' };
+        const empty = { property: '', cost: 0, landValue: 0, renovation: 0, loanClosingCost: 0, ownerCount: 1, purchaseDate: '', propMgmtComp: '' };
         const [form, setForm] = useState(empty);
         const [saving, setSaving] = useState(false);
 
@@ -2629,7 +2629,7 @@
 
         const onChange = (e) => {
           const { name, value } = e.target;
-          if ([ 'cost','landValue','renovation','loanClosingCOst','ownerCount' ].includes(name)) {
+          if ([ 'cost','landValue','renovation','loanClosingCost','ownerCount' ].includes(name)) {
             setForm({ ...form, [name]: Number(value || 0) });
           } else {
             setForm({ ...form, [name]: value });
@@ -2722,7 +2722,7 @@
               ...form,
               property: (form.property || '').trim().toLowerCase(),
               purchaseDate: (form.purchaseDate || '').trim().toLowerCase(),
-              propMgmgtComp: (form.propMgmgtComp || '').trim().toLowerCase(),
+              propMgmtComp: (form.propMgmtComp || '').trim().toLowerCase(),
             };
             const created = await api.add(payload);
             setItems([ ...items, created ]);
