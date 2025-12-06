@@ -328,6 +328,7 @@ function App() {
       return v === true || v === 'true' || v === '1';
     } catch (_) { return false; }
   };
+
   const isRSVerified = (row, field) => {
     try {
       if (!row || !row._verified) return false;
@@ -335,64 +336,98 @@ function App() {
       return v === true || v === 'true' || v === '1';
     } catch (_) { return false; }
   };
-  const [companyLoading, setCompanyLoading] = useState(false);
-  const [companyRows, setCompanyRows] = useState([]);
-  const [companyFilters, setCompanyFilters] = useState({ Name:'', income:'', rentpassedtoowners:'', bankfees:'', c_auto:'', c_donate:'', c_entertainment:'', c_internet:'', c_license:'', c_mobile:'', c_off_exp:'', c_parktoll:'', c_phone:'', c_website:'', ignore:'', insurane:'', proffees:'', utilities:'', profit:'' });
-  const [rentalLoading, setRentalLoading] = useState(false);
-  const [rentalRows, setRentalRows] = useState([]);
-  const [rentalFilters, setRentalFilters] = useState({ property:'', rent:'', commissions:'', insurance:'', proffees:'', mortgageinterest:'', repairs:'', tax:'', utilities:'', depreciation:'', hoa:'', other:'', costbasis:'', renteddays:'', profit:'' });
-  const [rentTrackerLoading, setRentTrackerLoading] = useState(false);
-  const [rentTrackerRows, setRentTrackerRows] = useState([]);
+
+  const { useRentalSummary, useRentTracker, useCompanySummary } = window.useSummaries;
+
+  const {
+    rentalRows,
+    rentalLoading,
+    rentalFilters,
+    setRentalFilters,
+    loadRentalSummary,
+  } = useRentalSummary(api, topTab);
+
+  const {
+    rentTrackerRows,
+    rentTrackerLoading,
+    loadRentTracker,
+  } = useRentTracker(api, topTab);
+
+  const {
+    companyRows,
+    companyLoading,
+    companyFilters,
+    setCompanyFilters,
+    loadCompanySummary,
+  } = useCompanySummary(api, topTab);
+
   const verifyCSCell = async (row, field) => {
     try {
-      const res = await fetch('/api/company-summary/verify', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ Name: row.Name, field })
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await api.listCompanySummary();
-      setCompanyRows(data || []);
-    } catch (e) { console.error(e); alert(e.message || 'Failed to verify'); }
+      if (!row || !row.Name || field === 'Name') return;
+      const curVal = row[field];
+      const name = String(row.Name || '');
+      const verified = isCSVerified(row, field);
+      let res;
+      if (verified) {
+        // Toggle off: remove from verified file
+        res = await fetch('/api/company-summary/verify', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ Name: name, field }),
+        });
+      } else {
+        const payload = { Name: name, field, value: (curVal == null ? '' : curVal) };
+        res = await fetch('/api/company-summary/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        throw new Error(t || 'Failed to verify');
+      }
+      // Reload summary rows
+      try { await loadCompanySummary(); } catch (_) {}
+    } catch (e) {
+      console.error(e);
+      alert(e.message || 'Failed to verify');
+    }
   };
+
   const verifyRSCell = async (row, field) => {
     try {
-      const res = await fetch('/api/rental-summary/verify', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ property: row.property, field })
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await api.listRentalSummary();
-      setRentalRows(data || []);
-    } catch (e) { console.error(e); alert(e.message || 'Failed to verify'); }
+      if (!row || !row.property || field === 'property') return;
+      const prop = String(row.property || '').toLowerCase();
+      const curVal = row[field];
+      const verified = isRSVerified(row, field);
+      let res;
+      if (verified) {
+        // Toggle off: remove from verified file
+        res = await fetch('/api/rental-summary/verify', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ property: prop, field }),
+        });
+      } else {
+        const payload = { property: prop, field, value: curVal };
+        res = await fetch('/api/rental-summary/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        throw new Error(t || 'Failed to verify');
+      }
+      // Reload summary rows
+      try { await loadRentalSummary(); } catch (_) {}
+    } catch (e) {
+      console.error(e);
+      alert(e.message || 'Failed to verify');
+    }
   };
-  useEffect(() => {
-    (async () => {
-      try {
-        setCompanyLoading(true);
-        const data = await api.listCompanySummary();
-        setCompanyRows(data || []);
-      } catch (e) { console.error(e); setCompanyRows([]); }
-      finally { setCompanyLoading(false); }
-    })();
-  }, []);
-  useEffect(() => {
-    (async () => {
-      try {
-        setRentalLoading(true);
-        const data = await api.listRentalSummary();
-        setRentalRows(data || []);
-      } catch (e) { console.error(e); setRentalRows([]); }
-      finally { setRentalLoading(false); }
-    })();
-  }, []);
-  useEffect(() => {
-    (async () => {
-      try {
-        setRentTrackerLoading(true);
-        const data = await api.listRentTracker();
-        setRentTrackerRows(data || []);
-      } catch (e) { console.error(e); setRentTrackerRows([]); }
-      finally { setRentTrackerLoading(false); }
-    })();
-  }, []);
   const onBankChange = (e) => {
     const { name, value } = e.target;
     setBankForm(prev => ({ ...prev, [name]: value }));
@@ -592,9 +627,9 @@ function App() {
     try { await api.removeOwner(name); setOwners(owners.filter(x => x.name !== name)); }
     catch (e2) { alert(e2.message || 'Error'); }
   };
-  const TabButton = ({ active, onClick, children }) => (
-    <button type="button" onClick={onClick} className={`tab ${active ? 'active' : ''}`}>{children}</button>
-  );
+  const TabButton = window.TabButton;
+  const ExportModal = window.ExportModal;
+  const SetupTabs = window.SetupTabs;
   const [exporting, setExporting] = useState(false);
   const [exportResult, setExportResult] = useState({ open: false, path: '' });
   const handleExport = async () => {
@@ -614,39 +649,11 @@ function App() {
   };
   return (
     <div className="container" style={{ position: 'relative' }}>
-      {exportResult.open && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-        >
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)' }} onClick={() => setExportResult({ open: false, path: '' })} />
-          <div style={{ position: 'relative', background: 'white', width: 'min(92vw, 560px)', borderRadius: 12, boxShadow: '0 10px 30px rgba(0,0,0,0.25)' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 18, fontWeight: 600 }}>Export Successful</div>
-              <button onClick={() => setExportResult({ open: false, path: '' })} title="Close" style={{ border: 0, background: 'transparent', fontSize: 20, lineHeight: 1, cursor: 'pointer' }}>×</button>
-            </div>
-            <div style={{ padding: '16px 20px' }}>
-              <div style={{ marginBottom: 8 }}>Exported to:</div>
-              <div style={{ wordBreak: 'break-all', background: '#f7f7f7', padding: '10px 12px', borderRadius: 8 }}>
-                {exportResult.path ? (
-                  <a href={'/api/export-accounts/download'} target="_blank" rel="noopener noreferrer" style={{ color: '#0b6bcb', textDecoration: 'underline' }}>
-                    {exportResult.path}
-                  </a>
-                ) : (
-                  <span>file created</span>
-                )}
-              </div>
-            </div>
-            <div style={{ padding: '12px 20px', display: 'flex', justifyContent: 'flex-end', gap: 8, borderTop: '1px solid #eee' }}>
-              <button onClick={() => setExportResult({ open: false, path: '' })} className="btn" style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}>Close</button>
-              {exportResult.path && (
-                <a href={'/api/export-accounts/download'} target="_blank" rel="noopener noreferrer" style={{ padding: '8px 12px', borderRadius: 8, background: '#0b6bcb', color: '#fff', textDecoration: 'none' }}>Open File</a>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <ExportModal
+        open={exportResult.open}
+        path={exportResult.path}
+        onClose={() => setExportResult({ open: false, path: '' })}
+      />
       <h1>AccountSpy</h1>
 
       <div className="tabs">
@@ -660,89 +667,23 @@ function App() {
       </div>
 
       {topTab === 'setup' && (
-        <div className="tabcontent">
-          <div className="actions" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
-            <TabButton active={setupTab==='settings'} onClick={() => setSetupTab('settings')}>Settings</TabButton>
-            <TabButton active={setupTab==='banks'} onClick={() => setSetupTab('banks')}>Banks</TabButton>
-            <TabButton active={setupTab==='bankaccounts'} onClick={() => setSetupTab('bankaccounts')}>Bank Accounts</TabButton>
-            <TabButton active={setupTab==='companies'} onClick={() => setSetupTab('companies')}>Company Records</TabButton>
-            <TabButton active={setupTab==='properties'} onClick={() => setSetupTab('properties')}>Properties</TabButton>
-            <TabButton active={setupTab==='groups'} onClick={() => setSetupTab('groups')}>Groups</TabButton>
-            <TabButton active={setupTab==='owners'} onClick={() => setSetupTab('owners')}>Owners</TabButton>
-            <TabButton active={setupTab==='taxcats'} onClick={() => setSetupTab('taxcats')}>Tax Categories</TabButton>
-            <TabButton active={setupTab==='txtypes'} onClick={() => setSetupTab('txtypes')}>Transaction Types</TabButton>
-          </div>
-
-          {setupTab === 'settings' && (
-            <div className="card">
-              <div className="row" style={{ alignItems:'flex-end' }}>
-                <div className="col">
-                  <label>Prepare for year<br/>
-                    {(() => {
-                      const yearOptions = Array.from({ length: 38 }, (_, i) => 2023 + i).map(y => ({ value: String(y), label: String(y) }));
-                      const selectedArr = prepYear ? [String(prepYear)] : [];
-                      return (
-                        <MultiSelect
-                          options={yearOptions}
-                          selected={selectedArr}
-                          onChange={(arr)=>{ const y = (arr && arr[0]) || ''; setPrepYear(y); }}
-                          placeholder="Select year..."
-                        />
-                      );
-                    })()}
-                  </label>
-                </div>
-                <div className="col" style={{ textAlign:'right' }}>
-                  <button
-                    type="button"
-                    style={{ padding:'6px 12px', background:'#2563eb', color:'#fff', border:'none', borderRadius:'4px', cursor:'pointer' }}
-                    onClick={async ()=>{
-                      try {
-                        const y = String(prepYear||'');
-                        if (!y) { alert('Select a year'); return; }
-                        const res = await fetch('/api/settings/prepyear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year: y }) });
-                        if (!res.ok) { const t = await res.text().catch(()=> ''); throw new Error(t || 'prepyear failed'); }
-                        alert('Year prepared: ' + y);
-                      } catch (e2) { alert(e2.message || 'Failed'); }
-                    }}
-                  >prepare</button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {setupTab === 'properties' && (
-            <PropertiesPanelExt items={items} companies={companies} loading={loading} reload={load} />
-          )}
-
-          {setupTab === 'companies' && (
-            <CompaniesPanelExt companyRecords={companyRecords} loading={loading} reload={load} />
-          )}
-
-          {setupTab === 'banks' && (
-            <BanksPanelExt banks={banks} loading={loading} reload={load} />
-          )}
-
-          {setupTab === 'taxcats' && (
-            <TaxCategoriesPanelExt taxCategories={taxCategories} loading={loading} reload={load} />
-          )}
-
-          {setupTab === 'txtypes' && (
-            <TransactionTypesPanelExt transactionTypes={transactionTypes} loading={loading} reload={load} />
-          )}
-
-          {setupTab === 'bankaccounts' && (
-            <BankAccountsPanelExt bankaccounts={bankaccounts} loading={loading} reload={load} banks={banks} />
-          )}
-
-          {setupTab === 'groups' && (
-            <GroupsPanelExt groups={groups} loading={loading} reload={load} items={items} />
-          )}
-
-          {setupTab === 'owners' && (
-            <OwnersPanelExt owners={owners} loading={loading} reload={load} bankaccounts={bankaccounts} items={items} companies={companies} />
-          )}
-        </div>
+        <SetupTabs
+          setupTab={setupTab}
+          setSetupTab={setSetupTab}
+          prepYear={prepYear}
+          setPrepYear={setPrepYear}
+          loading={loading}
+          items={items}
+          companies={companies}
+          companyRecords={companyRecords}
+          bankaccounts={bankaccounts}
+          groups={groups}
+          owners={owners}
+          taxCategories={taxCategories}
+          transactionTypes={transactionTypes}
+          banks={banks}
+          load={load}
+        />
       )}
 
       {topTab === 'classifyrules' && (
