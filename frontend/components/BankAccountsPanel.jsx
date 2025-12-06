@@ -1,49 +1,27 @@
 const BankAccountsPanelExt = ({ bankaccounts, loading, reload, banks }) => {
   const Modal = window.Modal;
-  const empty = { bankaccountname: '', bankname: '', statement_location: '' };
-  const [form, setForm] = React.useState(empty);
-  const [saving, setSaving] = React.useState(false);
-  const [open, setOpen] = React.useState(false);
-  const [mode, setMode] = React.useState('add');
-  const [originalKey, setOriginalKey] = React.useState('');
+  const {
+    empty,
+    form,
+    setForm,
+    saving,
+    open,
+    setOpen,
+    mode,
+    setMode,
+    originalKey,
+    setOriginalKey,
+    onChange,
+    onSubmit,
+    onDelete,
+    onEdit,
+  } = window.useBankAccountForm({ reload });
   const [filter, setFilter] = React.useState({ bankaccountname: '', bankname: '', statement_location: '' });
   const [uploadOpen, setUploadOpen] = React.useState(false);
   const [uploadTarget, setUploadTarget] = React.useState('');
   const [uploadFile, setUploadFile] = React.useState(null);
   const [uploadErr, setUploadErr] = React.useState('');
   const [uploading, setUploading] = React.useState(false);
-  const onChange = (e) => {
-    const { name, value } = e.target;
-    if (name === 'bankaccountname') setForm({ ...form, [name]: (value || '').toLowerCase().replace(/[^a-z0-9_]/g, '') });
-    else if (name === 'bankname') setForm({ ...form, [name]: (value || '').toLowerCase() });
-    else if (name === 'statement_location') setForm({ ...form, [name]: value });
-  };
-  const onSubmit = async (e) => {
-    e.preventDefault(); setSaving(true);
-    try {
-      if (!form.bankaccountname || !form.bankname) throw new Error('bankaccountname and bankname are required');
-      if (mode === 'edit' && originalKey) {
-        await window.api.updateBankaccount(originalKey, form);
-      } else {
-        await window.api.addBankaccount(form);
-      }
-      setForm(empty);
-      setOriginalKey('');
-      setMode('add');
-      setOpen(false);
-      await reload();
-    } catch (e) { alert(e.message || 'Error'); } finally { setSaving(false); }
-  };
-  const onDelete = async (name) => {
-    if (!(await window.showConfirm(`Delete ${name}?`))) return;
-    try { await window.api.removeBankaccount(name); await reload(); } catch (e) { alert(e.message || 'Error'); }
-  };
-  const onEdit = (x) => {
-    setMode('edit');
-    setOriginalKey(x.bankaccountname);
-    setForm({ bankaccountname: x.bankaccountname, bankname: x.bankname, statement_location: x.statement_location || '' });
-    setOpen(true);
-  };
   const onOpenUpload = (baName) => {
     setUploadTarget(baName);
     setUploadFile(null);

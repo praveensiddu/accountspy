@@ -1,65 +1,22 @@
 const PropertiesPanelExt = ({ items, companies, loading, reload }) => {
-  const empty = { property: '', cost: 0, landValue: 0, renovation: 0, loanClosingCost: 0, ownerCount: 1, purchaseDate: '', propMgmtComp: '' };
-  const [form, setForm] = React.useState(empty);
-  const [saving, setSaving] = React.useState(false);
-  const [error, setError] = React.useState('');
-  const [open, setOpen] = React.useState(false);
-  const [mode, setMode] = React.useState('add'); // 'add' | 'edit'
-  const [originalKey, setOriginalKey] = React.useState('');
+  const {
+    empty,
+    form,
+    setForm,
+    saving,
+    error,
+    open,
+    setOpen,
+    mode,
+    setMode,
+    onChange,
+    onSubmit,
+    onDelete,
+    onEdit,
+    setOriginalKey,
+  } = window.usePropertyForm({ reload });
   const [filter, setFilter] = React.useState({ property: '', cost: '', landValue: '', renovation: '', loanClosingCost: '', ownerCount: '', purchaseDate: '', propMgmtComp: '' });
   const Modal = window.Modal;
-  const onChange = (e) => {
-    const { name, value } = e.target;
-    if ([ 'cost','landValue','renovation','loanClosingCost','ownerCount' ].includes(name)) {
-      setForm({ ...form, [name]: Number(value || 0) });
-    } else {
-      setForm({ ...form, [name]: value });
-    }
-  };
-  const onSubmit = async (e) => {
-    e.preventDefault(); setSaving(true); setError('');
-    try {
-      if (!form.property) throw new Error('property is required');
-      const payload = {
-        ...form,
-        property: (form.property || '').trim().toLowerCase(),
-        purchaseDate: (form.purchaseDate || '').trim().toLowerCase(),
-        propMgmtComp: (form.propMgmtComp || '').trim().toLowerCase(),
-      };
-      if (mode === 'edit') {
-        if (originalKey && originalKey !== payload.property) {
-          await window.api.remove(originalKey);
-        } else if (originalKey) {
-          await window.api.remove(originalKey);
-        }
-      }
-      await window.api.add(payload);
-      setForm(empty);
-      setOriginalKey('');
-      setMode('add');
-      setOpen(false);
-      await reload();
-    } catch (e) { setError(e.message || 'Error'); } finally { setSaving(false); }
-  };
-  const onDelete = async (id) => {
-    if (!(await window.showConfirm(`Delete ${id}?`))) return;
-    try { await window.api.remove(id); await reload(); } catch (e) { alert(e.message || 'Error'); }
-  };
-  const onEdit = (item) => {
-    setMode('edit');
-    setOriginalKey(item.property);
-    setForm({
-      property: item.property,
-      cost: item.cost,
-      landValue: item.landValue,
-      renovation: item.renovation,
-      loanClosingCost: item.loanClosingCost != null ? item.loanClosingCost : item.loanClosingCost,
-      ownerCount: item.ownerCount,
-      purchaseDate: item.purchaseDate,
-      propMgmtComp: item.propMgmtComp,
-    });
-    setOpen(true);
-  };
   return (
     <React.Fragment>
       <h2>Properties</h2>

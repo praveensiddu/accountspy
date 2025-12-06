@@ -26,5 +26,3 @@ function useExportAccounts() {
 }
 
 window.useExportAccounts = useExportAccounts;
-
-export {};
