@@ -630,29 +630,13 @@ function App() {
   const TabButton = window.TabButton;
   const ExportModal = window.ExportModal;
   const SetupTabs = window.SetupTabs;
-  const [exporting, setExporting] = useState(false);
-  const [exportResult, setExportResult] = useState({ open: false, path: '' });
-  const handleExport = async () => {
-    if (exporting) return;
-    try {
-      setExporting(true);
-      const res = await fetch('/api/export-accounts', { method: 'POST' });
-      if (!res.ok) { const t = await res.text().catch(()=> ''); throw new Error(t || 'Export failed'); }
-      const data = await res.json().catch(()=> ({}));
-      const outPath = (data && data.path) ? String(data.path) : '';
-      setExportResult({ open: true, path: outPath });
-    } catch (e2) {
-      alert(e2.message || 'Export failed');
-    } finally {
-      setExporting(false);
-    }
-  };
+  const { exporting, exportResult, handleExport, closeExportModal } = window.useExportAccounts();
   return (
     <div className="container" style={{ position: 'relative' }}>
       <ExportModal
         open={exportResult.open}
         path={exportResult.path}
-        onClose={() => setExportResult({ open: false, path: '' })}
+        onClose={closeExportModal}
       />
       <h1>AccountSpy</h1>
 
