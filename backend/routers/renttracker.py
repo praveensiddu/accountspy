@@ -39,17 +39,21 @@ async def get_rent_tracker() -> List[Dict[str, Any]]:
                     continue
                 month_idx = 0
                 try:
-                    if len(dt_raw) >= 7 and dt_raw[4] == "-" and dt_raw[7-1].isdigit():
-                        month_idx = int(dt_raw[5:7])
-                    else:
-                        d = datetime.fromisoformat(dt_raw[:10])
-                        month_idx = d.month
+                    # Parse the date and then shift rents on or after the 24th to the next month
+                    d = datetime.fromisoformat(dt_raw[:10])
                 except Exception:
                     try:
                         d = datetime.strptime(dt_raw[:10], "%Y-%m-%d")
-                        month_idx = d.month
                     except Exception:
                         continue
+                month_idx = d.month
+                try:
+                    day = d.day
+                    if day >= 24:
+                        # Move to next month; wrap December to January
+                        month_idx = 1 if month_idx == 12 else (month_idx + 1)
+                except Exception:
+                    pass
                 if month_idx < 1 or month_idx > 12:
                     continue
                 credit = _to_float(r.get("credit"))
