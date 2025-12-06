@@ -43,6 +43,7 @@ function App() {
   const [txnDay, setTxnDay] = useState('31');
   const [txnOpen, setTxnOpen] = useState(false);
   const [txnSaving, setTxnSaving] = useState(false);
+  const [txnEditInfo, setTxnEditInfo] = useState(null); // { row }
   const emptyTxn = { tr_id: '', date: '', description: '', credit: '', ruleid: '', comment: '', transaction_type: '', tax_category: '', property: '', group: '', company: '', otherentity: '', override: '' };
   const [txnForm, setTxnForm] = useState(emptyTxn);
   const [txnFilters, setTxnFilters] = useState({ tr_id: '', date: '', description: '', credit: '', ruleid: '', comment: '', transaction_type: '', tax_category: '', pgc: '', property: '', group: '', company: '', otherentity: '', override: '' });
@@ -56,6 +57,7 @@ function App() {
     setTxnFilters(prev => ({ ...prev, [name]: value }));
   };
   const onTxnAdd = async () => {
+    setTxnEditInfo(null);
     setTxnForm(emptyTxn);
     setTxnMonth('12');
     setTxnDay('31');
@@ -98,6 +100,29 @@ function App() {
     String(txnForm.description || '').trim().length > 0 &&
     isValidCredit(txnForm.credit)
   );
+  const onTxnEdit = (row) => {
+    try {
+      setTxnEditInfo({ row });
+      const dateStr = String(row.date || '');
+      let mm = txnMonth;
+      let dd = txnDay;
+      if (dateStr.includes('-')) {
+        const parts = dateStr.split('-');
+        if (parts.length === 3) {
+          mm = String(parts[1] || '').padStart(2, '0');
+          dd = String(Number(parts[2] || '1'));
+        }
+      }
+      setTxnMonth(mm);
+      setTxnDay(dd);
+      setTxnForm(prev => ({
+        ...prev,
+        description: row.description || '',
+        credit: row.credit || '',
+      }));
+      setTxnOpen(true);
+    } catch (_) {}
+  };
   const saveTxnRows = async (ba, newRows) => {
     setTxnSaving(true);
     try {
@@ -121,6 +146,21 @@ function App() {
         description: (txnForm.description || ''),
         credit: (txnForm.credit || ''),
       };
+
+      // If editing an existing addendum row: delete the original row then add the new one
+      if (txnEditInfo && txnEditInfo.row) {
+        const original = txnEditInfo.row;
+        const delRes = await fetch(`/api/transactions/${encodeURIComponent(ba)}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(original),
+        });
+        if (!delRes.ok) {
+          const msg = await delRes.text().catch(()=> '');
+          throw new Error(msg || 'Failed to delete original addendum row');
+        }
+      }
+
       const res = await fetch(`/api/addendum/${encodeURIComponent(ba)}` , {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -135,6 +175,7 @@ function App() {
         if (txnsMap && typeof txnsMap === 'object') setTransactionsByBA(txnsMap);
       } catch (_) {}
       setTxnOpen(false);
+      setTxnEditInfo(null);
     } catch (err) {
       console.error(err);
       alert((err && err.message) || 'Failed to save');
@@ -704,6 +745,8 @@ function App() {
           onTxnFilterChange={onTxnFilterChange}
           requestTransactionsReload={requestTransactionsReload}
           setTopTab={setTopTab}
+          txnEditMode={!!(txnEditInfo && txnEditInfo.row)}
+          onTxnEdit={onTxnEdit}
         />
       )}
 

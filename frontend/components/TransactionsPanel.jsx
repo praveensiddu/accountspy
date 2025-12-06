@@ -19,6 +19,8 @@ function TransactionsPanel({
   onTxnFilterChange,
   requestTransactionsReload,
   setTopTab,
+  txnEditMode,
+  onTxnEdit,
 }) {
   const Modal = window.Modal;
 
@@ -53,7 +55,7 @@ function TransactionsPanel({
                 </div>
               </div>
               <Modal
-                title={'Add Transaction'}
+                title={txnEditMode ? 'Edit Transaction' : 'Add Transaction'}
                 open={txnOpen}
                 onClose={() => setTxnOpen(false)}
                 onSubmit={onTxnSubmit}
@@ -147,6 +149,18 @@ function TransactionsPanel({
                   }
                   return true;
                 });
+                const sortedRows = [...filteredRows].sort((a, b) => {
+                  const ad = String(a.date || '');
+                  const bd = String(b.date || '');
+                  if (ad !== bd) return ad < bd ? 1 : -1; // descending date
+                  const adesc = String(a.description || '').toLowerCase();
+                  const bdesc = String(b.description || '').toLowerCase();
+                  if (adesc !== bdesc) return adesc < bdesc ? -1 : 1;
+                  const acr = String(a.credit || '');
+                  const bcr = String(b.credit || '');
+                  if (acr === bcr) return 0;
+                  return acr < bcr ? -1 : 1;
+                });
                 return (
                   <table style={{ tableLayout: 'auto', width: '100%' }}>
                     <thead>
@@ -176,10 +190,10 @@ function TransactionsPanel({
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredRows.length === 0 ? (
+                      {sortedRows.length === 0 ? (
                         <tr><td colSpan="10" className="muted">No transactions</td></tr>
                       ) : (
-                        filteredRows.map((r, idx) => (
+                        sortedRows.map((r, idx) => (
                           <tr key={`txn-${idx}`}>
                             <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.date}</td>
                             <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{r.description}</td>
@@ -298,32 +312,42 @@ function TransactionsPanel({
                                     UPDATE_RULE
                                   </button>
                                 </div>
-                                <button
-                                  type="button"
-                                  className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60"
-                                  disabled={!r.fromaddendum}
-                                  title={!r.fromaddendum ? 'Only addendum rows can be deleted' : 'Delete row'}
-                                  onClick={async()=>{
-                                    try {
-                                      const ba = txnBATab || '';
-                                      const res = await fetch(`/api/transactions/${encodeURIComponent(ba)}`, {
-                                        method: 'DELETE',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify(r),
-                                      });
-                                      if (!res.ok) {
-                                        const msg = await res.text().catch(()=> '');
-                                        throw new Error(msg || 'Failed to delete');
-                                      }
-                                      await requestTransactionsReload();
-                                    } catch(e) {
-                                      console.error(e);
-                                      alert((e && e.message) || 'Failed to delete');
-                                    }
-                                  }}
-                                >
-                                  DEL
-                                </button>
+                                {r.fromaddendum && (
+                                  <div className="flex gap-2 mt-1">
+                                    <button
+                                      type="button"
+                                      className="px-2 py-1 bg-gray-700 text-white rounded hover:bg-gray-800"
+                                      onClick={() => onTxnEdit && onTxnEdit(r)}
+                                    >
+                                      EDIT
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60"
+                                      title="Delete row"
+                                      onClick={async()=>{
+                                        try {
+                                          const ba = txnBATab || '';
+                                          const res = await fetch(`/api/transactions/${encodeURIComponent(ba)}`, {
+                                            method: 'DELETE',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify(r),
+                                          });
+                                          if (!res.ok) {
+                                            const msg = await res.text().catch(()=> '');
+                                            throw new Error(msg || 'Failed to delete');
+                                          }
+                                          await requestTransactionsReload();
+                                        } catch(e) {
+                                          console.error(e);
+                                          alert((e && e.message) || 'Failed to delete');
+                                        }
+                                      }}
+                                    >
+                                      DEL
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </td>
                           </tr>
