@@ -614,7 +614,206 @@ function App() {
   };
   return (
     <div className="container" style={{ position: 'relative' }}>
-      {/* export modal etc. and tab structure remain unchanged, using existing JSX from index.html */}
+      {exportResult.open && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)' }} onClick={() => setExportResult({ open: false, path: '' })} />
+          <div style={{ position: 'relative', background: 'white', width: 'min(92vw, 560px)', borderRadius: 12, boxShadow: '0 10px 30px rgba(0,0,0,0.25)' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: 18, fontWeight: 600 }}>Export Successful</div>
+              <button onClick={() => setExportResult({ open: false, path: '' })} title="Close" style={{ border: 0, background: 'transparent', fontSize: 20, lineHeight: 1, cursor: 'pointer' }}>×</button>
+            </div>
+            <div style={{ padding: '16px 20px' }}>
+              <div style={{ marginBottom: 8 }}>Exported to:</div>
+              <div style={{ wordBreak: 'break-all', background: '#f7f7f7', padding: '10px 12px', borderRadius: 8 }}>
+                {exportResult.path ? (
+                  <a href={'/api/export-accounts/download'} target="_blank" rel="noopener noreferrer" style={{ color: '#0b6bcb', textDecoration: 'underline' }}>
+                    {exportResult.path}
+                  </a>
+                ) : (
+                  <span>file created</span>
+                )}
+              </div>
+            </div>
+            <div style={{ padding: '12px 20px', display: 'flex', justifyContent: 'flex-end', gap: 8, borderTop: '1px solid #eee' }}>
+              <button onClick={() => setExportResult({ open: false, path: '' })} className="btn" style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', cursor: 'pointer' }}>Close</button>
+              {exportResult.path && (
+                <a href={'/api/export-accounts/download'} target="_blank" rel="noopener noreferrer" style={{ padding: '8px 12px', borderRadius: 8, background: '#0b6bcb', color: '#fff', textDecoration: 'none' }}>Open File</a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      <h1>AccountSpy</h1>
+
+      <div className="tabs">
+        <TabButton active={topTab==='setup'} onClick={() => setTopTab('setup')}>Setup</TabButton>
+        <TabButton active={topTab==='classifyrules'} onClick={() => setTopTab('classifyrules')}>ClassifyRules</TabButton>
+        <TabButton active={topTab==='transactions'} onClick={() => setTopTab('transactions')}>Transactions</TabButton>
+        <TabButton active={topTab==='renttracker'} onClick={() => setTopTab('renttracker')}>RentTracker</TabButton>
+        <TabButton active={topTab==='rentalsummary'} onClick={() => setTopTab('rentalsummary')}>RentalSummary</TabButton>
+        <TabButton active={topTab==='companysummary'} onClick={() => setTopTab('companysummary')}>CompanySummary</TabButton>
+        <TabButton active={topTab==='report'} onClick={() => setTopTab('report')}>Report</TabButton>
+      </div>
+
+      {topTab === 'setup' && (
+        <div className="tabcontent">
+          <div className="actions" style={{ marginBottom: 12, flexWrap: 'wrap' }}>
+            <TabButton active={setupTab==='settings'} onClick={() => setSetupTab('settings')}>Settings</TabButton>
+            <TabButton active={setupTab==='banks'} onClick={() => setSetupTab('banks')}>Banks</TabButton>
+            <TabButton active={setupTab==='bankaccounts'} onClick={() => setSetupTab('bankaccounts')}>Bank Accounts</TabButton>
+            <TabButton active={setupTab==='companies'} onClick={() => setSetupTab('companies')}>Company Records</TabButton>
+            <TabButton active={setupTab==='properties'} onClick={() => setSetupTab('properties')}>Properties</TabButton>
+            <TabButton active={setupTab==='groups'} onClick={() => setSetupTab('groups')}>Groups</TabButton>
+            <TabButton active={setupTab==='owners'} onClick={() => setSetupTab('owners')}>Owners</TabButton>
+            <TabButton active={setupTab==='taxcats'} onClick={() => setSetupTab('taxcats')}>Tax Categories</TabButton>
+            <TabButton active={setupTab==='txtypes'} onClick={() => setSetupTab('txtypes')}>Transaction Types</TabButton>
+          </div>
+
+          {setupTab === 'settings' && (
+            <div className="card">
+              <div className="row" style={{ alignItems:'flex-end' }}>
+                <div className="col">
+                  <label>Prepare for year<br/>
+                    {(() => {
+                      const yearOptions = Array.from({ length: 38 }, (_, i) => 2023 + i).map(y => ({ value: String(y), label: String(y) }));
+                      const selectedArr = prepYear ? [String(prepYear)] : [];
+                      return (
+                        <MultiSelect
+                          options={yearOptions}
+                          selected={selectedArr}
+                          onChange={(arr)=>{ const y = (arr && arr[0]) || ''; setPrepYear(y); }}
+                          placeholder="Select year..."
+                        />
+                      );
+                    })()}
+                  </label>
+                </div>
+                <div className="col" style={{ textAlign:'right' }}>
+                  <button
+                    type="button"
+                    style={{ padding:'6px 12px', background:'#2563eb', color:'#fff', border:'none', borderRadius:'4px', cursor:'pointer' }}
+                    onClick={async ()=>{
+                      try {
+                        const y = String(prepYear||'');
+                        if (!y) { alert('Select a year'); return; }
+                        const res = await fetch('/api/settings/prepyear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year: y }) });
+                        if (!res.ok) { const t = await res.text().catch(()=> ''); throw new Error(t || 'prepyear failed'); }
+                        alert('Year prepared: ' + y);
+                      } catch (e2) { alert(e2.message || 'Failed'); }
+                    }}
+                  >prepare</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {setupTab === 'properties' && (
+            <PropertiesPanelExt items={items} companies={companies} loading={loading} reload={load} />
+          )}
+
+          {setupTab === 'companies' && (
+            <CompaniesPanelExt companyRecords={companyRecords} loading={loading} reload={load} />
+          )}
+
+          {setupTab === 'banks' && (
+            <BanksPanelExt banks={banks} loading={loading} reload={load} />
+          )}
+
+          {setupTab === 'taxcats' && (
+            <TaxCategoriesPanelExt taxCategories={taxCategories} loading={loading} reload={load} />
+          )}
+
+          {setupTab === 'txtypes' && (
+            <TransactionTypesPanelExt transactionTypes={transactionTypes} loading={loading} reload={load} />
+          )}
+
+          {setupTab === 'bankaccounts' && (
+            <BankAccountsPanelExt bankaccounts={bankaccounts} loading={loading} reload={load} banks={banks} />
+          )}
+
+          {setupTab === 'groups' && (
+            <GroupsPanelExt groups={groups} loading={loading} reload={load} items={items} />
+          )}
+
+          {setupTab === 'owners' && (
+            <OwnersPanelExt owners={owners} loading={loading} reload={load} bankaccounts={bankaccounts} items={items} companies={companies} />
+          )}
+        </div>
+      )}
+
+      {topTab === 'classifyrules' && (
+        <div className="tabcontent">
+          <ClassifyRulesTabs
+            classifyRules={classifyRules}
+            loading={loading}
+            load={load}
+            bankaccounts={bankaccounts}
+            items={items}
+            taxCategories={taxCategories}
+            transactionTypes={transactionTypes}
+          />
+        </div>
+      )}
+
+      {topTab === 'transactions' && (
+        <TransactionsPanel
+          bankaccounts={bankaccounts}
+          transactionsByBA={transactionsByBA}
+          txnBATab={txnBATab}
+          setTxnBATab={setTxnBATab}
+          txnOpen={txnOpen}
+          setTxnOpen={setTxnOpen}
+          txnSaving={txnSaving}
+          isTxnSaveEnabled={isTxnSaveEnabled}
+          txnMonth={txnMonth}
+          txnDay={txnDay}
+          txnForm={txnForm}
+          txnFilters={txnFilters}
+          onTxnAdd={onTxnAdd}
+          onTxnSubmit={onTxnSubmit}
+          onTxnChange={onTxnChange}
+          onTxnFilterChange={onTxnFilterChange}
+          requestTransactionsReload={requestTransactionsReload}
+          setTopTab={setTopTab}
+        />
+      )}
+
+      {topTab === 'renttracker' && (
+        <RentTrackerPanel
+          loading={rentTrackerLoading}
+          rows={rentTrackerRows}
+        />
+      )}
+
+      {topTab === 'companysummary' && (
+        <CompanySummaryPanel
+          loading={companyLoading}
+          rows={companyRows}
+          filters={companyFilters}
+          setFilters={setCompanyFilters}
+          isCSVerified={isCSVerified}
+          verifyCSCell={verifyCSCell}
+        />
+      )}
+
+      {topTab === 'rentalsummary' && (
+        <RentalSummaryPanel
+          loading={rentalLoading}
+          rows={rentalRows}
+          filters={rentalFilters}
+          setFilters={setRentalFilters}
+          isRSVerified={isRSVerified}
+          verifyRSCell={verifyRSCell}
+        />
+      )}
+
+      {topTab === 'report' && (
+        <div className="tabcontent"><div className="muted">Report UI coming soon.</div></div>
+      )}
     </div>
   );
 }
