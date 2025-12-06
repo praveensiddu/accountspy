@@ -62,7 +62,7 @@ function SetupTabs({
                     alert('Year prepared: ' + y);
                   } catch (e2) { alert(e2.message || 'Failed'); }
                 }}
-              >prepare</button>
+              >prep-for-year</button>
             </div>
           </div>
         </div>

@@ -61,9 +61,14 @@ async def prep_year(payload: PrepYearPayload) -> Dict[str, Any]:
                     # Ensure required columns exist in output
                     out_headers = list(dict.fromkeys([*(headers or []), 'tr_id', 'date', 'description', 'credit']))
                     for row in reader:
+                        old_date = (row.get('date') or '').strip()
+                        new_date = old_date
+                        # If date looks like YYYY-... update year to cur_year
+                        if len(old_date) >= 4 and old_date[0:4].isdigit():
+                            new_date = f"{cur_year}{old_date[4:]}"
                         rows.append({
                             'tr_id': row.get('tr_id',''),
-                            'date': row.get('date',''),
+                            'date': new_date,
                             'description': row.get('description',''),
                             'credit': '0',
                         })
