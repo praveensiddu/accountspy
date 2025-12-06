@@ -143,6 +143,7 @@ try:
     from backend.routers import transactions as transactions_router
     from backend.routers import rentalsummary as rentalsummary_router
     from backend.routers import companysummary as companysummary_router
+    from backend.routers import renttracker as renttracker_router
     from backend.routers import addendum as addendum_router
     from backend.routers import settings as settings_router
     app.include_router(banks_router.router)
@@ -159,6 +160,7 @@ try:
     app.include_router(rentalsummary_router.router)
     app.include_router(companysummary_router.router)
     app.include_router(settings_router.router)
+    app.include_router(renttracker_router.router)
 except Exception as e:
     logger.exception("Router include failed", exc_info=e)
 
@@ -402,6 +404,13 @@ FRONTEND_INDEX = (Path(__file__).resolve().parent.parent / "frontend" / "index.h
 
 @app.get("/classifyrules")
 async def spa_classifyrules_root():
+    if FRONTEND_INDEX.exists():
+        return FileResponse(str(FRONTEND_INDEX))
+    raise HTTPException(status_code=404, detail="index.html not found")
+
+# Rent Tracker SPA fallback
+@app.get("/renttracker")
+async def spa_renttracker_root():
     if FRONTEND_INDEX.exists():
         return FileResponse(str(FRONTEND_INDEX))
     raise HTTPException(status_code=404, detail="index.html not found")

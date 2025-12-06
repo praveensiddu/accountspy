@@ -709,6 +709,65 @@
                 )}
               </div>
             )}
+
+            {topTab === 'renttracker' && (
+              <div className="tabcontent">
+                <div className="card">
+                  {rentTrackerLoading ? (
+                    <div>Loading...</div>
+                  ) : (
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>property</th>
+                          <th>Jan</th>
+                          <th>Feb</th>
+                          <th>Mar</th>
+                          <th>Apr</th>
+                          <th>May</th>
+                          <th>Jun</th>
+                          <th>Jul</th>
+                          <th>Aug</th>
+                          <th>Sep</th>
+                          <th>Oct</th>
+                          <th>Nov</th>
+                          <th>Dec</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rentTrackerRows
+                          .slice()
+                          .sort((a, b) => {
+                            const ap = (a.property || '').toLowerCase();
+                            const bp = (b.property || '').toLowerCase();
+                            if (ap < bp) return -1; if (ap > bp) return 1; return 0;
+                          })
+                          .map((r) => (
+                          <tr key={r.property || ''}>
+                            <td>{r.property}</td>
+                            <td>{r.jan || 0}</td>
+                            <td>{r.feb || 0}</td>
+                            <td>{r.mar || 0}</td>
+                            <td>{r.apr || 0}</td>
+                            <td>{r.may || 0}</td>
+                            <td>{r.jun || 0}</td>
+                            <td>{r.jul || 0}</td>
+                            <td>{r.aug || 0}</td>
+                            <td>{r.sep || 0}</td>
+                            <td>{r.oct || 0}</td>
+                            <td>{r.nov || 0}</td>
+                            <td>{r.dec || 0}</td>
+                          </tr>
+                        ))}
+                        {rentTrackerRows.length === 0 && (
+                          <tr><td colSpan="13" className="muted">No rent tracker data</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         );
       }
@@ -2014,6 +2073,12 @@
           if (!res.ok) throw new Error('Failed to fetch rental summary');
           return res.json();
         },
+        // Rent tracker
+        async listRentTracker() {
+          const res = await fetch('/api/rent-tracker');
+          if (!res.ok) throw new Error('Failed to fetch rent tracker');
+          return res.json();
+        },
         // Company summary
         async listCompanySummary() {
           const res = await fetch('/api/company-summary');
@@ -2378,6 +2443,7 @@
             if (path.startsWith('/setup')) return 'setup';
             if (path.startsWith('/classifyrules')) return 'classifyrules';
             if (path.startsWith('/transactions')) return 'transactions';
+            if (path.startsWith('/renttracker')) return 'renttracker';
             if (path.startsWith('/rentalsummary')) return 'rentalsummary';
             if (path.startsWith('/companysummary')) return 'companysummary';
             if (path.startsWith('/report')) return 'report';
@@ -2385,7 +2451,7 @@
           } catch (_) {
             return 'setup';
           }
-        }); // 'setup' | 'classifyrules' | 'transactions' | 'rentalsummary' | 'companysummary' | 'report'
+        }); // 'setup' | 'classifyrules' | 'transactions' | 'renttracker' | 'rentalsummary' | 'companysummary' | 'report'
 
         const [setupTab, setSetupTab] = useState(() => {
           try {
@@ -2464,6 +2530,8 @@
               path = `/classifyrules/${crSubToSlug(sub)}`;
             } else if (topTab === 'transactions') {
               path = '/transactions';
+            } else if (topTab === 'renttracker') {
+              path = '/renttracker';
             } else if (topTab === 'rentalsummary') {
               path = '/rentalsummary';
             } else if (topTab === 'companysummary') {
@@ -2537,6 +2605,23 @@
           } finally { setRentalLoading(false); }
         }, []);
         useEffect(() => { if (topTab === 'rentalsummary') loadRentalSummary(); }, [topTab, loadRentalSummary]);
+
+        // Rent tracker state (per-property monthly rent)
+        const [rentTrackerRows, setRentTrackerRows] = useState([]);
+        const [rentTrackerLoading, setRentTrackerLoading] = useState(false);
+        const loadRentTracker = React.useCallback(async () => {
+          try {
+            setRentTrackerLoading(true);
+            const rows = await api.listRentTracker();
+            setRentTrackerRows(Array.isArray(rows) ? rows : []);
+          } catch (e) {
+            console.error(e);
+            setRentTrackerRows([]);
+          } finally {
+            setRentTrackerLoading(false);
+          }
+        }, []);
+        useEffect(() => { if (topTab === 'renttracker') loadRentTracker(); }, [topTab, loadRentTracker]);
 
         const isRSVerified = (row, field) => {
           try {
@@ -2945,6 +3030,7 @@
               <TabButton active={topTab==='setup'} onClick={() => setTopTab('setup')}>Setup</TabButton>
               <TabButton active={topTab==='classifyrules'} onClick={() => setTopTab('classifyrules')}>ClassifyRules</TabButton>
               <TabButton active={topTab==='transactions'} onClick={() => setTopTab('transactions')}>Transactions</TabButton>
+              <TabButton active={topTab==='renttracker'} onClick={() => setTopTab('renttracker')}>RentTracker</TabButton>
               <TabButton active={topTab==='rentalsummary'} onClick={() => setTopTab('rentalsummary')}>RentalSummary</TabButton>
               <TabButton active={topTab==='companysummary'} onClick={() => setTopTab('companysummary')}>CompanySummary</TabButton>
               <TabButton active={topTab==='report'} onClick={() => setTopTab('report')}>Report</TabButton>
