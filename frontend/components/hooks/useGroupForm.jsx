@@ -1,38 +1,74 @@
 const { useState } = React;
 
-function useGroupForm(api, groups, setGroups, setError) {
-  const emptyGroup = { groupname: '', propertylist: '' };
-  const [groupForm, setGroupForm] = useState(emptyGroup);
-  const [savingGroup, setSavingGroup] = useState(false);
+// Hook encapsulating the full GroupsPanelExt behavior, including
+// add/edit modes, originalKey tracking, and modal open state.
+function useGroupForm({ reload }) {
+  const empty = { groupname: '', propertylist: [] };
+  const [form, setForm] = useState(empty);
+  const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState('add');
+  const [originalKey, setOriginalKey] = useState('');
 
-  const onGroupChange = (e) => {
-    const { name, value } = e.target;
+  const onChange = (e) => {
+    const { name, value, multiple, selectedOptions } = e.target;
     if (name === 'groupname') {
       const sanitized = (value || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
-      setGroupForm({ ...groupForm, [name]: sanitized });
+      setForm({ ...form, [name]: sanitized });
+    } else if (name === 'propertylist' && multiple) {
+      const selected = Array.from(selectedOptions || []).map(o => (o.value || '').toLowerCase());
+      setForm({ ...form, [name]: selected });
     } else {
-      setGroupForm({ ...groupForm, [name]: value });
+      setForm({ ...form, [name]: value });
     }
   };
 
-  const onGroupSubmit = async (e) => {
-    e.preventDefault(); setSavingGroup(true); setError('');
+  const onSubmit = async (e) => {
+    e.preventDefault(); setSaving(true);
     try {
-      const payload = { groupname: groupForm.groupname, propertylist: (groupForm.propertylist || '').split('|').map(s=>s.trim().toLowerCase()).filter(Boolean) };
+      const payload = { groupname: form.groupname, propertylist: Array.from(new Set((form.propertylist || []).map(s=> (s || '').toLowerCase()))) };
       if (!payload.groupname) throw new Error('groupname is required');
-      const created = await api.addGroup(payload);
-      setGroups([ ...groups, created ]);
-      setGroupForm(emptyGroup);
-    } catch (e2) { setError(e2.message || 'Error'); } finally { setSavingGroup(false); }
+      if (mode === 'edit' && originalKey) {
+        await window.api.removeGroup(originalKey);
+      }
+      await window.api.addGroup(payload);
+      setForm(empty);
+      setOriginalKey('');
+      setMode('add');
+      setOpen(false);
+      await reload();
+    } catch (e2) { alert(e2.message || 'Error'); } finally { setSaving(false); }
   };
 
-  const onGroupDelete = async (name) => {
-    if (!confirm(`Delete ${name}?`)) return;
-    try { await api.removeGroup(name); setGroups(groups.filter(x => x.groupname !== name)); }
+  const onDelete = async (name) => {
+    if (!(await window.showConfirm(`Delete ${name}?`))) return;
+    try { await window.api.removeGroup(name); await reload(); }
     catch (e2) { alert(e2.message || 'Error'); }
   };
 
-  return { groupForm, setGroupForm, savingGroup, onGroupChange, onGroupSubmit, onGroupDelete };
+  const onEdit = (x) => {
+    setMode('edit');
+    setOriginalKey(x.groupname);
+    setForm({ groupname: (x.groupname || '').toLowerCase(), propertylist: (x.propertylist || []).map(v => (v || '').toLowerCase()) });
+    setOpen(true);
+  };
+
+  return {
+    empty,
+    form,
+    setForm,
+    saving,
+    open,
+    setOpen,
+    mode,
+    setMode,
+    originalKey,
+    setOriginalKey,
+    onChange,
+    onSubmit,
+    onDelete,
+    onEdit,
+  };
 }
 
 window.useGroupForm = useGroupForm;

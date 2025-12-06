@@ -1,27 +1,26 @@
 const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companies }) => {
   const Modal = window.Modal;
   const MultiSelect = window.MultiSelect;
-  const empty = { name: '', bankaccounts: [], properties: [], companies: [], export_dir: '' };
-  const [form, setForm] = React.useState(empty);
-  const [saving, setSaving] = React.useState(false);
-  const [open, setOpen] = React.useState(false);
-  const [mode, setMode] = React.useState('add');
-  const [originalKey, setOriginalKey] = React.useState('');
+  const {
+    empty,
+    form,
+    setForm,
+    saving,
+    open,
+    setOpen,
+    mode,
+    setMode,
+    originalKey,
+    setOriginalKey,
+    onChange,
+    onSubmit,
+    onDelete,
+    onEdit,
+  } = window.useOwnerForm({ reload });
   const [filter, setFilter] = React.useState({ name: '', bankaccounts: '', properties: '', companies: '', export_dir: '' });
   const [exportOpen, setExportOpen] = React.useState(false);
   const [exportFiles, setExportFiles] = React.useState([]);
   const [exportTitle, setExportTitle] = React.useState('Export Successful');
-  const onChange = (e) => {
-    const { name, value, multiple, selectedOptions } = e.target;
-    if (name === 'name') {
-      setForm({ ...form, [name]: (value || '').toLowerCase().replace(/[^a-z0-9_]/g, '') });
-    } else if (multiple) {
-      const selected = Array.from(selectedOptions || []).map(o => (o.value || '').toLowerCase());
-      setForm({ ...form, [name]: selected });
-    } else {
-      setForm({ ...form, [name]: value });
-    }
-  };
   const onPrep = async (name) => {
     try {
       const res = await fetch('/api/owners/prepentities', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
@@ -70,45 +69,6 @@ const OwnersPanelExt = ({ owners, loading, reload, bankaccounts, items, companie
     } catch (e) {
       alert(e.message || 'Export failed');
     }
-  };
-  const onSubmit = async (e) => {
-    e.preventDefault(); setSaving(true);
-    try {
-      if (!form.name) throw new Error('name is required');
-      const payload = {
-        name: form.name,
-        bankaccounts: Array.from(new Set((form.bankaccounts || []).map(s => (s || '').toLowerCase()))),
-        properties: Array.from(new Set((form.properties || []).map(s => (s || '').toLowerCase()))),
-        companies: Array.from(new Set((form.companies || []).map(s => (s || '').toLowerCase()))),
-        export_dir: (form.export_dir || '').trim(),
-      };
-      if (mode === 'edit' && originalKey) {
-        await window.api.removeOwner(originalKey);
-      }
-      await window.api.addOwner(payload);
-      setForm(empty);
-      setOriginalKey('');
-      setMode('add');
-      setOpen(false);
-      await reload();
-    } catch (e) { alert(e.message || 'Error'); } finally { setSaving(false); }
-  };
-  const onDelete = async (name) => {
-    if (!(await window.showConfirm(`Delete ${name}?`))) return;
-    try { await window.api.removeOwner(name); await reload(); } catch (e) { alert(e.message || 'Error'); }
-  };
-  const onEdit = (x) => {
-    setMode('edit');
-    setOriginalKey(x.name);
-    const lc = (arr) => (arr || []).map(v => (v || '').toLowerCase());
-    setForm({
-      name: (x.name || '').toLowerCase(),
-      bankaccounts: lc(x.bankaccounts),
-      properties: lc(x.properties),
-      companies: lc(x.companies),
-      export_dir: (x.export_dir || ''),
-    });
-    setOpen(true);
   };
   const onExport = async (name) => {
     try {
