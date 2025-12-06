@@ -1,42 +1,24 @@
 const TaxCategoriesPanelExt = ({ taxCategories, loading, reload }) => {
   const Modal = window.Modal;
-  const [form, setForm] = React.useState({ category: '' });
-  const [saving, setSaving] = React.useState(false);
-  const [error, setError] = React.useState('');
-  const [open, setOpen] = React.useState(false);
-  const [mode, setMode] = React.useState('add');
-  const [originalKey, setOriginalKey] = React.useState('');
+  const {
+    empty,
+    form,
+    setForm,
+    saving,
+    error,
+    setError,
+    open,
+    setOpen,
+    mode,
+    setMode,
+    originalKey,
+    setOriginalKey,
+    onChange,
+    onSubmit,
+    onDelete,
+    onEdit,
+  } = window.useTaxCategoryForm({ reload });
   const [filter, setFilter] = React.useState({ category: '' });
-  const onChange = (e) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: name === 'category' ? (value || '').trim().toLowerCase() : value }));
-  };
-  const onSubmit = async (e) => {
-    e.preventDefault(); setSaving(true); setError('');
-    try {
-      const category = (form.category || '').trim().toLowerCase();
-      if (!category) throw new Error('category is required');
-      if (mode === 'edit' && originalKey) {
-        await window.api.removeTaxCategory(originalKey);
-      }
-      await window.api.addTaxCategory({ category });
-      setForm({ category: '' });
-      setOriginalKey('');
-      setMode('add');
-      setOpen(false);
-      await reload();
-    } catch (err) { setError(err.message || 'Error'); } finally { setSaving(false); }
-  };
-  const onDelete = async (category) => {
-    if (!(await window.showConfirm(`Delete ${category}?`))) return;
-    try { await window.api.removeTaxCategory(category); await reload(); } catch (err) { alert(err.message || 'Error'); }
-  };
-  const onEdit = (t) => {
-    setMode('edit');
-    setOriginalKey(t.category);
-    setForm({ category: t.category });
-    setOpen(true);
-  };
   return (
     <React.Fragment>
       <h2>Tax Categories</h2>

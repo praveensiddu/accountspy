@@ -1,36 +1,24 @@
 const TransactionTypesPanelExt = ({ transactionTypes, loading, reload }) => {
   const Modal = window.Modal;
-  const [form, setForm] = React.useState({ transactiontype: '' });
-  const [saving, setSaving] = React.useState(false);
-  const [error, setError] = React.useState('');
-  const [open, setOpen] = React.useState(false);
-  const [mode, setMode] = React.useState('add');
-  const [originalKey, setOriginalKey] = React.useState('');
+  const {
+    empty,
+    form,
+    setForm,
+    saving,
+    error,
+    setError,
+    open,
+    setOpen,
+    mode,
+    setMode,
+    originalKey,
+    setOriginalKey,
+    onChange,
+    onSubmit,
+    onDelete,
+    onEdit,
+  } = window.useTransactionTypeForm({ reload });
   const [filter, setFilter] = React.useState({ transactiontype: '' });
-  const onChange = (e) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: name === 'transactiontype' ? (value || '').trim().toLowerCase() : value }));
-  };
-  const onSubmit = async (e) => {
-    e.preventDefault(); setSaving(true); setError('');
-    try {
-      const transactiontype = (form.transactiontype || '').trim().toLowerCase();
-      if (!transactiontype) throw new Error('transactiontype is required');
-      if (mode === 'edit' && originalKey) {
-        await window.api.removeTransactionType(originalKey);
-      }
-      await window.api.addTransactionType({ transactiontype });
-      setForm({ transactiontype: '' });
-      setOriginalKey('');
-      setMode('add');
-      setOpen(false);
-      await reload();
-    } catch (err) { setError(err.message || 'Error'); } finally { setSaving(false); }
-  };
-  const onDelete = async (tt) => {
-    if (!(await window.showConfirm(`Delete ${tt}?`))) return;
-    try { await window.api.removeTransactionType(tt); await reload(); } catch (err) { alert(err.message || 'Error'); }
-  };
   const onRename = async (oldName) => {
     try {
       const input = window.prompt('New transaction type name (lowercase, a-z0-9_)', oldName);
@@ -49,12 +37,6 @@ const TransactionTypesPanelExt = ({ transactionTypes, loading, reload }) => {
     } catch (err) {
       alert(err.message || 'Rename failed');
     }
-  };
-  const onEdit = (t) => {
-    setMode('edit');
-    setOriginalKey(t.transactiontype);
-    setForm({ transactiontype: t.transactiontype });
-    setOpen(true);
   };
   return (
     <React.Fragment>
