@@ -94,9 +94,17 @@ function RentalSummaryPanel({
                     {metricFields.map((f,i)=> {
                       const tooltip = (() => {
                         try {
-                          const rev = r && r._reverse && r._reverse[f];
-                          if (!rev || !Array.isArray(rev) || rev.length === 0) return '';
-                          const lines = rev.map(x => `${x.bankaccountname||''} | ${x.description||''} | ${x.credit!=null?x.credit:''}`);
+                          const rev = r && r._reverse;
+                          if (!rev || typeof rev !== 'object') return '';
+                          const lines = [];
+                          Object.keys(rev).forEach((k) => {
+                            const arr = rev[k];
+                            if (!Array.isArray(arr) || arr.length === 0) return;
+                            arr.forEach((x) => {
+                              lines.push(`${x.bankaccountname||''} | ${x.description||''} | ${x.credit!=null?x.credit:''}`);
+                            });
+                          });
+                          if (lines.length === 0) return '';
                           return lines.join('\n');
                         } catch(_) { return ''; }
                       })();

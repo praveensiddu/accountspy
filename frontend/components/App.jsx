@@ -373,8 +373,9 @@ function App() {
   const isRSVerified = (row, field) => {
     try {
       if (!row || !row._verified) return false;
-      const v = row._verified[field];
-      return v === true || v === 'true' || v === '1';
+      // Rental summary verification uses the presence of a key in _verified
+      // (with any value, including numeric) to mean "verified".
+      return Object.prototype.hasOwnProperty.call(row._verified, field);
     } catch (_) { return false; }
   };
 
