@@ -372,6 +372,40 @@ function BankRulesTabs({ bankaccounts, items, taxCategories, transactionTypes, g
       console.error(err);
     } finally { setSaving(false); }
   };
+  const handleUpdateOrder = async (r) => {
+    try {
+      const bank = (r.bankaccountname || '').toLowerCase();
+      if (!bank) return;
+      const cur = Number(r.order || 0);
+      if (!Number.isFinite(cur) || cur < 1) return;
+      const input = window.prompt('Enter new order (1..n)', String(cur));
+      if (input == null) return;
+      const next = Number(String(input).trim());
+      if (!Number.isFinite(next) || next < 1) {
+        alert('Order must be an integer >= 1');
+        return;
+      }
+      const qs = new URLSearchParams({ bankaccountname: bank }).toString();
+      const payload = { currentorder: cur, updatedorder: next };
+      setLoading(true);
+      const res = await fetch(`/api/bank-rules/update-order?${qs}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        throw new Error(t || 'Failed to update order');
+      }
+      await loadRules(bank);
+      try { if (typeof window.requestTransactionsReload === 'function') await window.requestTransactionsReload(); } catch (_) {}
+    } catch (e) {
+      console.error(e);
+      alert((e && e.message) || 'Failed to update order');
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleDelete = async (r) => {
     if (!(await confirmAsync('Delete rule?'))) return;
     const params = {
@@ -624,6 +658,13 @@ function BankRulesTabs({ bankaccounts, items, taxCategories, transactionTypes, g
                               onClick={() => handleEdit(r)}
                             >
                               Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="px-2 py-1 bg-gray-600 text-white rounded-md text-xs hover:bg-gray-700"
+                              onClick={() => handleUpdateOrder(r)}
+                            >
+                              Update&nbsp;Order
                             </button>
                             <button
                               type="button"

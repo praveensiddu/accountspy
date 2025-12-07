@@ -132,7 +132,7 @@ function RentalSummaryPanel({
                   <tr key="rs-total">
                     <td className="font-semibold">total</td>
                     {metricFields.map((f, i) => (
-                      <td key={`t-${i}`} className="font-semibold">{totals[f]}</td>
+                      <td key={`t-${i}`} className="font-semibold">{Math.round(totals[f] || 0)}</td>
                     ))}
                   </tr>
                 )}
