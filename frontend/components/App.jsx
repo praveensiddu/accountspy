@@ -671,6 +671,11 @@ function App() {
   const TabButton = window.TabButton;
   const ExportModal = window.ExportModal;
   const SetupTabs = window.SetupTabs;
+  const ClassifyRulesTabs = window.ClassifyRulesTabs || (() => null);
+  const TransactionsPanel = window.TransactionsPanel || (() => null);
+  const RentTrackerPanel = window.RentTrackerPanel || (() => null);
+  const CompanySummaryPanel = window.CompanySummaryPanel || (() => null);
+  const RentalSummaryPanel = window.RentalSummaryPanel || (() => null);
   const { exporting, exportResult, handleExport, closeExportModal } = window.useExportAccounts();
   return (
     <div className="container" style={{ position: 'relative' }}>

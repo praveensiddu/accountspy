@@ -10,6 +10,19 @@ function RentTrackerPanel({ loading, rows }) {
     });
   }, [rows]);
 
+  const totals = useMemo(() => {
+    const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+    const acc = { jan:0, feb:0, mar:0, apr:0, may:0, jun:0, jul:0, aug:0, sep:0, oct:0, nov:0, dec:0 };
+    for (const r of (sortedRows || [])) {
+      for (const m of months) {
+        const raw = (r[m] == null ? 0 : r[m]);
+        const v = Number(raw);
+        if (Number.isFinite(v)) acc[m] += v;
+      }
+    }
+    return acc;
+  }, [sortedRows]);
+
   return (
     <div className="tabcontent">
       <div className="card">
@@ -54,6 +67,23 @@ function RentTrackerPanel({ loading, rows }) {
               ))}
               {sortedRows.length === 0 && (
                 <tr><td colSpan="13" className="muted">No rent tracker data</td></tr>
+              )}
+              {sortedRows.length > 0 && (
+                <tr>
+                  <td><strong>Total</strong></td>
+                  <td>{totals.jan}</td>
+                  <td>{totals.feb}</td>
+                  <td>{totals.mar}</td>
+                  <td>{totals.apr}</td>
+                  <td>{totals.may}</td>
+                  <td>{totals.jun}</td>
+                  <td>{totals.jul}</td>
+                  <td>{totals.aug}</td>
+                  <td>{totals.sep}</td>
+                  <td>{totals.oct}</td>
+                  <td>{totals.nov}</td>
+                  <td>{totals.dec}</td>
+                </tr>
               )}
             </tbody>
           </table>
