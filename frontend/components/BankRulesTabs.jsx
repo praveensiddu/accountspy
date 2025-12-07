@@ -617,9 +617,21 @@ function BankRulesTabs({ bankaccounts, items, taxCategories, transactionTypes, g
                         <td>{r.otherentity}</td>
                         <td>{r.usedcount}</td>
                         <td>
-                          <div className="actions">
-                            <button type="button" onClick={() => handleEdit(r)}>Edit</button>
-                            <button type="button" onClick={() => handleDelete(r)}>Delete</button>
+                          <div className="actions flex gap-2">
+                            <button
+                              type="button"
+                              className="px-2 py-1 bg-blue-600 text-white rounded-md text-xs hover:bg-blue-700"
+                              onClick={() => handleEdit(r)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="px-2 py-1 bg-red-600 text-white rounded-md text-xs hover:bg-red-700"
+                              onClick={() => handleDelete(r)}
+                            >
+                              Delete
+                            </button>
                           </div>
                         </td>
                       </tr>
