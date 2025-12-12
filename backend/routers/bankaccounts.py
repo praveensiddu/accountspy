@@ -8,6 +8,7 @@ from ..core.models import BankAccountRecord
 from ..core.utils import dump_yaml_entities
 from ..bank_statement_parser import _normalize_date, _process_bank_statement_for_account
 from ..classify import classify_bank
+from ..property_sum import prepare_and_save_property_sum
 
 router = APIRouter(prefix="/api", tags=["bankaccounts"])
 
@@ -259,6 +260,12 @@ async def upload_bank_statement(bankaccountname: str, file: UploadFile = File(..
         _process_bank_statement_for_account(key, cfg, dest_path, normalized_dir, state.logger)
         # Classify this bank account using the freshly normalized data
         classify_bank(key)
+        # Recompute per-property rental summaries after classification
+        try:
+            prepare_and_save_property_sum()
+        except Exception:
+            # Do not fail the upload if summary recomputation fails; it is a derived artifact
+            state.logger.exception("Failed to update property summary after upload")
     except Exception as e:
         # Surface errors so caller knows normalization/classification failed
         raise HTTPException(status_code=500, detail=f"Failed to normalize or classify statement: {e}")
